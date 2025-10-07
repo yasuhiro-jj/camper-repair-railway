@@ -928,57 +928,38 @@ class NotionClient:
             case_db_id = self._get_database_id("CASE_DB_ID", "NOTION_REPAIR_CASE_DB_ID")
             
             if not case_db_id:
-                if st:
-                    st.error("❌ 修理ケースDBのIDが設定されていません")
-                    st.info("💡 解決方法:")
-                    st.info("1. .streamlit/secrets.tomlにCASE_DB_IDを設定")
-                    st.info("2. 環境変数CASE_DB_IDを設定")
-                    st.info("3. NotionデータベースのIDを確認")
-                else:
-                    print("❌ 修理ケースDBのIDが設定されていません")
+                print("❌ 修理ケースDBのIDが設定されていません")
+                print("💡 解決方法:")
+                print("1. 環境変数CASE_DB_IDを設定")
+                print("2. NotionデータベースのIDを確認")
                 return None
             
             # Notionから修理ケースデータを取得
             try:
+                print(f"🔍 修理ケースDBからデータを取得中... (ID: {case_db_id})")
                 response = self.client.databases.query(database_id=case_db_id)
                 cases = response.get("results", [])
                 
+                print(f"📊 取得した修理ケース数: {len(cases)}件")
+                
                 if not cases:
-                    if st:
-                        st.warning("⚠️ 修理ケースDBにデータがありません")
-                        st.info("💡 Notionデータベースに修理ケースを追加してください")
-                    else:
-                        print("⚠️ 修理ケースDBにデータがありません")
+                    print("⚠️ 修理ケースDBにデータがありません")
+                    print("💡 Notionデータベースに修理ケースを追加してください")
                     return None
                     
             except Exception as e:
                 error_msg = str(e)
-                if st:
-                    st.error(f"❌ 修理ケースDBのクエリに失敗: {error_msg}")
-                else:
-                    print(f"❌ 修理ケースDBのクエリに失敗: {error_msg}")
+                print(f"❌ 修理ケースDBのクエリに失敗: {error_msg}")
                 
                 if "not_found" in error_msg.lower() or "404" in error_msg:
-                    if st:
-                        st.info("💡 解決方法: データベースIDが間違っています")
-                        st.info(f"   現在のID: {case_db_id}")
-                    else:
-                        print("💡 解決方法: データベースIDが間違っています")
+                    print("💡 解決方法: データベースIDが間違っています")
+                    print(f"   現在のID: {case_db_id}")
                 elif "unauthorized" in error_msg.lower() or "401" in error_msg:
-                    if st:
-                        st.info("💡 解決方法: APIキーにデータベースへのアクセス権限がありません")
-                    else:
-                        print("💡 解決方法: APIキーにデータベースへのアクセス権限がありません")
+                    print("💡 解決方法: APIキーにデータベースへのアクセス権限がありません")
                 elif "rate_limited" in error_msg.lower() or "429" in error_msg:
-                    if st:
-                        st.info("💡 解決方法: API制限に達しました。しばらく待ってから再試行してください")
-                    else:
-                        print("💡 解決方法: API制限に達しました。しばらく待ってから再試行してください")
+                    print("💡 解決方法: API制限に達しました。しばらく待ってから再試行してください")
                 else:
-                    if st:
-                        st.info("💡 解決方法: ネットワーク接続とAPIキーの権限を確認してください")
-                    else:
-                        print("💡 解決方法: ネットワーク接続とAPIキーの権限を確認してください")
+                    print("💡 解決方法: ネットワーク接続とAPIキーの権限を確認してください")
                 
                 return None
             
