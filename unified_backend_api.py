@@ -588,15 +588,70 @@ def repair_advice_search():
                     if cost_info:
                         full_content = f"💰 費用情報:\n{cost_info}\n\n" + full_content
                     
-                    search_results.append({
-                        "title": f"📚 {query}の修理情報（RAG）",
-                        "content": full_content,
-                        "source": "知識ベース（RAG）",
-                        "category": "修理情報",
-                        "url": None,
-                        "relevance": "high"
-                    })
-                    print(f"  ✅ マニュアルコンテンツを追加（費用情報含む）")
+                    # LLMを使って人間的な回答を生成
+                    try:
+                        from langchain_openai import ChatOpenAI
+                        from langchain_core.messages import HumanMessage, SystemMessage
+                        
+                        # LLMの初期化
+                        llm = ChatOpenAI(
+                            model="gpt-3.5-turbo",
+                            temperature=0.7,
+                            openai_api_key=os.getenv("OPENAI_API_KEY")
+                        )
+                        
+                        # システムプロンプト
+                        system_prompt = """あなたはキャンピングカーの修理専門家です。
+知識ベースから取得した修理情報を基に、ユーザーにとって分かりやすく、実用的な修理アドバイスを提供してください。
+
+以下の情報を含めて、人間らしい口調で回答してください：
+- 具体的な症状の説明
+- 段階的な修理手順
+- 必要な工具や部品
+- 費用の目安
+- 難易度と時間の目安
+- 安全上の注意点
+
+専門的でありながら、初心者にも理解しやすい説明を心がけてください。"""
+                        
+                        # ユーザープロンプト
+                        user_prompt = f"""以下の知識ベース情報を基に、「{query}」についての修理アドバイスを生成してください：
+
+{full_content}
+
+上記の情報を参考に、実用的で分かりやすい修理ガイドを作成してください。"""
+                        
+                        # LLMに送信
+                        messages = [
+                            SystemMessage(content=system_prompt),
+                            HumanMessage(content=user_prompt)
+                        ]
+                        
+                        response = llm.invoke(messages)
+                        human_content = response.content
+                        
+                        search_results.append({
+                            "title": f"📚 {query}の修理情報（AI生成）",
+                            "content": human_content,
+                            "source": "知識ベース（RAG）+ AI生成",
+                            "category": "修理情報",
+                            "url": None,
+                            "relevance": "high"
+                        })
+                        print(f"  ✅ AI生成回答完了: {len(human_content)}文字")
+                        
+                    except Exception as e:
+                        print(f"⚠️ AI生成エラー: {e}")
+                        # フォールバック: 元の情報をそのまま使用
+                        search_results.append({
+                            "title": f"📚 {query}の修理情報（RAG）",
+                            "content": full_content,
+                            "source": "知識ベース（RAG）",
+                            "category": "修理情報",
+                            "url": None,
+                            "relevance": "high"
+                        })
+                        print(f"  ✅ マニュアルコンテンツを追加（費用情報含む）")
                 
                 # テキストファイルコンテンツがある場合
                 text_content = rag_results.get('text_file_content', '')
@@ -680,14 +735,70 @@ def repair_advice_search():
                                 if case.get('time_estimate'):
                                     content_parts.append(f"⏱️ 推定時間: {case['time_estimate']}")
                                 
-                                search_results.append({
-                                    'title': f'🔧 {case.get("title", "修理ケース")}',
-                                    'content': '\n'.join(content_parts),
-                                    'source': 'Notionデータベース',
-                                    'category': case.get('category', '修理ケース'),
-                                    'url': case.get('url', ''),
-                                    'relevance': 'high'
-                                })
+                                # LLMを使って人間的な回答を生成
+                                try:
+                                    from langchain_openai import ChatOpenAI
+                                    from langchain_core.messages import HumanMessage, SystemMessage
+                                    
+                                    # LLMの初期化
+                                    llm = ChatOpenAI(
+                                        model="gpt-3.5-turbo",
+                                        temperature=0.7,
+                                        openai_api_key=os.getenv("OPENAI_API_KEY")
+                                    )
+                                    
+                                    # システムプロンプト
+                                    system_prompt = """あなたはキャンピングカーの修理専門家です。
+Notionデータベースから取得した修理ケース情報を基に、ユーザーにとって分かりやすく、実用的な修理アドバイスを提供してください。
+
+以下の情報を含めて、人間らしい口調で回答してください：
+- 具体的な症状の説明
+- 段階的な修理手順
+- 必要な工具や部品
+- 費用の目安
+- 難易度と時間の目安
+- 安全上の注意点
+
+専門的でありながら、初心者にも理解しやすい説明を心がけてください。"""
+                                    
+                                    # ユーザープロンプト
+                                    user_prompt = f"""以下の修理ケース情報を基に、「{query}」についての修理アドバイスを生成してください：
+
+{chr(10).join(content_parts)}
+
+上記の情報を参考に、実用的で分かりやすい修理ガイドを作成してください。"""
+                                    
+                                    # LLMに送信
+                                    messages = [
+                                        SystemMessage(content=system_prompt),
+                                        HumanMessage(content=user_prompt)
+                                    ]
+                                    
+                                    response = llm.invoke(messages)
+                                    human_content = response.content
+                                    
+                                    search_results.append({
+                                        'title': f'🔧 {case.get("title", "修理ケース")} - 専門家アドバイス',
+                                        'content': human_content,
+                                        'source': 'Notionデータベース + AI生成',
+                                        'category': case.get('category', '修理ケース'),
+                                        'url': case.get('url', ''),
+                                        'relevance': 'high'
+                                    })
+                                    
+                                    print(f"✅ AI生成回答完了: {len(human_content)}文字")
+                                    
+                                except Exception as e:
+                                    print(f"⚠️ AI生成エラー: {e}")
+                                    # フォールバック: 元の情報をそのまま使用
+                                    search_results.append({
+                                        'title': f'🔧 {case.get("title", "修理ケース")}',
+                                        'content': '\n'.join(content_parts),
+                                        'source': 'Notionデータベース',
+                                        'category': case.get('category', '修理ケース'),
+                                        'url': case.get('url', ''),
+                                        'relevance': 'high'
+                                    })
                                 
                                 print(f"✅ Notion修理ケース検索結果: {len(search_results)}件")
                                 break  # 最初の一致するケースのみ追加
