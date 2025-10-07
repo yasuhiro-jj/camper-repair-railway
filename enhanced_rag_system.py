@@ -471,7 +471,14 @@ def create_notion_based_rag_system(use_text_files=False):
     print("🔄 Notionからナレッジベースデータを取得中...")
     try:
         from data_access.notion_client import notion_client
-        knowledge_items = notion_client.load_knowledge_base()
+        print(f"🔍 Notionクライアント状態: {notion_client is not None}")
+        if notion_client:
+            print("🔍 Notionクライアントの初期化状況を確認中...")
+            knowledge_items = notion_client.load_knowledge_base()
+            print(f"📊 取得したナレッジベースアイテム数: {len(knowledge_items) if knowledge_items else 0}")
+        else:
+            print("❌ Notionクライアントが利用できません")
+            knowledge_items = None
         
         if knowledge_items:
             for item in knowledge_items:
@@ -529,10 +536,12 @@ def create_notion_based_rag_system(use_text_files=False):
         else:
             print("⚠️ Notionナレッジベースが空です")
     
-    except ImportError:
-        print("⚠️ Notionクライアントが利用できません")
+    except ImportError as e:
+        print(f"⚠️ Notionクライアントのインポートエラー: {e}")
     except Exception as e:
         print(f"⚠️ Notionデータ取得エラー: {e}")
+        import traceback
+        traceback.print_exc()
     
     # オプション: テキストファイルも含める
     if use_text_files:
@@ -622,6 +631,8 @@ def create_notion_based_rag_system(use_text_files=False):
     
     except Exception as e:
         print(f"⚠️ Notion修理ケース取得エラー: {e}")
+        import traceback
+        traceback.print_exc()
     
     print(f"✅ 総ドキュメント数: {len(documents)}件")
     
