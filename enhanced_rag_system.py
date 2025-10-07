@@ -643,6 +643,9 @@ def create_notion_based_rag_system(use_text_files=False):
     # ChromaDBが利用可能かチェック
     if not CHROMA_AVAILABLE:
         print("❌ ChromaDBが利用できません。langchain-chromaとchromadbをインストールしてください。")
+        print("💡 解決方法:")
+        print("1. pip install langchain-chroma")
+        print("2. pip install chromadb")
         return None
     
     # 既存のデータベースを削除して新規作成

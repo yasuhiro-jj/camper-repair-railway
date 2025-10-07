@@ -636,6 +636,66 @@ def repair_advice_search():
                 traceback.print_exc()
         else:
             print("⚠️ RAGシステムが初期化されていません")
+            print("🔍 Notionデータベースを直接検索します...")
+            
+            # Notionデータベースを直接検索（RAGが失敗した場合のフォールバック）
+            if NOTION_AVAILABLE and notion_client_instance:
+                try:
+                    print("🔍 Notionデータベースを直接検索中...")
+                    repair_cases = notion_client_instance.load_repair_cases()
+                    if repair_cases:
+                        print(f"📊 修理ケース数: {len(repair_cases)}件")
+                        
+                        # クエリに関連する修理ケースを検索
+                        query_lower = query.lower()
+                        for case in repair_cases[:5]:  # 最初の5件をチェック
+                            case_text = f"{case.get('title', '')} {case.get('category', '')} {case.get('solution', '')}".lower()
+                            if any(keyword in case_text for keyword in query_lower.split()):
+                                # 具体的な修理情報を構築
+                                content_parts = []
+                                
+                                if case.get('title'):
+                                    content_parts.append(f"🔧 ケースID: {case['title']}")
+                                
+                                if case.get('category'):
+                                    content_parts.append(f"📂 カテゴリ: {case['category']}")
+                                
+                                if case.get('symptoms'):
+                                    symptoms = case['symptoms']
+                                    if isinstance(symptoms, list):
+                                        symptoms_str = ', '.join(str(s) for s in symptoms if s)
+                                    else:
+                                        symptoms_str = str(symptoms)
+                                    content_parts.append(f"🔍 症状: {symptoms_str}")
+                                
+                                if case.get('solution'):
+                                    content_parts.append(f"🛠️ 解決方法: {case['solution']}")
+                                
+                                if case.get('cost'):
+                                    content_parts.append(f"💰 費用目安: {case['cost']}円")
+                                
+                                if case.get('difficulty'):
+                                    content_parts.append(f"⚙️ 難易度: {case['difficulty']}")
+                                
+                                if case.get('time_estimate'):
+                                    content_parts.append(f"⏱️ 推定時間: {case['time_estimate']}")
+                                
+                                search_results.append({
+                                    'title': f'🔧 {case.get("title", "修理ケース")}',
+                                    'content': '\n'.join(content_parts),
+                                    'source': 'Notionデータベース',
+                                    'category': case.get('category', '修理ケース'),
+                                    'url': case.get('url', ''),
+                                    'relevance': 'high'
+                                })
+                                
+                                print(f"✅ Notion修理ケース検索結果: {len(search_results)}件")
+                                break  # 最初の一致するケースのみ追加
+                    
+                except Exception as e:
+                    print(f"⚠️ Notion直接検索エラー: {e}")
+                    import traceback
+                    traceback.print_exc()
         
         # 2. Notion検索（修理ケースDBから費用情報を含む結果を取得）
         if NOTION_AVAILABLE and notion_client_instance:
