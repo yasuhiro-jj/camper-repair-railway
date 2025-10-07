@@ -549,7 +549,17 @@ def repair_advice_search():
     """修理アドバイスセンター用検索API"""
     try:
         print(f"🔍 検索API呼び出し: {request.method} {request.url}")
-        data = request.get_json()
+        
+        # リクエストデータの取得と検証
+        try:
+            data = request.get_json()
+            if not data:
+                print("❌ リクエストデータが空です")
+                return jsonify({"error": "リクエストデータが空です"}), 400
+        except Exception as e:
+            print(f"❌ JSONパースエラー: {e}")
+            return jsonify({"error": "無効なJSONデータです"}), 400
+        
         print(f"📝 リクエストデータ: {data}")
         query = data.get('query', '').strip()
         print(f"🔎 検索クエリ: '{query}'")
@@ -629,6 +639,10 @@ def repair_advice_search():
                         
                         response = llm.invoke(messages)
                         human_content = response.content
+                        
+                        # レスポンスの検証
+                        if not human_content or len(human_content.strip()) < 10:
+                            raise Exception("AI生成された回答が短すぎます")
                         
                         search_results.append({
                             "title": f"📚 {query}の修理情報（AI生成）",
@@ -777,6 +791,10 @@ Notionデータベースから取得した修理ケース情報を基に、ユ�
                                     response = llm.invoke(messages)
                                     human_content = response.content
                                     
+                                    # レスポンスの検証
+                                    if not human_content or len(human_content.strip()) < 10:
+                                        raise Exception("AI生成された回答が短すぎます")
+                                    
                                     search_results.append({
                                         'title': f'🔧 {case.get("title", "修理ケース")} - 専門家アドバイス',
                                         'content': human_content,
@@ -898,7 +916,20 @@ Notionデータベースから取得した修理ケース情報を基に、ユ�
         }
         print(f"📤 レスポンス送信: {response_data}")
         
-        return jsonify(response_data)
+        # レスポンスの検証
+        try:
+            # JSON形式で返すことを確認
+            response_json = jsonify(response_data)
+            print(f"✅ JSONレスポンス生成成功: {len(str(response_json.data))}文字")
+            return response_json
+        except Exception as e:
+            print(f"❌ JSONレスポンス生成エラー: {e}")
+            return jsonify({
+                "error": "レスポンス生成エラー",
+                "query": query,
+                "results": [],
+                "total": 0
+            }), 500
         
     except Exception as e:
         print(f"❌ 検索エラー: {str(e)}")
