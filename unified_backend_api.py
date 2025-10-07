@@ -11,6 +11,7 @@ import asyncio
 import aiohttp
 import json
 import os
+import glob
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
@@ -81,7 +82,17 @@ def initialize_services():
     try:
         # RAGシステムの初期化（Notion統合版）
         # 環境変数でテキストファイルも含めるか設定可能
-        use_text_files = os.getenv("USE_TEXT_FILES", "false").lower() == "true"
+        use_text_files = os.getenv("USE_TEXT_FILES", "true").lower() == "true"
+        
+        # テキストファイルの自動検出
+        if use_text_files:
+            txt_files = glob.glob("*.txt")
+            if txt_files:
+                print(f"📁 検出されたテキストファイル: {len(txt_files)}件")
+                for txt_file in txt_files:
+                    print(f"  - {txt_file}")
+            else:
+                print("⚠️ テキストファイルが見つかりません")
         
         print(f"🔄 RAGシステム初期化中... (テキストファイル使用: {use_text_files})")
         
@@ -826,8 +837,64 @@ Notionデータベースから取得した修理ケース情報を基に、ユ�
                     import traceback
                     traceback.print_exc()
         
-        # 2. Notion検索（修理ケースDBから費用情報を含む結果を取得）
-        if NOTION_AVAILABLE and notion_client_instance:
+        # 2. ハイブリッド検索（RAG + Notion + テキストファイル）
+        if db:
+            print("🔄 ハイブリッド検索を実行中...")
+            try:
+                # RAG検索を実行
+                rag_results = enhanced_rag_retrieve(db, query, k=5)
+                if rag_results:
+                    for result in rag_results:
+                        # ソースタイプに応じて処理
+                        source_type = result.metadata.get("source_type", "unknown")
+                        
+                        if source_type == "notion_knowledge_base":
+                            search_results.append({
+                                'title': f'📚 {result.metadata.get("title", "ナレッジベース")}',
+                                'content': result.page_content,
+                                'source': 'Notionナレッジベース',
+                                'category': result.metadata.get("category", "ナレッジベース"),
+                                'url': result.metadata.get("url", ''),
+                                'relevance': 'high'
+                            })
+                        elif source_type == "notion_repair_case":
+                            search_results.append({
+                                'title': f'🔧 {result.metadata.get("title", "修理ケース")}',
+                                'content': result.page_content,
+                                'source': 'Notion修理ケース',
+                                'category': result.metadata.get("category", "修理ケース"),
+                                'url': result.metadata.get("url", ''),
+                                'relevance': 'high'
+                            })
+                        elif source_type == "text_file":
+                            search_results.append({
+                                'title': f'📄 {result.metadata.get("title", "テキストファイル")}',
+                                'content': result.page_content,
+                                'source': 'テキストファイル',
+                                'category': result.metadata.get("category", "テキストファイル"),
+                                'url': result.metadata.get("url", ''),
+                                'relevance': 'medium'
+                            })
+                        else:
+                            search_results.append({
+                                'title': f'🔍 {result.metadata.get("title", "検索結果")}',
+                                'content': result.page_content,
+                                'source': 'RAG検索',
+                                'category': result.metadata.get("category", "検索結果"),
+                                'url': result.metadata.get("url", ''),
+                                'relevance': 'medium'
+                            })
+                    
+                    print(f"✅ ハイブリッド検索完了: {len(search_results)}件の結果")
+                else:
+                    print("⚠️ ハイブリッド検索結果が空です")
+            except Exception as e:
+                print(f"⚠️ ハイブリッド検索エラー: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # 3. Notion検索（フォールバック）
+        if not search_results and NOTION_AVAILABLE and notion_client_instance:
             try:
                 print("🔍 Notion検索実行中...")
                 notion_results = notion_client_instance.search_database(query)
@@ -875,7 +942,7 @@ Notionデータベースから取得した修理ケース情報を基に、ユ�
                 import traceback
                 traceback.print_exc()
         
-        # 3. SERP検索（価格情報）- 既存結果が少ない場合のみ実行
+        # 4. SERP検索（価格情報）- 既存結果が少ない場合のみ実行
         if serp_system and len(search_results) < 3:
             try:
                 print("🔍 SERP検索実行中...")
