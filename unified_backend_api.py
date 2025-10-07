@@ -2394,6 +2394,18 @@ def handle_fallback_diagnosis(answer_text, session_id):
         return jsonify({"error": f"フォールバック診断エラー: {str(e)}"}), 500
 
 # === アプリケーション起動 ===
+# Railway環境でも初期化処理を実行
+print("🚀 統合バックエンドAPIを起動中...")
+print("📋 初期化プロセス開始...")
+
+# サービス初期化
+if initialize_services():
+    print("✅ 全サービスが正常に初期化されました")
+    print("🌐 アクセスURL: http://localhost:5002")
+    print("📚 API ドキュメント: http://localhost:5002/api/unified/health")
+    print("🔧 修理アドバイスセンター: http://localhost:5002/repair_advice_center.html")
+    print("🔍 テストエンドポイント: http://localhost:5002/api/test")
+
 if __name__ == "__main__":
     print("🚀 統合バックエンドAPIを起動中...")
     print("📋 初期化プロセス開始...")
