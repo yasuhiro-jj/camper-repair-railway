@@ -49,10 +49,8 @@ class NotionClient:
     def _initialize_api_key(self):
         """APIキーの初期化（遅延インポート対応）"""
         try:
-            import streamlit as st
+            # Railwayでは環境変数のみを使用
             self.api_key = (
-                st.secrets.get("NOTION_API_KEY") or 
-                st.secrets.get("NOTION_TOKEN") or 
                 os.getenv("NOTION_API_KEY") or 
                 os.getenv("NOTION_TOKEN")
             )
