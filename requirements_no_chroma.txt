@@ -1,0 +1,17 @@
+streamlit
+langchain
+langchain-openai
+langchain-core
+langchain-community
+openai
+pypdf
+google-search-results
+python-dotenv
+flask
+flask-cors
+requests
+langgraph
+pandas
+typing-extensions
+notion-client==2.2.1 
+faiss-cpu 

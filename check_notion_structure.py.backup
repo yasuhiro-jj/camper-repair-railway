@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Notionデータベース構造確認スクリプト
+"""
+
+import os
+import streamlit as st
+from dotenv import load_dotenv
+
+# .envファイルの読み込み
+load_dotenv()
+
+def check_notion_databases():
+    """Notionデータベースの構造とIDを確認"""
+    print("🔍 Notionデータベース構造確認を開始...")
+    
+    # 環境変数の確認
+    notion_api_key = os.getenv("NOTION_API_KEY") or os.getenv("NOTION_TOKEN")
+    if not notion_api_key:
+        print("❌ Notion APIキーが設定されていません")
+        return
+    
+    try:
+        from notion_client import Client
+        client = Client(auth=notion_api_key)
+        
+        # ユーザー情報を取得
+        user = client.users.me()
+        print(f"✅ Notion接続成功: {user.get('name', 'Unknown User')}")
+        
+        # 利用可能なデータベースを検索
+        print("\n📋 利用可能なデータベース:")
+        try:
+            response = client.search(
+                filter={"property": "object", "value": "database"},
+                sort={"direction": "descending", "timestamp": "last_edited_time"}
+            )
+            
+            databases = response.get("results", [])
+            print(f"✅ {len(databases)}件のデータベースが見つかりました")
+            
+            for i, db in enumerate(databases[:10], 1):  # 最初の10件を表示
+                db_id = db.get("id", "")
+                title = "タイトルなし"
+                
+                # タイトルの抽出
+                title_prop = db.get("title", [])
+                if title_prop:
+                    title = title_prop[0].get("plain_text", "タイトルなし")
+                
+                print(f"{i}. {title}")
+                print(f"   ID: {db_id}")
+                print(f"   URL: https://notion.so/workspace/{db_id}")
+                print()
+                
+        except Exception as e:
+            print(f"❌ データベース検索に失敗: {e}")
+        
+        # 特定のデータベースIDでテスト
+        test_db_ids = [
+            "256709bb38f18069a903f7ade8f76c73",  # 現在の診断フローDB
+            "256709bb38f180eb8013c02989449e6d",  # 現在の修理ケースDB
+            "256709bb38f18048a5d0c6524e03bae5"   # 現在の部品・工具DB
+        ]
+        
+        print("🔍 設定済みデータベースIDのテスト:")
+        for db_id in test_db_ids:
+            try:
+                response = client.databases.retrieve(database_id=db_id)
+                title = "タイトルなし"
+                title_prop = response.get("title", [])
+                if title_prop:
+                    title = title_prop[0].get("plain_text", "タイトルなし")
+                print(f"✅ {db_id}: {title}")
+            except Exception as e:
+                print(f"❌ {db_id}: アクセス不可 - {e}")
+        
+    except ImportError as e:
+        print(f"❌ notion-clientライブラリがインストールされていません: {e}")
+        print("💡 解決方法: pip install notion-client==2.2.1")
+    except Exception as e:
+        print(f"❌ Notion接続エラー: {e}")
+
+if __name__ == "__main__":
+    check_notion_databases()

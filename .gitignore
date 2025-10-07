@@ -1,0 +1,113 @@
+# 環境変数ファイル
+.env
+.env.local
+.env.production
+
+# API設定ファイル（機密情報を含む）
+*API設定.txt
+
+# APIキーを含むバッチファイル
+set_api_keys.bat
+set_env_vars.bat
+start_backend_fixed.bat
+start_backend_with_env.bat
+
+# 大きなファイル・バックアップ
+backup_*/
+chroma_db/
+cache.db
+
+# 不要なフロントエンド
+frontend/
+frontend-new/
+frontend-simple/
+new_frontend/
+
+# データファイル（必要なものは除外）
+*.csv
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Pythonキャッシュ
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+venv/
+ENV/
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.manifest
+*.spec
+
+# IDEの設定
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# テスト・デバッグファイル
+test_*.py
+debug_*.py
+check_*.py
+*_test.py
+*_debug.py
+
+# バッチファイル（一部は必要）
+*.bat
+!start_all_anaconda.bat
+
+# マークダウン（重要なものは除外）
+*.md
+!README.md
+!RAILWAY_DEPLOY_GUIDE.md
+
+# テキストファイル（重要なものは除外）
+*.txt
+!requirements.txt
+!requirements_railway.txt
+!requirements_deploy.txt
+
+# JSON（重要なものは除外）
+*.json
+!railway.json
+!category_definitions.json
+!package.json
+!tsconfig.json
+
+# 不要なHTMLファイル
+repair_center_api.py
+repair_advice_center.html.backup
+test_search_simple.html

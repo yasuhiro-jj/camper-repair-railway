@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 修理アドバイスセンター（シンプル版）</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 50%, #dc3545 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #dc3545;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .nav-links {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        .nav-links a {
+            color: #dc3545;
+            text-decoration: none;
+            font-weight: bold;
+            padding: 8px 16px;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-links a:hover {
+            background: rgba(220, 53, 69, 0.1);
+        }
+        
+        .search-box {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .search-box h2 {
+            color: #dc3545;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #dc3545;
+            border-radius: 10px;
+            outline: none;
+        }
+        
+        .search-btn {
+            padding: 15px 40px;
+            background: linear-gradient(45deg, #dc3545, #ff6b6b);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .loading.show { display: block; }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #dc3545;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            display: none;
+        }
+        
+        .results.show { display: block; }
+        
+        .result-item {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #dc3545;
+        }
+        
+        .result-item h3 {
+            color: #dc3545;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+        
+        .result-meta {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .result-meta span {
+            background: #f8f9fa;
+            padding: 5px 12px;
+            border-radius: 15px;
+        }
+        
+        .result-content {
+            line-height: 1.8;
+            color: #444;
+            white-space: pre-wrap;
+        }
+        
+        .result-url {
+            margin-top: 15px;
+        }
+        
+        .result-url a {
+            color: #dc3545;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .debug-info {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <div class="header">
+            <h1>🔧 修理アドバイスセンター</h1>
+            <p>キャンピングカーの修理・メンテナンスに関する専門的なアドバイス</p>
+            
+            <!-- ナビゲーション -->
+            <div class="nav-links">
+                <a href="/">🏠 ホーム</a>
+                <a href="/test_search_api.html">🧪 検索APIテスト</a>
+            </div>
+        </div>
+        
+        <!-- 検索ボックス -->
+        <div class="search-box">
+            <h2>🔍 修理情報を検索</h2>
+            <form class="search-form" id="searchForm">
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    id="searchInput" 
+                    placeholder="例: バッテリー、雨漏り、エアコン、トイレ..." 
+                    required
+                >
+                <button type="submit" class="search-btn">🔍 検索</button>
+            </form>
+        </div>
+        
+        <!-- ローディング -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>⏳ 検索中です。少々お待ちください...</p>
+        </div>
+        
+        <!-- 検索結果 -->
+        <div class="results" id="results"></div>
+    </div>
+
+    <script>
+        // デバッグログ
+        const logs = [];
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.push(`[${timestamp}] ${message}`);
+            console.log(message);
+        }
+        
+        // ページロード
+        log('ページ読み込み完了');
+        
+        // 検索フォーム送信
+        document.getElementById('searchForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const query = document.getElementById('searchInput').value.trim();
+            log(`検索フォーム送信: "${query}"`);
+            
+            if (!query) {
+                alert('検索キーワードを入力してください');
+                return;
+            }
+            
+            // UI更新
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('results').innerHTML = '';
+            
+            try {
+                log('APIリクエスト開始');
+                const response = await fetch('/api/repair_advice/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+                
+                log(`レスポンスステータス: ${response.status}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                log(`取得データ: ${JSON.stringify(data).substring(0, 200)}...`);
+                
+                // 結果表示
+                displayResults(data);
+                
+            } catch (error) {
+                log(`エラー: ${error.message}`);
+                displayError(error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+            }
+        });
+        
+        // 結果表示
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (!data.results || data.results.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="result-item">
+                        <p class="error-message">検索結果が見つかりませんでした。別のキーワードでお試しください。</p>
+                    </div>
+                `;
+                resultsDiv.classList.add('show');
+                return;
+            }
+            
+            log(`結果表示: ${data.results.length}件`);
+            
+            let html = '';
+            data.results.forEach((result, index) => {
+                html += `
+                    <div class="result-item">
+                        <h3>${result.title || 'タイトルなし'}</h3>
+                        <div class="result-meta">
+                            <span>📂 ${result.source || '不明'}</span>
+                            <span>📁 ${result.category || 'N/A'}</span>
+                            ${result.relevance ? `<span>⭐ ${result.relevance}</span>` : ''}
+                        </div>
+                        <div class="result-content">${result.content || '内容がありません'}</div>
+                        ${result.url ? `<div class="result-url">🔗 <a href="${result.url}" target="_blank">詳細を見る</a></div>` : ''}
+                    </div>
+                `;
+            });
+            
+            // デバッグ情報
+            html += `
+                <div class="result-item">
+                    <h3>🔍 デバッグ情報</h3>
+                    <div class="debug-info">
+                        <div>検索クエリ: ${data.query}</div>
+                        <div>結果件数: ${data.results.length}</div>
+                        <div>タイムスタンプ: ${new Date().toLocaleString()}</div>
+                        <div>最近のログ:</div>
+                        ${logs.slice(-10).map(l => `<div>${l}</div>`).join('')}
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = html;
+            resultsDiv.classList.add('show');
+        }
+        
+        // エラー表示
+        function displayError(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="result-item">
+                    <p class="error-message">
+                        ❌ エラーが発生しました: ${message}
+                    </p>
+                    <div class="debug-info">
+                        ${logs.slice(-10).map(l => `<div>${l}</div>`).join('')}
+                    </div>
+                </div>
+            `;
+            resultsDiv.classList.add('show');
+        }
+    </script>
+</body>
+</html>
+

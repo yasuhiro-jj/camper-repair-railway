@@ -1,0 +1,54 @@
+# 環境変数設定例
+# このファイルを.envにリネームして使用してください
+
+# OpenAI API設定（必須）
+OPENAI_API_KEY=your_openai_api_key_here
+
+# SERP検索API設定（必須）
+# Google Custom Search API（推奨）
+GOOGLE_API_KEY=your_google_api_key_here
+GOOGLE_CSE_ID=your_google_custom_search_engine_id_here
+# または
+GOOGLE_SEARCH_ENGINE_ID=your_google_custom_search_engine_id_here
+
+# SERP API（オプション - Google Custom Searchの代替）
+SERP_API_KEY=your_serpapi_key_here
+
+# Notion API設定（オプション）
+# 以下のいずれかの形式で設定してください
+NOTION_API_KEY=your_notion_integration_token_here
+# または
+NOTION_TOKEN=your_notion_integration_token_here
+
+# NotionデータベースID設定
+# 診断フローデータベース（以下のいずれかで設定）
+NODE_DB_ID=your_notion_diagnostic_database_id_here
+# または
+NOTION_DIAGNOSTIC_DB_ID=your_notion_diagnostic_database_id_here
+
+# LangSmith設定（オプション）
+LANGSMITH_API_KEY=your_langsmith_api_key_here
+LANGSMITH_PROJECT=your_langsmith_project_name_here
+
+# 修理ケースデータベース（以下のいずれかで設定）
+CASE_DB_ID=your_notion_repair_case_database_id_here
+# または
+NOTION_REPAIR_CASE_DB_ID=your_notion_repair_case_database_id_here
+
+# 部品・工具データベース（オプション）
+ITEM_DB_ID=your_notion_item_database_id_here
+
+# SERP検索設定（オプション）
+# Google Custom Search API設定
+GOOGLE_API_KEY=your_google_api_key_here
+GOOGLE_CSE_ID=your_google_custom_search_engine_id_here
+# または
+GOOGLE_SEARCH_ENGINE_ID=your_google_custom_search_engine_id_here
+
+# SerpAPI設定（オプション）
+SERP_API_KEY=your_serpapi_key_here
+
+# LangSmith設定（オプション）
+LANGSMITH_API_KEY=your_langsmith_api_key_here
+LANGSMITH_PROJECT=your_project_name
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com

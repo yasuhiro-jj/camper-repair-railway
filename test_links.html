@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 リンク動作テスト</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            text-align: center;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+        }
+        .link-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        a {
+            display: block;
+            margin: 15px 0;
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        a:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 リンク動作テスト</h1>
+        
+        <div class="link-section">
+            <h2>メインページ</h2>
+            <a href="/">🏠 統合チャットボット（ホーム）</a>
+            <a href="/unified_chatbot.html">🤖 統合チャットボット（直接）</a>
+        </div>
+        
+        <div class="link-section">
+            <h2>修理アドバイスセンター</h2>
+            <a href="/repair_advice_center.html">🔧 修理アドバイスセンター</a>
+        </div>
+        
+        <div class="link-section">
+            <h2>API エンドポイント</h2>
+            <a href="/api/unified/health" target="_blank">🔍 ヘルスチェック</a>
+        </div>
+        
+        <div class="status info">
+            ℹ️ バックエンドが起動している必要があります
+        </div>
+        
+        <div class="status success">
+            ✅ すべてのリンクが正しく動作するはずです
+        </div>
+    </div>
+</body>
+</html>
+

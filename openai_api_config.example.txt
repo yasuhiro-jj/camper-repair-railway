@@ -1,0 +1,13 @@
+# OpenAI API設定サンプル
+# 実際のAPIキーは .env ファイルに保存してください
+
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Notion API設定
+NOTION_API_KEY=your_notion_api_key_here
+NOTION_TOKEN=your_notion_token_here
+NOTION_DIAGNOSTIC_DB_ID=your_diagnostic_database_id_here
+
+# NotionデータベースID
+NODE_DB_ID=your_node_database_id_here
+CASE_DB_ID=your_case_database_id_here

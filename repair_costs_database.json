@@ -1,0 +1,292 @@
+{
+  "repair_costs": {
+    "ff_heater": {
+      "category": "暖房・ヒーター",
+      "products": [
+        {
+          "name": "ベバスト エアトロニック D2",
+          "price": 150000,
+          "power": "2kW",
+          "voltage": "12V",
+          "labor_cost": 50000,
+          "total_cost": 200000,
+          "description": "小型車向け、基本性能"
+        },
+        {
+          "name": "ベバスト エアトロニック D4",
+          "price": 180000,
+          "power": "4kW",
+          "voltage": "12V",
+          "labor_cost": 60000,
+          "total_cost": 240000,
+          "description": "中型車向け、高効率"
+        },
+        {
+          "name": "ベバスト エアトロニック D5",
+          "price": 220000,
+          "power": "5kW",
+          "voltage": "12V",
+          "labor_cost": 70000,
+          "total_cost": 290000,
+          "description": "大型車向け、高性能"
+        },
+        {
+          "name": "ミクニ MY-22",
+          "price": 120000,
+          "power": "2.2kW",
+          "voltage": "12V",
+          "labor_cost": 40000,
+          "total_cost": 160000,
+          "description": "コストパフォーマンス重視"
+        },
+        {
+          "name": "ミクニ MY-34",
+          "price": 150000,
+          "power": "3.4kW",
+          "voltage": "12V",
+          "labor_cost": 50000,
+          "total_cost": 200000,
+          "description": "中型車向け、信頼性"
+        },
+        {
+          "name": "LVYUAN 3kW",
+          "price": 80000,
+          "power": "3kW",
+          "voltage": "12V",
+          "labor_cost": 50000,
+          "total_cost": 130000,
+          "description": "中国製、低価格"
+        }
+      ],
+      "parts": [
+        {
+          "name": "燃料ポンプ",
+          "price": 15000,
+          "description": "燃料供給用ポンプ"
+        },
+        {
+          "name": "グロープラグ",
+          "price": 6000,
+          "description": "点火用グロープラグ"
+        },
+        {
+          "name": "燃焼室清掃",
+          "price": 15000,
+          "description": "燃焼室の清掃・メンテナンス"
+        },
+        {
+          "name": "配管交換",
+          "price": 25000,
+          "description": "燃料配管の交換"
+        }
+      ]
+    },
+    "air_conditioner": {
+      "category": "エアコン・冷房",
+      "products": [
+        {
+          "name": "12V車載エアコン 2kW",
+          "price": 120000,
+          "power": "2kW",
+          "voltage": "12V",
+          "labor_cost": 40000,
+          "total_cost": 160000,
+          "description": "小型車向け、12V電源"
+        },
+        {
+          "name": "ポータブルエアコン 3kW",
+          "price": 80000,
+          "power": "3kW",
+          "voltage": "AC100V",
+          "labor_cost": 20000,
+          "total_cost": 100000,
+          "description": "ポータブルタイプ、AC電源"
+        },
+        {
+          "name": "ルーフエアコン 4kW",
+          "price": 150000,
+          "power": "4kW",
+          "voltage": "12V",
+          "labor_cost": 60000,
+          "total_cost": 210000,
+          "description": "ルーフ設置型、高性能"
+        }
+      ],
+      "parts": [
+        {
+          "name": "コンプレッサー",
+          "price": 30000,
+          "description": "エアコンコンプレッサー"
+        },
+        {
+          "name": "コンデンサー",
+          "price": 15000,
+          "description": "熱交換器"
+        },
+        {
+          "name": "冷媒ガス",
+          "price": 8000,
+          "description": "R134a冷媒ガス"
+        }
+      ]
+    },
+    "battery": {
+      "category": "バッテリー・電装",
+      "products": [
+        {
+          "name": "リチウムイオンバッテリー 100Ah",
+          "price": 80000,
+          "capacity": "100Ah",
+          "voltage": "12V",
+          "labor_cost": 15000,
+          "total_cost": 95000,
+          "description": "高容量リチウムイオン"
+        },
+        {
+          "name": "AGMバッテリー 100Ah",
+          "price": 25000,
+          "capacity": "100Ah",
+          "voltage": "12V",
+          "labor_cost": 10000,
+          "total_cost": 35000,
+          "description": "従来型AGMバッテリー"
+        },
+        {
+          "name": "ジェルバッテリー 100Ah",
+          "price": 30000,
+          "capacity": "100Ah",
+          "voltage": "12V",
+          "labor_cost": 10000,
+          "total_cost": 40000,
+          "description": "メンテナンスフリー"
+        }
+      ],
+      "parts": [
+        {
+          "name": "バッテリーケーブル",
+          "price": 5000,
+          "description": "太径ケーブル"
+        },
+        {
+          "name": "バッテリー固定金具",
+          "price": 3000,
+          "description": "固定用金具"
+        },
+        {
+          "name": "バッテリーモニター",
+          "price": 12000,
+          "description": "電圧・電流監視"
+        }
+      ]
+    },
+    "water_system": {
+      "category": "給水・排水システム",
+      "products": [
+        {
+          "name": "給水ポンプ 12V",
+          "price": 15000,
+          "power": "12V",
+          "flow_rate": "10L/min",
+          "labor_cost": 8000,
+          "total_cost": 23000,
+          "description": "12V給水ポンプ"
+        },
+        {
+          "name": "排水ポンプ 12V",
+          "price": 12000,
+          "power": "12V",
+          "flow_rate": "8L/min",
+          "labor_cost": 6000,
+          "total_cost": 18000,
+          "description": "12V排水ポンプ"
+        },
+        {
+          "name": "浄水フィルター",
+          "price": 8000,
+          "type": "活性炭",
+          "labor_cost": 3000,
+          "total_cost": 11000,
+          "description": "飲料水用フィルター"
+        }
+      ],
+      "parts": [
+        {
+          "name": "給水ホース",
+          "price": 2000,
+          "description": "給水用ホース"
+        },
+        {
+          "name": "排水ホース",
+          "price": 1500,
+          "description": "排水用ホース"
+        },
+        {
+          "name": "配管継手",
+          "price": 1000,
+          "description": "配管接続部品"
+        }
+      ]
+    },
+    "electrical": {
+      "category": "電装系",
+      "products": [
+        {
+          "name": "インバーター 1000W",
+          "price": 25000,
+          "power": "1000W",
+          "voltage": "12V→100V",
+          "labor_cost": 5000,
+          "total_cost": 30000,
+          "description": "12V→100V変換"
+        },
+        {
+          "name": "ソーラーパネル 100W",
+          "price": 30000,
+          "power": "100W",
+          "voltage": "12V",
+          "labor_cost": 10000,
+          "total_cost": 40000,
+          "description": "太陽光発電パネル"
+        },
+        {
+          "name": "LED照明 12V",
+          "price": 5000,
+          "power": "12V",
+          "brightness": "1000lm",
+          "labor_cost": 2000,
+          "total_cost": 7000,
+          "description": "12V LED照明"
+        }
+      ],
+      "parts": [
+        {
+          "name": "ヒューズボックス",
+          "price": 3000,
+          "description": "ヒューズ保護ボックス"
+        },
+        {
+          "name": "配線ケーブル",
+          "price": 2000,
+          "description": "12V配線用ケーブル"
+        },
+        {
+          "name": "スイッチ",
+          "price": 1500,
+          "description": "12Vスイッチ"
+        }
+      ]
+    }
+  },
+  "labor_rates": {
+    "basic_repair": 5000,
+    "intermediate_repair": 8000,
+    "advanced_repair": 12000,
+    "diagnostic": 3000,
+    "maintenance": 2000
+  },
+  "warranty": {
+    "parts": "1年",
+    "labor": "6ヶ月",
+    "extended": "2年（有料）"
+  }
+}

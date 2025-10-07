@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>検索機能テスト</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .search-form { margin: 20px 0; }
+        .search-input { padding: 10px; width: 300px; }
+        .search-btn { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .results { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>🔍 検索機能テスト</h1>
+    
+    <div class="search-form">
+        <form id="testSearchForm">
+            <input type="text" id="testSearchInput" placeholder="雨漏り、バッテリー、エアコン..." class="search-input">
+            <button type="submit" class="search-btn">🔍 検索</button>
+        </form>
+    </div>
+    
+    <div id="testResults" class="results" style="display: none;">
+        <h3>検索結果</h3>
+        <div id="testResultsContent"></div>
+    </div>
+    
+    <div id="testError" class="error" style="display: none;"></div>
+    
+    <script>
+        console.log('🔧 テスト検索機能開始');
+        
+        // サーバー状態チェック
+        async function checkServerStatus() {
+            try {
+                const response = await fetch('/api/health');
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ サーバー状態:', data);
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('❌ サーバー接続エラー:', error);
+                return false;
+            }
+        }
+        
+        // 検索テスト
+        async function testSearch(query) {
+            console.log('🔍 検索テスト開始:', query);
+            
+            try {
+                // サーバー状態チェック
+                const serverOnline = await checkServerStatus();
+                if (!serverOnline) {
+                    throw new Error('サーバーに接続できません');
+                }
+                
+                // RAG検索
+                console.log('🌐 RAG検索中...');
+                const ragResponse = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+                
+                console.log('📊 RAG検索レスポンス:', ragResponse.status);
+                
+                if (ragResponse.ok) {
+                    const ragData = await ragResponse.json();
+                    console.log('✅ RAG検索結果:', ragData);
+                    return ragData;
+                } else {
+                    const errorText = await ragResponse.text();
+                    console.error('❌ RAG検索エラー:', errorText);
+                    throw new Error(`RAG検索エラー: ${ragResponse.status}`);
+                }
+                
+            } catch (error) {
+                console.error('❌ 検索エラー:', error);
+                throw error;
+            }
+        }
+        
+        // 結果表示
+        function displayTestResults(data) {
+            const resultsDiv = document.getElementById('testResults');
+            const contentDiv = document.getElementById('testResultsContent');
+            
+            if (data && data.results && data.results.length > 0) {
+                contentDiv.innerHTML = `
+                    <p><strong>検索成功:</strong> ${data.results.length}件の結果が見つかりました</p>
+                    <p><strong>クエリ:</strong> ${data.query}</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                resultsDiv.style.display = 'block';
+                document.getElementById('testError').style.display = 'none';
+            } else {
+                contentDiv.innerHTML = '<p>検索結果が見つかりませんでした</p>';
+                resultsDiv.style.display = 'block';
+                document.getElementById('testError').style.display = 'none';
+            }
+        }
+        
+        // エラー表示
+        function displayTestError(message) {
+            const errorDiv = document.getElementById('testError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('testResults').style.display = 'none';
+        }
+        
+        // フォーム送信処理
+        document.getElementById('testSearchForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const query = document.getElementById('testSearchInput').value.trim();
+            if (!query) {
+                displayTestError('検索キーワードを入力してください');
+                return;
+            }
+            
+            try {
+                const results = await testSearch(query);
+                displayTestResults(results);
+            } catch (error) {
+                displayTestError(`検索エラー: ${error.message}`);
+            }
+        });
+        
+        // ページ読み込み時のサーバー状態チェック
+        window.addEventListener('load', async function() {
+            console.log('📡 ページ読み込み完了 - サーバー状態チェック中...');
+            const serverOnline = await checkServerStatus();
+            if (serverOnline) {
+                console.log('✅ サーバー接続成功');
+            } else {
+                console.log('❌ サーバー接続失敗');
+                displayTestError('サーバーに接続できません。app.pyが起動しているか確認してください。');
+            }
+        });
+    </script>
+</body>
+</html>

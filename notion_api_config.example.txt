@@ -1,0 +1,9 @@
+# Notion API設定サンプル
+# 実際のAPIキーは .env ファイルに保存してください
+
+NOTION_API_KEY=your_notion_api_key_here
+
+# データベースID
+NODE_DB_ID=your_node_database_id_here
+CASE_DB_ID=your_case_database_id_here
+ITEM_DB_ID=your_item_database_id_here

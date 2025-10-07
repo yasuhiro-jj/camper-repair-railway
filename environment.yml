@@ -1,0 +1,26 @@
+name: camper-repair
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pip
+  - streamlit>=1.28.0
+  - pandas>=1.5.0
+  - numpy
+  - requests>=2.31.0
+  - pip:
+    - langchain>=0.1.0
+    - langchain-openai>=0.0.5
+    - langchain-core>=0.1.10
+    - langchain-community>=0.0.10
+    - openai>=1.3.0
+    - pypdf>=3.17.0
+    - google-search-results>=2.4.2
+    - python-dotenv>=1.0.0
+    - flask>=2.3.0
+    - langchain-chroma>=0.1.0
+    - chromadb==0.4.22
+    - langgraph>=0.0.20
+    - typing-extensions>=4.0.0
+    - notion-client==2.2.1
