@@ -747,6 +747,68 @@ def unified_health_check():
         "timestamp": datetime.now().isoformat()
     })
 
+@app.route("/api/debug/notion", methods=["GET"])
+def debug_notion():
+    """Notionデータベース接続デバッグエンドポイント"""
+    try:
+        if not NOTION_AVAILABLE:
+            return jsonify({
+                "status": "error",
+                "message": "Notionクライアントが利用できません"
+            })
+        
+        # 環境変数の確認
+        env_vars = {
+            "NOTION_API_KEY": "設定済み" if os.getenv("NOTION_API_KEY") else "未設定",
+            "NODE_DB_ID": os.getenv("NODE_DB_ID", "未設定"),
+            "CASE_DB_ID": os.getenv("CASE_DB_ID", "未設定"),
+            "ITEM_DB_ID": os.getenv("ITEM_DB_ID", "未設定"),
+            "KNOWLEDGE_BASE_DB_ID": os.getenv("KNOWLEDGE_BASE_DB_ID", "未設定")
+        }
+        
+        # Notionクライアントの接続テスト
+        connection_results = {}
+        
+        if notion_client_instance:
+            try:
+                # ナレッジベースDBの接続テスト
+                kb_db_id = os.getenv("KNOWLEDGE_BASE_DB_ID")
+                if kb_db_id:
+                    try:
+                        response = notion_client_instance.client.databases.query(database_id=kb_db_id, page_size=1)
+                        connection_results["knowledge_base"] = {
+                            "status": "success",
+                            "count": len(response.get("results", []))
+                        }
+                    except Exception as e:
+                        connection_results["knowledge_base"] = {
+                            "status": "error",
+                            "message": str(e)
+                        }
+                else:
+                    connection_results["knowledge_base"] = {
+                        "status": "error",
+                        "message": "KNOWLEDGE_BASE_DB_IDが設定されていません"
+                    }
+            except Exception as e:
+                connection_results["notion_client"] = {
+                    "status": "error",
+                    "message": str(e)
+                }
+        
+        return jsonify({
+            "status": "success",
+            "environment_variables": env_vars,
+            "connection_results": connection_results,
+            "notion_available": NOTION_AVAILABLE
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        })
+
 @app.route("/api/unified/chat", methods=["POST"])
 def unified_chat():
     """統合チャットAPI"""

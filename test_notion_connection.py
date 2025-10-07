@@ -28,10 +28,12 @@ def test_notion_connection():
     node_db_id = os.getenv("NODE_DB_ID") or os.getenv("NOTION_DIAGNOSTIC_DB_ID")
     case_db_id = os.getenv("CASE_DB_ID") or os.getenv("NOTION_REPAIR_CASE_DB_ID")
     item_db_id = os.getenv("ITEM_DB_ID")
+    kb_db_id = os.getenv("KNOWLEDGE_BASE_DB_ID") or os.getenv("NOTION_KNOWLEDGE_BASE_DB_ID")
     
     print(f"📊 診断フローDB ID: {node_db_id or '未設定'}")
     print(f"📊 修理ケースDB ID: {case_db_id or '未設定'}")
     print(f"📊 アイテムDB ID: {item_db_id or '未設定'}")
+    print(f"📊 ナレッジベースDB ID: {kb_db_id or '未設定'}")
     
     # Notionクライアントのテスト
     try:
@@ -60,6 +62,19 @@ def test_notion_connection():
                 print(f"✅ アイテムDB接続成功: {database['title'][0]['text']['content']}")
             except Exception as e:
                 print(f"❌ アイテムDB接続失敗: {e}")
+        
+        if kb_db_id:
+            try:
+                database = client.databases.retrieve(database_id=kb_db_id)
+                print(f"✅ ナレッジベースDB接続成功: {database['title'][0]['text']['content']}")
+                
+                # ナレッジベースDBのデータ件数を確認
+                response = client.databases.query(database_id=kb_db_id, page_size=1)
+                total_count = len(response.get("results", []))
+                print(f"📊 ナレッジベースDB: {total_count}件のデータ")
+                
+            except Exception as e:
+                print(f"❌ ナレッジベースDB接続失敗: {e}")
         
         return True
         
