@@ -696,12 +696,6 @@ class NotionClient:
                             node_info["related_cases"].append(case_info)
                         except Exception as e:
                             print(f"修理ケース情報の取得に失敗: {e}")
-                            try:
-                                # Streamlit依存関係を削除（Railway環境用）
-    st = None
-                                st.warning(f"修理ケース情報の取得に失敗: {e}")
-                            except ImportError:
-                                pass
                 
                 # 関連部品・工具の抽出（リレーション対応）
                 items_prop = properties.get("関連部品・工具", {})
@@ -748,12 +742,6 @@ class NotionClient:
                             node_info["related_items"].append(item_info)
                         except Exception as e:
                             print(f"部品・工具情報の取得に失敗: {e}")
-                            try:
-                                # Streamlit依存関係を削除（Railway環境用）
-    st = None
-                                st.warning(f"部品・工具情報の取得に失敗: {e}")
-                            except ImportError:
-                                pass
                 
                 diagnostic_data["nodes"].append(node_info)
                 
@@ -765,13 +753,7 @@ class NotionClient:
             
         except Exception as e:
             print(f"❌ Notionからの診断データ読み込みに失敗: {e}")
-            try:
-                # Streamlit依存関係を削除（Railway環境用）
-    st = None
-                st.error(f"❌ Notionからの診断データ読み込みに失敗: {e}")
-            except ImportError:
-                pass
-                return None
+            return None
     
     def _parse_routing_config(self, memo_content):
         """メモ内のrouting_configをパース"""
@@ -1199,16 +1181,9 @@ class NotionClient:
             
             if not kb_db_id:
                 print("❌ ナレッジベースDBのIDが設定されていません")
-                try:
-                    # Streamlit依存関係を削除（Railway環境用）
-    st = None
-                    st.error("❌ ナレッジベースDBのIDが設定されていません")
-                    st.info("💡 解決方法:")
-                    st.info("1. .streamlit/secrets.tomlにKNOWLEDGE_BASE_DB_IDを設定")
-                    st.info("2. 環境変数KNOWLEDGE_BASE_DB_IDを設定")
-                    st.info("3. NotionデータベースのIDを確認")
-                except ImportError:
-                    pass
+                print("💡 解決方法:")
+                print("1. 環境変数KNOWLEDGE_BASE_DB_IDを設定")
+                print("2. NotionデータベースのIDを確認")
                 return None
             
             # Notionからナレッジベースデータを取得
@@ -1227,25 +1202,12 @@ class NotionClient:
                 
                 if not pages:
                     print("⚠️ ナレッジベースDBにデータがありません")
-                    try:
-                        # Streamlit依存関係を削除（Railway環境用）
-    st = None
-                        st.warning("⚠️ ナレッジベースDBにデータがありません")
-                        st.info("💡 Notionデータベースにナレッジを追加してください")
-                    except ImportError:
-                        pass
+                    print("💡 Notionデータベースにナレッジを追加してください")
                     return None
                     
             except Exception as e:
                 error_msg = str(e)
                 print(f"❌ ナレッジベースDBのクエリに失敗: {error_msg}")
-                
-                try:
-                    # Streamlit依存関係を削除（Railway環境用）
-    st = None
-                    st.error(f"❌ ナレッジベースDBのクエリに失敗: {error_msg}")
-                except ImportError:
-                    pass
                 
                 # エラーの種類に応じた解決方法を提示
                 if "not_found" in error_msg.lower() or "404" in error_msg:
