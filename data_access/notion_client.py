@@ -542,39 +542,15 @@ class NotionClient:
                 # エラーの種類に応じた解決方法を提示
                 if "not_found" in error_msg.lower() or "404" in error_msg:
                     print("💡 解決方法: データベースIDが間違っています")
-                    try:
-                        # Streamlit依存関係を削除（Railway環境用）
-    st = None
-                        st.info("💡 解決方法: データベースIDが間違っています")
-                        st.info(f"   現在のID: {node_db_id}")
-                        st.info("   NotionでデータベースのIDを確認してください")
-                    except ImportError:
-                        pass
+                    print(f"   現在のID: {node_db_id}")
+                    print("   NotionでデータベースのIDを確認してください")
                 elif "unauthorized" in error_msg.lower() or "401" in error_msg:
                     print("💡 解決方法: APIキーにデータベースへのアクセス権限がありません")
-                    try:
-                        # Streamlit依存関係を削除（Railway環境用）
-    st = None
-                        st.info("💡 解決方法: APIキーにデータベースへのアクセス権限がありません")
-                        st.info("   Notion統合の設定でデータベースへのアクセスを許可してください")
-                    except ImportError:
-                        pass
+                    print("   Notion統合の設定でデータベースへのアクセスを許可してください")
                 elif "rate_limited" in error_msg.lower() or "429" in error_msg:
                     print("💡 解決方法: API制限に達しました。しばらく待ってから再試行してください")
-                    try:
-                        # Streamlit依存関係を削除（Railway環境用）
-    st = None
-                        st.info("💡 解決方法: API制限に達しました。しばらく待ってから再試行してください")
-                    except ImportError:
-                        pass
                 else:
                     print("💡 解決方法: ネットワーク接続とAPIキーの権限を確認してください")
-                    try:
-                        # Streamlit依存関係を削除（Railway環境用）
-    st = None
-                        st.info("💡 解決方法: ネットワーク接続とAPIキーの権限を確認してください")
-                    except ImportError:
-                        pass
                 
                 return None
             
