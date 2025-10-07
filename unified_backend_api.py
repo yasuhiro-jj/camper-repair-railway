@@ -84,19 +84,31 @@ def initialize_services():
         use_text_files = os.getenv("USE_TEXT_FILES", "false").lower() == "true"
         
         print(f"🔄 RAGシステム初期化中... (テキストファイル使用: {use_text_files})")
-        db = create_notion_based_rag_system(use_text_files=use_text_files)
         
-        if db:
-            print("✅ Notion統合RAGシステム初期化完了")
-        else:
-            print("⚠️ RAGシステムの初期化に失敗しました。フォールバック処理を使用します。")
-            # フォールバックとして従来のRAGシステムを試行
-            print("🔄 従来のRAGシステムで再試行中...")
-            db = create_enhanced_rag_system()
+        # RAGシステムの初期化を試行
+        try:
+            db = create_notion_based_rag_system(use_text_files=use_text_files)
             if db:
-                print("✅ 従来のRAGシステムで初期化完了")
+                print("✅ Notion統合RAGシステム初期化完了")
             else:
-                print("❌ RAGシステムの初期化に完全に失敗しました")
+                print("⚠️ Notion統合RAGシステムの初期化に失敗しました")
+                db = None
+        except Exception as e:
+            print(f"⚠️ Notion統合RAGシステムの初期化エラー: {e}")
+            db = None
+        
+        # フォールバック処理
+        if not db:
+            print("🔄 従来のRAGシステムで再試行中...")
+            try:
+                db = create_enhanced_rag_system()
+                if db:
+                    print("✅ 従来のRAGシステムで初期化完了")
+                else:
+                    print("❌ 従来のRAGシステムの初期化にも失敗しました")
+            except Exception as e:
+                print(f"❌ 従来のRAGシステムの初期化エラー: {e}")
+                db = None
         
         # カテゴリーマネージャーの初期化
         category_manager = RepairCategoryManager()
@@ -643,18 +655,23 @@ def repair_advice_search():
                         estimated_time = result.get('estimated_time', '')
                         
                         # 費用情報を含むコンテンツを構築
-                        full_content = f"Notionデータベースの{result_type}情報です。"
+                        full_content = f"🔧 {title}\n"
+                        full_content += f"📂 カテゴリ: {result_type}\n"
+                        
+                        if symptoms:
+                            full_content += f"🔍 症状: {symptoms}\n"
+                        
+                        if solution:
+                            full_content += f"🛠️ 解決方法: {solution}\n"
                         
                         if cost_estimate:
-                            full_content += f"\n\n💰 費用目安: {cost_estimate}"
+                            full_content += f"💰 費用目安: {cost_estimate}\n"
+                        
                         if difficulty:
-                            full_content += f"\n⚙️ 難易度: {difficulty}"
+                            full_content += f"⚙️ 難易度: {difficulty}\n"
+                        
                         if estimated_time:
-                            full_content += f"\n⏱️ 推定時間: {estimated_time}"
-                        if symptoms:
-                            full_content += f"\n\n🔍 症状:\n{symptoms[:200]}..."
-                        if solution:
-                            full_content += f"\n\n🔧 解決方法:\n{solution[:200]}..."
+                            full_content += f"⏱️ 推定時間: {estimated_time}\n"
                         
                         search_results.append({
                             "title": f"🔧 {title}",
@@ -2398,13 +2415,21 @@ def handle_fallback_diagnosis(answer_text, session_id):
 print("🚀 統合バックエンドAPIを起動中...")
 print("📋 初期化プロセス開始...")
 
-# サービス初期化
-if initialize_services():
-    print("✅ 全サービスが正常に初期化されました")
-    print("🌐 アクセスURL: http://localhost:5002")
-    print("📚 API ドキュメント: http://localhost:5002/api/unified/health")
-    print("🔧 修理アドバイスセンター: http://localhost:5002/repair_advice_center.html")
-    print("🔍 テストエンドポイント: http://localhost:5002/api/test")
+# サービス初期化（エラーハンドリング付き）
+try:
+    if initialize_services():
+        print("✅ 全サービスが正常に初期化されました")
+        print("🌐 アクセスURL: http://localhost:5002")
+        print("📚 API ドキュメント: http://localhost:5002/api/unified/health")
+        print("🔧 修理アドバイスセンター: http://localhost:5002/repair_advice_center.html")
+        print("🔍 テストエンドポイント: http://localhost:5002/api/test")
+    else:
+        print("⚠️ 一部のサービス初期化に失敗しましたが、アプリケーションは起動します")
+except Exception as e:
+    print(f"❌ サービス初期化エラー: {e}")
+    import traceback
+    traceback.print_exc()
+    print("⚠️ エラーが発生しましたが、アプリケーションは起動します")
 
 if __name__ == "__main__":
     print("🚀 統合バックエンドAPIを起動中...")
