@@ -369,13 +369,9 @@ class NotionClient:
     def initialize_client(self):
         """Notionクライアントを初期化（改善版）"""
         # Streamlitのインポートを先に試行
-        try:
-            # Streamlit依存関係を削除（Railway環境用）
-    st = None
-            st_available = True
-        except ImportError:
-            st = None
-            st_available = False
+        # Streamlit依存関係を削除（Railway環境用）
+        st = None
+        st_available = False
         
         try:
             print("🔄 Notionクライアント初期化を開始...")
@@ -524,16 +520,9 @@ class NotionClient:
             
             if not node_db_id:
                 print("❌ 診断フローDBのIDが設定されていません")
-                try:
-                    # Streamlit依存関係を削除（Railway環境用）
-    st = None
-                    st.error("❌ 診断フローDBのIDが設定されていません")
-                    st.info("💡 解決方法:")
-                    st.info("1. .streamlit/secrets.tomlにNODE_DB_IDを設定")
-                    st.info("2. 環境変数NODE_DB_IDを設定")
-                    st.info("3. NotionデータベースのIDを確認")
-                except ImportError:
-                    pass
+                print("💡 解決方法:")
+                print("1. 環境変数NODE_DB_IDを設定")
+                print("2. NotionデータベースのIDを確認")
                 return None
             
             # Notionから診断フローデータを取得（ルーティング対応）
@@ -543,25 +532,12 @@ class NotionClient:
                 
                 if not nodes:
                     print("⚠️ 診断フローDBにデータがありません")
-                    try:
-                        # Streamlit依存関係を削除（Railway環境用）
-    st = None
-                        st.warning("⚠️ 診断フローDBにデータがありません")
-                        st.info("💡 Notionデータベースに診断ノードを追加してください")
-                    except ImportError:
-                        pass
+                    print("💡 Notionデータベースに診断ノードを追加してください")
                     return None
                     
             except Exception as e:
                 error_msg = str(e)
                 print(f"❌ 診断フローDBのクエリに失敗: {error_msg}")
-                
-                try:
-                    # Streamlit依存関係を削除（Railway環境用）
-    st = None
-                    st.error(f"❌ 診断フローDBのクエリに失敗: {error_msg}")
-                except ImportError:
-                    pass
                 
                 # エラーの種類に応じた解決方法を提示
                 if "not_found" in error_msg.lower() or "404" in error_msg:
