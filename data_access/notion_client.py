@@ -26,7 +26,8 @@ except ImportError:
 
 # Streamlitのインポート（条件付き）
 try:
-    import streamlit as st
+    # Streamlit依存関係を削除（Railway環境用）
+    st = None
 except ImportError:
     # Streamlitが利用できない環境ではstをNoneに設定
     st = None
@@ -369,7 +370,8 @@ class NotionClient:
         """Notionクライアントを初期化（改善版）"""
         # Streamlitのインポートを先に試行
         try:
-            import streamlit as st
+            # Streamlit依存関係を削除（Railway環境用）
+    st = None
             st_available = True
         except ImportError:
             st = None
@@ -500,20 +502,11 @@ class NotionClient:
     
     def _get_database_id(self, primary_key: str, secondary_key: str = None) -> Optional[str]:
         """データベースIDを取得"""
-        try:
-            import streamlit as st
-            return (
-                st.secrets.get(primary_key) or 
-                (st.secrets.get(secondary_key) if secondary_key else None) or 
-                os.getenv(primary_key) or 
-                (os.getenv(secondary_key) if secondary_key else None)
-            )
-        except ImportError:
-            # Streamlitコンテキスト外では環境変数のみ使用
-            return (
-                os.getenv(primary_key) or 
-                (os.getenv(secondary_key) if secondary_key else None)
-            )
+        # Railwayでは環境変数のみを使用
+        return (
+            os.getenv(primary_key) or 
+            (os.getenv(secondary_key) if secondary_key else None)
+        )
     
     def load_diagnostic_data(self):
         """Notionから診断データを読み込み（ルーティング対応版）"""
@@ -532,7 +525,8 @@ class NotionClient:
             if not node_db_id:
                 print("❌ 診断フローDBのIDが設定されていません")
                 try:
-                    import streamlit as st
+                    # Streamlit依存関係を削除（Railway環境用）
+    st = None
                     st.error("❌ 診断フローDBのIDが設定されていません")
                     st.info("💡 解決方法:")
                     st.info("1. .streamlit/secrets.tomlにNODE_DB_IDを設定")
@@ -550,7 +544,8 @@ class NotionClient:
                 if not nodes:
                     print("⚠️ 診断フローDBにデータがありません")
                     try:
-                        import streamlit as st
+                        # Streamlit依存関係を削除（Railway環境用）
+    st = None
                         st.warning("⚠️ 診断フローDBにデータがありません")
                         st.info("💡 Notionデータベースに診断ノードを追加してください")
                     except ImportError:
@@ -562,7 +557,8 @@ class NotionClient:
                 print(f"❌ 診断フローDBのクエリに失敗: {error_msg}")
                 
                 try:
-                    import streamlit as st
+                    # Streamlit依存関係を削除（Railway環境用）
+    st = None
                     st.error(f"❌ 診断フローDBのクエリに失敗: {error_msg}")
                 except ImportError:
                     pass
@@ -571,7 +567,8 @@ class NotionClient:
                 if "not_found" in error_msg.lower() or "404" in error_msg:
                     print("💡 解決方法: データベースIDが間違っています")
                     try:
-                        import streamlit as st
+                        # Streamlit依存関係を削除（Railway環境用）
+    st = None
                         st.info("💡 解決方法: データベースIDが間違っています")
                         st.info(f"   現在のID: {node_db_id}")
                         st.info("   NotionでデータベースのIDを確認してください")
@@ -580,7 +577,8 @@ class NotionClient:
                 elif "unauthorized" in error_msg.lower() or "401" in error_msg:
                     print("💡 解決方法: APIキーにデータベースへのアクセス権限がありません")
                     try:
-                        import streamlit as st
+                        # Streamlit依存関係を削除（Railway環境用）
+    st = None
                         st.info("💡 解決方法: APIキーにデータベースへのアクセス権限がありません")
                         st.info("   Notion統合の設定でデータベースへのアクセスを許可してください")
                     except ImportError:
@@ -588,14 +586,16 @@ class NotionClient:
                 elif "rate_limited" in error_msg.lower() or "429" in error_msg:
                     print("💡 解決方法: API制限に達しました。しばらく待ってから再試行してください")
                     try:
-                        import streamlit as st
+                        # Streamlit依存関係を削除（Railway環境用）
+    st = None
                         st.info("💡 解決方法: API制限に達しました。しばらく待ってから再試行してください")
                     except ImportError:
                         pass
                 else:
                     print("💡 解決方法: ネットワーク接続とAPIキーの権限を確認してください")
                     try:
-                        import streamlit as st
+                        # Streamlit依存関係を削除（Railway環境用）
+    st = None
                         st.info("💡 解決方法: ネットワーク接続とAPIキーの権限を確認してください")
                     except ImportError:
                         pass
@@ -745,7 +745,8 @@ class NotionClient:
                         except Exception as e:
                             print(f"修理ケース情報の取得に失敗: {e}")
                             try:
-                                import streamlit as st
+                                # Streamlit依存関係を削除（Railway環境用）
+    st = None
                                 st.warning(f"修理ケース情報の取得に失敗: {e}")
                             except ImportError:
                                 pass
@@ -796,7 +797,8 @@ class NotionClient:
                         except Exception as e:
                             print(f"部品・工具情報の取得に失敗: {e}")
                             try:
-                                import streamlit as st
+                                # Streamlit依存関係を削除（Railway環境用）
+    st = None
                                 st.warning(f"部品・工具情報の取得に失敗: {e}")
                             except ImportError:
                                 pass
@@ -812,7 +814,8 @@ class NotionClient:
         except Exception as e:
             print(f"❌ Notionからの診断データ読み込みに失敗: {e}")
             try:
-                import streamlit as st
+                # Streamlit依存関係を削除（Railway環境用）
+    st = None
                 st.error(f"❌ Notionからの診断データ読み込みに失敗: {e}")
             except ImportError:
                 pass
@@ -1245,7 +1248,8 @@ class NotionClient:
             if not kb_db_id:
                 print("❌ ナレッジベースDBのIDが設定されていません")
                 try:
-                    import streamlit as st
+                    # Streamlit依存関係を削除（Railway環境用）
+    st = None
                     st.error("❌ ナレッジベースDBのIDが設定されていません")
                     st.info("💡 解決方法:")
                     st.info("1. .streamlit/secrets.tomlにKNOWLEDGE_BASE_DB_IDを設定")
@@ -1272,7 +1276,8 @@ class NotionClient:
                 if not pages:
                     print("⚠️ ナレッジベースDBにデータがありません")
                     try:
-                        import streamlit as st
+                        # Streamlit依存関係を削除（Railway環境用）
+    st = None
                         st.warning("⚠️ ナレッジベースDBにデータがありません")
                         st.info("💡 Notionデータベースにナレッジを追加してください")
                     except ImportError:
@@ -1284,7 +1289,8 @@ class NotionClient:
                 print(f"❌ ナレッジベースDBのクエリに失敗: {error_msg}")
                 
                 try:
-                    import streamlit as st
+                    # Streamlit依存関係を削除（Railway環境用）
+    st = None
                     st.error(f"❌ ナレッジベースDBのクエリに失敗: {error_msg}")
                 except ImportError:
                     pass
