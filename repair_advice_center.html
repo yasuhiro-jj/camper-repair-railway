@@ -3078,36 +3078,55 @@
             console.log('🎉 結果表示完了');
         }
 
-        // マークダウン風テキストをHTMLに変換
+        // マークダウン風テキストをHTMLに変換（改善版）
         function formatContentToHTML(content) {
             if (!content) return '';
             
-            // 改行を保持
             let html = content;
             
-            // 見出し（### または ##）
-            html = html.replace(/###\s*([^\n]+)/g, '<h4 style="margin-top: 15px; margin-bottom: 10px; color: #dc3545; font-size: 1.1em;">$1</h4>');
-            html = html.replace(/##\s*([^\n]+)/g, '<h3 style="margin-top: 20px; margin-bottom: 10px; color: #dc3545; font-size: 1.3em;">$1</h3>');
+            // 会話形式の処理
+            html = html.replace(/💬\s*\*\*ユーザー:\*\*/g, '<div style="margin: 15px 0; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 5px;"><strong style="color: #1976d2;">💬 ユーザー:</strong></div>');
+            html = html.replace(/👨‍🔧\s*\*\*スタッフ:\*\*/g, '<div style="margin: 15px 0; padding: 10px; background: #f1f8e9; border-left: 4px solid #8bc34a; border-radius: 5px;"><strong style="color: #689f38;">👨‍🔧 スタッフ:</strong></div>');
+            
+            // 会話内容（↪ で始まる）
+            html = html.replace(/↪\s*([^\n]+)/g, '<div style="margin: 5px 0 5px 30px; padding-left: 10px; color: #555; font-style: italic;">↪ $1</div>');
+            
+            // 区切り線
+            html = html.replace(/─{10,}/g, '<hr style="margin: 20px 0; border: none; border-top: 2px dashed #ddd;">');
+            
+            // 見出し（### または ## または #）
+            html = html.replace(/###\s*📋\s*([^\n]+)/g, '<h4 style="margin-top: 20px; margin-bottom: 12px; color: #dc3545; font-size: 1.15em; border-bottom: 2px solid #dc3545; padding-bottom: 5px;">📋 $1</h4>');
+            html = html.replace(/##\s*📌\s*([^\n]+)/g, '<h3 style="margin-top: 25px; margin-bottom: 15px; color: #ff6b6b; font-size: 1.3em; background: #fff3f3; padding: 10px; border-radius: 5px;">📌 $1</h3>');
+            html = html.replace(/##\s*🔧\s*([^\n]+)/g, '<h3 style="margin-top: 25px; margin-bottom: 15px; color: #dc3545; font-size: 1.3em; background: #fff3f3; padding: 10px; border-radius: 5px;">🔧 $1</h3>');
+            html = html.replace(/##\s*([^\n]+)/g, '<h3 style="margin-top: 25px; margin-bottom: 15px; color: #dc3545; font-size: 1.3em;">$1</h3>');
+            html = html.replace(/#\s*🚀\s*([^\n]+)/g, '<h2 style="margin-top: 30px; margin-bottom: 15px; color: #dc3545; font-size: 1.5em; border-bottom: 3px solid #dc3545; padding-bottom: 8px;">🚀 $1</h2>');
             
             // 番号付きリスト（1️⃣ など）
-            html = html.replace(/\s*(\d+)️⃣\s*\*\*([^*]+)\*\*/g, '<div style="margin: 10px 0; padding-left: 10px;"><strong style="color: #667eea;">$1. $2</strong></div>');
+            html = html.replace(/(\d+)️⃣\s*([^\n]+)/g, '<div style="margin: 12px 0; padding: 8px 12px; background: #f8f9fa; border-left: 3px solid #667eea; border-radius: 5px;"><strong style="color: #667eea;">$1. </strong><span style="color: #333;">$2</span></div>');
             
             // 箇条書き（アイコン付き）
-            html = html.replace(/\s*(⚡|💰|🔧|🔩|⚠️|⏱️|⚙️|▪️)\s*([^\n]+)/g, '<div style="margin: 5px 0; padding-left: 20px; display: flex; align-items: start;"><span style="margin-right: 8px; font-size: 1.1em;">$1</span><span style="flex: 1;">$2</span></div>');
+            html = html.replace(/\s*(⚡|💰|🔧|🔩|⚠️|⏱️|⚙️|💧|👃|▪️)\s*([^\n]+)/g, '<div style="margin: 8px 0; padding: 5px 10px; padding-left: 25px; display: flex; align-items: start;"><span style="margin-right: 10px; font-size: 1.2em; flex-shrink: 0;">$1</span><span style="flex: 1; color: #555;">$2</span></div>');
+            
+            // 特別なアイコン付きテキスト
+            html = html.replace(/🔍\s*([^\n]+)/g, '<div style="margin: 10px 0; padding: 10px; background: #e3f2fd; border-radius: 5px;"><strong style="color: #1976d2;">🔍 $1</strong></div>');
+            html = html.replace(/🎯\s*([^\n]+)/g, '<div style="margin: 10px 0; padding: 10px; background: #fff3e0; border-radius: 5px;"><strong style="color: #f57c00;">🎯 $1</strong></div>');
+            html = html.replace(/✅\s*([^\n]+)/g, '<div style="margin: 10px 0; padding: 10px; background: #e8f5e9; border-radius: 5px;"><strong style="color: #388e3c;">✅ $1</strong></div>');
+            html = html.replace(/💡\s*([^\n]+)/g, '<div style="margin: 10px 0; padding: 10px; background: #fff9c4; border-left: 4px solid #fbc02d; border-radius: 5px;"><strong style="color: #f57f17;">💡 $1</strong></div>');
             
             // 太字（**text**）
-            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong style="color: #333;">$1</strong>');
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong style="color: #333; font-weight: 600;">$1</strong>');
             
-            // 改行を<br>に変換（ただし、すでにHTMLタグで囲まれている部分は除外）
+            // 改行を<br>に変換
             html = html.split('\n').map(line => {
                 line = line.trim();
-                if (!line) return '<br>';
+                if (!line) return '<div style="height: 10px;"></div>';
                 if (line.startsWith('<')) return line;
-                return line + '<br>';
+                // 通常のテキスト
+                return '<div style="margin: 5px 0; line-height: 1.6;">' + line + '</div>';
             }).join('');
             
-            // 連続する<br>を整理
-            html = html.replace(/(<br>){3,}/g, '<br><br>');
+            // 連続する空白divを整理
+            html = html.replace(/(<div style="height: 10px;"><\/div>){3,}/g, '<div style="height: 15px;"></div>');
             
             return html;
         }

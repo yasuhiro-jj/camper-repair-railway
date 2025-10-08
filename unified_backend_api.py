@@ -561,50 +561,79 @@ def format_text_content(text: str, query: str) -> str:
         # 見出しと本文を分離
         lines = text.split('\n')
         current_section = ""
+        in_conversation = False
         
-        for line in lines:
+        for i, line in enumerate(lines):
             line = line.strip()
             if not line:
                 continue
             
-            # 見出し（##で始まる）
-            if line.startswith('##'):
-                title = line.replace('##', '').strip()
+            # 会話形式の検出（**ユーザー** または **スタッフ**）
+            if line.startswith('**ユーザー**'):
+                in_conversation = True
+                formatted_lines.append(f"\n💬 **ユーザー:**")
+                continue
+            elif line.startswith('**スタッフ**'):
+                formatted_lines.append(f"\n👨‍🔧 **スタッフ:**")
+                continue
+            
+            # 区切り線
+            if line.startswith('---') or line == '---':
+                formatted_lines.append(f"\n{'─' * 40}\n")
+                continue
+            
+            # 見出し（### で始まる）
+            if line.startswith('###'):
+                title = line.replace('###', '').strip()
                 formatted_lines.append(f"\n### 📋 {title}\n")
                 current_section = title
+                in_conversation = False
             
-            # 見出し（#で始まる）
+            # 見出し（## で始まる）
+            elif line.startswith('##'):
+                title = line.replace('##', '').strip()
+                # Caseパターンを特別処理
+                if '【Case' in title or 'Case' in title:
+                    formatted_lines.append(f"\n## 📌 {title}\n")
+                else:
+                    formatted_lines.append(f"\n## 🔧 {title}\n")
+                current_section = title
+                in_conversation = False
+            
+            # 見出し（# で始まる）
             elif line.startswith('#'):
                 title = line.replace('#', '').strip()
-                formatted_lines.append(f"\n## 🔧 {title}\n")
+                formatted_lines.append(f"\n# 🚀 {title}\n")
                 current_section = title
+                in_conversation = False
             
             # 番号付きリスト（1. で始まる）
-            elif line[0:3].strip() and line[0:3].strip()[0].isdigit() and '.' in line[0:5]:
+            elif len(line) > 2 and line[0].isdigit() and '. ' in line[0:5]:
                 # ステップ番号を抽出
                 parts = line.split('.', 1)
                 if len(parts) == 2:
                     num = parts[0].strip()
                     content = parts[1].strip()
                     
-                    # 太字部分（**で囲まれた部分）を処理
+                    # 太字部分（**で囲まれた部分）を強調
                     if '**' in content:
-                        content = content.replace('**', '**📌 ').replace('**', '**')
+                        # **text** を維持
+                        pass
                     
-                    formatted_lines.append(f"  {num}️⃣ **{content}**")
+                    formatted_lines.append(f"  {num}️⃣ {content}")
             
             # 箇条書き（- で始まる）
             elif line.startswith('-'):
                 content = line[1:].strip()
                 
-                # アイコンを追加
+                # アイコンを自動追加
                 if '電圧' in content or 'テスター' in content or '測定' in content:
                     icon = '⚡'
-                elif '費用' in content or '円' in content or '料金' in content:
+                elif '費用' in content or '円' in content or '料金' in content or '価格' in content:
                     icon = '💰'
                 elif '工具' in content or 'スパナ' in content or 'レンチ' in content:
                     icon = '🔧'
-                elif '部品' in content or '交換' in content:
+                elif '部品' in content or '交換' in content or 'パーツ' in content:
                     icon = '🔩'
                 elif '注意' in content or '警告' in content or '危険' in content:
                     icon = '⚠️'
@@ -612,32 +641,58 @@ def format_text_content(text: str, query: str) -> str:
                     icon = '⏱️'
                 elif '難易度' in content or 'レベル' in content:
                     icon = '⚙️'
+                elif '水' in content or '液' in content or '漏れ' in content:
+                    icon = '💧'
+                elif '臭い' in content or 'ニオイ' in content:
+                    icon = '👃'
                 else:
                     icon = '▪️'
                 
                 formatted_lines.append(f"    {icon} {content}")
             
+            # 会話形式の内容
+            elif in_conversation:
+                # インデントして表示
+                formatted_lines.append(f"  ↪ {line}")
+            
             # 通常のテキスト
             else:
                 # 重要なキーワードを強調
-                if any(keyword in line for keyword in ['重要', '注意', '警告', '必須']):
-                    formatted_lines.append(f"  ⚠️ **{line}**")
-                elif any(keyword in line for keyword in ['推奨', 'おすすめ', 'ポイント']):
-                    formatted_lines.append(f"  💡 {line}")
+                if any(keyword in line for keyword in ['重要', '注意', '警告', '必須', '危険']):
+                    formatted_lines.append(f"\n⚠️ **{line}**\n")
+                elif any(keyword in line for keyword in ['推奨', 'おすすめ', 'ポイント', 'ヒント']):
+                    formatted_lines.append(f"\n💡 {line}\n")
+                elif any(keyword in line for keyword in ['症状', '問題', 'トラブル']):
+                    formatted_lines.append(f"\n🔍 {line}")
+                elif any(keyword in line for keyword in ['原因', '理由']):
+                    formatted_lines.append(f"\n🎯 {line}")
+                elif any(keyword in line for keyword in ['対処', '解決', '修理']):
+                    formatted_lines.append(f"\n✅ {line}")
                 else:
-                    formatted_lines.append(f"  {line}")
+                    # 長い文章は改行を追加
+                    if len(line) > 50:
+                        formatted_lines.append(f"\n{line}\n")
+                    else:
+                        formatted_lines.append(f"{line}")
         
         # 整形されたテキストを結合
         formatted_text = '\n'.join(formatted_lines)
         
+        # 連続する空行を削除
+        while '\n\n\n' in formatted_text:
+            formatted_text = formatted_text.replace('\n\n\n', '\n\n')
+        
         # 長すぎる場合は要約
-        if len(formatted_text) > 1500:
-            formatted_text = formatted_text[:1500] + "\n\n...(以下省略)\n\n💡 **より詳しい情報は、完全版をご覧ください**"
+        if len(formatted_text) > 2000:
+            # 最初の重要な部分を保持
+            formatted_text = formatted_text[:2000] + "\n\n...(以下省略)\n\n💡 **より詳しい情報が必要な場合は、専門業者にご相談ください**"
         
         return formatted_text
         
     except Exception as e:
         print(f"⚠️ テキスト整形エラー: {e}")
+        import traceback
+        traceback.print_exc()
         # エラーの場合は元のテキストを返す（最大500文字）
         return text[:500] + "..." if len(text) > 500 else text
 
