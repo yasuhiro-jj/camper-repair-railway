@@ -553,6 +553,94 @@ def repair_advice_center():
         </html>
         """, 200
 
+def format_text_content(text: str, query: str) -> str:
+    """テキストコンテンツを読みやすく整形する"""
+    try:
+        formatted_lines = []
+        
+        # 見出しと本文を分離
+        lines = text.split('\n')
+        current_section = ""
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # 見出し（##で始まる）
+            if line.startswith('##'):
+                title = line.replace('##', '').strip()
+                formatted_lines.append(f"\n### 📋 {title}\n")
+                current_section = title
+            
+            # 見出し（#で始まる）
+            elif line.startswith('#'):
+                title = line.replace('#', '').strip()
+                formatted_lines.append(f"\n## 🔧 {title}\n")
+                current_section = title
+            
+            # 番号付きリスト（1. で始まる）
+            elif line[0:3].strip() and line[0:3].strip()[0].isdigit() and '.' in line[0:5]:
+                # ステップ番号を抽出
+                parts = line.split('.', 1)
+                if len(parts) == 2:
+                    num = parts[0].strip()
+                    content = parts[1].strip()
+                    
+                    # 太字部分（**で囲まれた部分）を処理
+                    if '**' in content:
+                        content = content.replace('**', '**📌 ').replace('**', '**')
+                    
+                    formatted_lines.append(f"  {num}️⃣ **{content}**")
+            
+            # 箇条書き（- で始まる）
+            elif line.startswith('-'):
+                content = line[1:].strip()
+                
+                # アイコンを追加
+                if '電圧' in content or 'テスター' in content or '測定' in content:
+                    icon = '⚡'
+                elif '費用' in content or '円' in content or '料金' in content:
+                    icon = '💰'
+                elif '工具' in content or 'スパナ' in content or 'レンチ' in content:
+                    icon = '🔧'
+                elif '部品' in content or '交換' in content:
+                    icon = '🔩'
+                elif '注意' in content or '警告' in content or '危険' in content:
+                    icon = '⚠️'
+                elif '時間' in content or '日数' in content:
+                    icon = '⏱️'
+                elif '難易度' in content or 'レベル' in content:
+                    icon = '⚙️'
+                else:
+                    icon = '▪️'
+                
+                formatted_lines.append(f"    {icon} {content}")
+            
+            # 通常のテキスト
+            else:
+                # 重要なキーワードを強調
+                if any(keyword in line for keyword in ['重要', '注意', '警告', '必須']):
+                    formatted_lines.append(f"  ⚠️ **{line}**")
+                elif any(keyword in line for keyword in ['推奨', 'おすすめ', 'ポイント']):
+                    formatted_lines.append(f"  💡 {line}")
+                else:
+                    formatted_lines.append(f"  {line}")
+        
+        # 整形されたテキストを結合
+        formatted_text = '\n'.join(formatted_lines)
+        
+        # 長すぎる場合は要約
+        if len(formatted_text) > 1500:
+            formatted_text = formatted_text[:1500] + "\n\n...(以下省略)\n\n💡 **より詳しい情報は、完全版をご覧ください**"
+        
+        return formatted_text
+        
+    except Exception as e:
+        print(f"⚠️ テキスト整形エラー: {e}")
+        # エラーの場合は元のテキストを返す（最大500文字）
+        return text[:500] + "..." if len(text) > 500 else text
+
 @app.route("/api/repair_advice/search", methods=["POST"])
 def repair_advice_search():
     """修理アドバイスセンター用検索API"""
@@ -680,15 +768,18 @@ def repair_advice_search():
                 text_content = rag_results.get('text_file_content', '')
                 print(f"📄 text_file_content: {len(text_content) if text_content else 0}文字")
                 if text_content and len(text_content) > 10:
+                    # テキストを読みやすく整形
+                    formatted_content = format_text_content(text_content, query)
+                    
                     search_results.append({
-                        "title": f"📄 {query}の詳細情報（テキスト）",
-                        "content": text_content[:500] + "..." if len(text_content) > 500 else text_content,
+                        "title": f"📄 {query}の詳細情報",
+                        "content": formatted_content,
                         "source": "技術資料（テキスト）",
                         "category": "詳細情報",
                         "url": None,
                         "relevance": "high"
                     })
-                    print(f"  ✅ テキストコンテンツを追加")
+                    print(f"  ✅ テキストコンテンツを追加（整形済み）")
                 
                 # ブログリンクがある場合
                 blog_links = rag_results.get('blog_links', [])
@@ -1134,8 +1225,11 @@ def unified_chat():
 
 @app.route("/api/unified/search", methods=["POST"])
 def unified_search():
-    """統合検索API"""
+    """統合検索API（並列検索で高速化）"""
     try:
+        import concurrent.futures
+        import time
+        
         data = request.get_json()
         query = data.get("query", "").strip()
         search_types = data.get("types", ["rag", "serp", "categories"])
@@ -1143,43 +1237,73 @@ def unified_search():
         if not query:
             return jsonify({"error": "検索クエリが空です"}), 400
         
+        start_time = time.time()
         results = {}
         
-        # RAG検索
-        if "rag" in search_types and db:
-            try:
-                rag_results = enhanced_rag_retrieve(query, db, max_results=5)
-                results["rag"] = rag_results
-            except Exception as e:
-                results["rag"] = {"error": str(e)}
+        # 並列検索の実装
+        def search_rag_unified():
+            if "rag" in search_types and db:
+                try:
+                    return enhanced_rag_retrieve(query, db, max_results=5)
+                except Exception as e:
+                    return {"error": str(e)}
+            return {}
         
-        # SERP検索
-        if "serp" in search_types and serp_system:
-            try:
-                serp_results = serp_system.search(query, ['repair_info', 'parts_price', 'general_info'])
-                results["serp"] = serp_results
-            except Exception as e:
-                results["serp"] = {"error": str(e)}
+        def search_serp_unified():
+            if "serp" in search_types and serp_system:
+                try:
+                    return serp_system.search(query, ['repair_info', 'parts_price', 'general_info'])
+                except Exception as e:
+                    return {"error": str(e)}
+            return {}
         
-        # カテゴリ検索
-        if "categories" in search_types and category_manager:
-            try:
-                category = category_manager.identify_category(query)
-                if category:
-                    category_info = {
-                        "category": category,
-                        "icon": category_manager.get_category_icon(category),
-                        "repair_costs": category_manager.get_repair_costs(category),
-                        "repair_steps": category_manager.get_repair_steps_from_json(category),
-                        "warnings": category_manager.get_warnings_from_json(category)
-                    }
-                    results["categories"] = category_info
-            except Exception as e:
-                results["categories"] = {"error": str(e)}
+        def search_categories_unified():
+            if "categories" in search_types and category_manager:
+                try:
+                    category = category_manager.identify_category(query)
+                    if category:
+                        return {
+                            "category": category,
+                            "icon": category_manager.get_category_icon(category),
+                            "repair_costs": category_manager.get_repair_costs(category),
+                            "repair_steps": category_manager.get_repair_steps_from_json(category),
+                            "warnings": category_manager.get_warnings_from_json(category)
+                        }
+                except Exception as e:
+                    return {"error": str(e)}
+            return {}
+        
+        # 並列実行（最大2秒でタイムアウト）
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            future_rag = executor.submit(search_rag_unified) if "rag" in search_types else None
+            future_serp = executor.submit(search_serp_unified) if "serp" in search_types else None
+            future_categories = executor.submit(search_categories_unified) if "categories" in search_types else None
+            
+            if future_rag:
+                try:
+                    results["rag"] = future_rag.result(timeout=2.0)
+                except concurrent.futures.TimeoutError:
+                    results["rag"] = {"error": "検索タイムアウト"}
+            
+            if future_serp:
+                try:
+                    results["serp"] = future_serp.result(timeout=2.0)
+                except concurrent.futures.TimeoutError:
+                    results["serp"] = {"error": "検索タイムアウト"}
+            
+            if future_categories:
+                try:
+                    results["categories"] = future_categories.result(timeout=1.0)
+                except concurrent.futures.TimeoutError:
+                    results["categories"] = {"error": "検索タイムアウト"}
+        
+        search_time = time.time() - start_time
+        print(f"⚡ 統合検索完了: {search_time:.2f}秒")
         
         return jsonify({
             "query": query,
             "results": results,
+            "search_time": f"{search_time:.2f}s",
             "timestamp": datetime.now().isoformat()
         })
         
@@ -1577,22 +1701,86 @@ def log_source_citations(message: str, rag_results: Dict, serp_results: Dict, no
         return {}
 
 def process_chat_mode(message: str, intent: Dict[str, Any], include_serp: bool = True, include_cache: bool = True) -> Dict[str, Any]:
-    """チャットモード処理（キャッシュ無効化対応）"""
+    """チャットモード処理（並列検索で高速化）"""
     try:
-        # RAG検索
+        import concurrent.futures
+        import time
+        
+        start_time = time.time()
+        
+        # 並列検索の実装
         rag_results = {}
-        if db:
-            rag_results = enhanced_rag_retrieve(message, db, max_results=5)
-        
-        # SERP検索
         serp_results = {}
-        if include_serp and serp_system:
-            serp_results = serp_system.search(message, ['repair_info', 'parts_price', 'general_info'])
-        
-        # Notion検索（キャッシュ制御対応）
         notion_results = {}
-        if NOTION_AVAILABLE:
-            notion_results = search_notion_knowledge(message, include_cache=include_cache)
+        
+        def search_rag():
+            """RAG検索（タイムアウト付き）"""
+            try:
+                if db:
+                    return enhanced_rag_retrieve(message, db, max_results=5)
+            except Exception as e:
+                print(f"⚠️ RAG検索エラー: {e}")
+            return {}
+        
+        def search_serp():
+            """SERP検索（タイムアウト付き・条件付き実行）"""
+            try:
+                # SERP検索は価格情報や最新情報が必要な場合のみ実行
+                if include_serp and serp_system:
+                    # 価格や最新情報に関するクエリか判定
+                    price_keywords = ['価格', '値段', '費用', 'いくら', 'コスト', '料金']
+                    latest_keywords = ['最新', '新しい', '最近', '今', '現在']
+                    
+                    needs_serp = any(keyword in message for keyword in price_keywords + latest_keywords)
+                    
+                    if needs_serp:
+                        print("🌐 SERP検索実行（価格/最新情報）")
+                        return serp_system.search(message, ['repair_info', 'parts_price', 'general_info'])
+                    else:
+                        print("⚡ SERP検索スキップ（不要）")
+            except Exception as e:
+                print(f"⚠️ SERP検索エラー: {e}")
+            return {}
+        
+        def search_notion():
+            """Notion検索（タイムアウト付き）"""
+            try:
+                if NOTION_AVAILABLE:
+                    return search_notion_knowledge(message, include_cache=include_cache)
+            except Exception as e:
+                print(f"⚠️ Notion検索エラー: {e}")
+            return {}
+        
+        # 並列実行（最大3秒でタイムアウト）
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            future_rag = executor.submit(search_rag)
+            future_serp = executor.submit(search_serp) if include_serp else None
+            future_notion = executor.submit(search_notion)
+            
+            try:
+                # RAG検索（最優先、2秒でタイムアウト）
+                rag_results = future_rag.result(timeout=2.0)
+            except concurrent.futures.TimeoutError:
+                print("⚠️ RAG検索タイムアウト（2秒）")
+                rag_results = {}
+            
+            try:
+                # SERP検索（3秒でタイムアウト）
+                if future_serp:
+                    serp_results = future_serp.result(timeout=3.0)
+            except concurrent.futures.TimeoutError:
+                print("⚠️ SERP検索タイムアウト（3秒）")
+                serp_results = {}
+            
+            try:
+                # Notion検索（2秒でタイムアウト）
+                notion_results = future_notion.result(timeout=2.0)
+            except concurrent.futures.TimeoutError:
+                print("⚠️ Notion検索タイムアウト（2秒）")
+                notion_results = {}
+        
+        search_time = time.time() - start_time
+        print(f"⚡ 並列検索完了: {search_time:.2f}秒")
         
         # ソース別引用情報をログに記録
         citation_log = log_source_citations(message, rag_results, serp_results, notion_results, intent)
@@ -1607,24 +1795,43 @@ def process_chat_mode(message: str, intent: Dict[str, Any], include_serp: bool =
             "serp_results": serp_results,
             "notion_results": notion_results,
             "intent": intent,
-            "citation_log": citation_log
+            "citation_log": citation_log,
+            "search_time": f"{search_time:.2f}s"
         }
         
     except Exception as e:
         return {"error": f"チャット処理エラー: {str(e)}"}
 
-def load_notion_diagnostic_data():
-    """Notionから診断データを読み込み"""
-    global notion_client_instance
+# 診断データのキャッシュ（グローバル変数）
+_diagnostic_data_cache = None
+_diagnostic_data_cache_time = None
+_CACHE_DURATION = 300  # 5分間キャッシュ
+
+def load_notion_diagnostic_data(force_reload: bool = False):
+    """Notionから診断データを読み込み（キャッシュ付き）"""
+    global notion_client_instance, _diagnostic_data_cache, _diagnostic_data_cache_time
+    
+    import time
+    
+    # キャッシュチェック
+    if not force_reload and _diagnostic_data_cache is not None and _diagnostic_data_cache_time is not None:
+        cache_age = time.time() - _diagnostic_data_cache_time
+        if cache_age < _CACHE_DURATION:
+            print(f"✅ キャッシュから診断データを取得（有効期限: {int(_CACHE_DURATION - cache_age)}秒）")
+            return _diagnostic_data_cache
     
     if not notion_client_instance:
         print("⚠️ Notionクライアントが初期化されていません")
         return None
     
     try:
+        print("🔄 Notionから診断データを読み込み中...")
         diagnostic_data = notion_client_instance.load_diagnostic_data()
         if diagnostic_data:
-            print(f"✅ 診断データ読み込み成功: {len(diagnostic_data.get('nodes', []))}件のノード")
+            # キャッシュに保存
+            _diagnostic_data_cache = diagnostic_data
+            _diagnostic_data_cache_time = time.time()
+            print(f"✅ 診断データ読み込み成功: {len(diagnostic_data.get('nodes', []))}件のノード（キャッシュに保存）")
         else:
             print("⚠️ 診断データが空です")
         return diagnostic_data
@@ -2252,7 +2459,15 @@ CACHE_LAST_FETCHED = 0
 def diagnose_start():
     """診断セッション開始API"""
     try:
-        data = request.get_json()
+        # リクエストデータの取得と検証
+        try:
+            data = request.get_json()
+            if not data:
+                data = {}
+        except Exception as e:
+            print(f"❌ リクエストデータ取得エラー: {e}")
+            return jsonify({"error": "無効なリクエストデータ", "status": "error"}), 400
+        
         category = data.get("category", "general")
         
         print(f"🔍 診断セッション開始: category={category}")
@@ -2289,11 +2504,20 @@ def diagnose_start():
                     {"text": "その他の症状", "value": "other"}
                 ],
                 "safety": {"urgent": False, "notes": ""},
-                "fallback": True
+                "fallback": True,
+                "status": "success"
             }
             
             print(f"📤 フォールバック診断レスポンス送信: {response_data}")
-            return jsonify(response_data)
+            
+            # レスポンスをJSON形式で返す
+            try:
+                response = jsonify(response_data)
+                response.headers['Content-Type'] = 'application/json'
+                return response
+            except Exception as json_error:
+                print(f"❌ JSON生成エラー: {json_error}")
+                return jsonify({"error": "JSONレスポンス生成エラー"}), 500
         
         # 新しいルーティングシステムを使用
         print("🔄 Notionルーティングシステムを開始...")
@@ -2362,7 +2586,18 @@ def diagnose_start():
         
     except Exception as e:
         print(f"❌ 診断セッション開始エラー: {e}")
-        return jsonify({"error": f"診断セッション開始エラー: {str(e)}"}), 500
+        import traceback
+        traceback.print_exc()
+        
+        # エラーレスポンスをJSON形式で返す
+        error_response = {
+            "error": f"診断セッション開始エラー: {str(e)}",
+            "status": "error",
+            "fallback_available": True
+        }
+        response = jsonify(error_response)
+        response.headers['Content-Type'] = 'application/json'
+        return response, 500
 
 @app.route("/chat/diagnose/answer", methods=["POST"])
 def diagnose_answer():
@@ -2442,7 +2677,18 @@ def diagnose_answer():
         
     except Exception as e:
         print(f"❌ 診断回答処理エラー: {e}")
-        return jsonify({"error": f"診断回答処理エラー: {str(e)}"}), 500
+        import traceback
+        traceback.print_exc()
+        
+        # エラーレスポンスをJSON形式で返す
+        error_response = {
+            "error": f"診断回答処理エラー: {str(e)}",
+            "status": "error",
+            "is_terminated": True
+        }
+        response = jsonify(error_response)
+        response.headers['Content-Type'] = 'application/json'
+        return response, 500
 
 def get_diagnostic_options(node):
     """診断ノードから選択肢を取得"""
@@ -2680,11 +2926,25 @@ def handle_fallback_diagnosis(answer_text, session_id):
             "solutions": solutions
         }
         
-        return jsonify(result)
+        # レスポンスをJSON形式で返す
+        response = jsonify(result)
+        response.headers['Content-Type'] = 'application/json'
+        return response
         
     except Exception as e:
         print(f"❌ フォールバック診断エラー: {e}")
-        return jsonify({"error": f"フォールバック診断エラー: {str(e)}"}), 500
+        import traceback
+        traceback.print_exc()
+        
+        # エラーレスポンスをJSON形式で返す
+        error_response = {
+            "error": f"フォールバック診断エラー: {str(e)}",
+            "status": "error",
+            "is_terminated": True
+        }
+        response = jsonify(error_response)
+        response.headers['Content-Type'] = 'application/json'
+        return response, 500
 
 # === アプリケーション起動 ===
 # Railway環境でも初期化処理を実行
