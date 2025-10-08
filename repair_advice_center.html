@@ -973,8 +973,114 @@
 
         /* レスポンシブデザイン */
         @media (max-width: 768px) {
+            /* コンテナとパディングの調整 */
+            .container {
+                padding: 10px;
+            }
+
+            /* ヘッダーの調整 */
+            .header {
+                padding: 20px 15px;
+                border-radius: 15px;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .header p {
+                font-size: 1rem;
+            }
+
+            /* 検索セクションの調整 */
+            .search-section {
+                padding: 20px 15px;
+                border-radius: 15px;
+            }
+
+            .search-title {
+                font-size: 1.4rem;
+            }
+
+            .search-form {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .search-input {
+                font-size: 1rem;
+                padding: 12px 15px;
+            }
+
+            .search-btn {
+                width: 100%;
+                padding: 12px 20px;
+                font-size: 1rem;
+            }
+
+            .search-buttons {
+                flex-direction: column;
+            }
+
+            .search-buttons .search-btn {
+                width: 100%;
+            }
+
+            /* クイック検索ボタンの調整 */
+            .quick-search {
+                gap: 8px;
+            }
+
+            .quick-btn {
+                font-size: 0.85rem;
+                padding: 8px 12px;
+            }
+
+            /* 検索結果の調整 */
+            .results-section {
+                padding: 20px 15px;
+                border-radius: 15px;
+            }
+
+            .result-header {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .result-rank {
+                flex-direction: row;
+                width: 100%;
+                justify-content: flex-start;
+                gap: 10px;
+            }
+
+            .result-item {
+                padding: 15px;
+            }
+
+            .result-title {
+                font-size: 1.2rem;
+            }
+
+            .result-content {
+                font-size: 0.95rem;
+            }
+
+            /* メタ情報の調整 */
+            .result-meta {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .meta-item {
+                font-size: 0.85rem;
+                padding: 5px 10px;
+            }
+
+            /* プロダクトグリッドの調整 */
             .product-grid {
                 grid-template-columns: 1fr;
+                gap: 15px;
             }
             
             .product-item {
@@ -987,6 +1093,102 @@
 
             .search-categories {
                 justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            /* 診断フローの調整 */
+            .diagnostic-flow {
+                padding: 20px 15px;
+            }
+
+            /* タブレット・スマホ用の追加調整 */
+            .result-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .action-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            /* ローディング表示の調整 */
+            .loading {
+                padding: 15px;
+                font-size: 1rem;
+            }
+
+            .spinner {
+                width: 30px;
+                height: 30px;
+            }
+
+            /* 検索情報の調整 */
+            .search-info {
+                padding: 15px;
+            }
+
+            .search-summary h3 {
+                font-size: 1.2rem;
+            }
+
+            .search-summary p {
+                font-size: 0.95rem;
+            }
+        }
+
+        /* さらに小さい画面用（スマートフォン縦向き） */
+        @media (max-width: 480px) {
+            .container {
+                padding: 8px;
+            }
+
+            .header {
+                padding: 15px 10px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .header p {
+                font-size: 0.9rem;
+            }
+
+            .search-section {
+                padding: 15px 10px;
+            }
+
+            .search-title {
+                font-size: 1.2rem;
+            }
+
+            .search-input {
+                font-size: 0.95rem;
+                padding: 10px 12px;
+            }
+
+            .quick-btn {
+                font-size: 0.8rem;
+                padding: 6px 10px;
+            }
+
+            .result-item {
+                padding: 12px;
+            }
+
+            .result-title {
+                font-size: 1.1rem;
+            }
+
+            .result-content {
+                font-size: 0.9rem;
+                line-height: 1.5;
+            }
+
+            .meta-item {
+                font-size: 0.8rem;
+                padding: 4px 8px;
             }
         }
 
@@ -4212,16 +4414,23 @@
             window.executeSearch();
         }
 
-        // ページ読み込み時のアニメーション
-        window.addEventListener('load', function() {
-            console.log('🚀 ページ読み込み完了');
+        // ページ読み込み時のアニメーション（最適化版）
+        // DOMContentLoadedを使用してより早く表示
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('⚡ DOM読み込み完了（高速表示）');
+            
+            // フェードインアニメーションを即座に開始
             const elements = document.querySelectorAll('.fade-in');
             elements.forEach((element, index) => {
                 setTimeout(() => {
                     element.style.opacity = '1';
                     element.style.transform = 'translateY(0)';
-                }, index * 100);
+                }, index * 50); // 100ms → 50msに短縮
             });
+        });
+        
+        window.addEventListener('load', function() {
+            console.log('🚀 ページ読み込み完了');
             
             // デバッグ情報の表示
             console.log('🔧 デバッグ情報:');

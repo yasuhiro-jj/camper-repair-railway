@@ -372,27 +372,165 @@
         }
 
         .header h1 {
-          font-size: 2em;
+          font-size: 1.8em;
+        }
+
+        .header p {
+          font-size: 1em;
         }
 
         .chat-container {
-          padding: 20px;
+          padding: 15px;
+          border-radius: 15px;
         }
 
         .chat-messages {
-          height: 400px;
+          height: 350px;
+          padding: 15px;
         }
 
         .message {
-          max-width: 90%;
+          max-width: 95%;
+          padding: 12px;
+          font-size: 0.95em;
         }
 
         .chat-input {
           flex-direction: column;
+          gap: 8px;
         }
 
         .chat-input input {
-          margin-bottom: 10px;
+          padding: 12px;
+          font-size: 14px;
+          margin-bottom: 0;
+        }
+
+        .chat-input button {
+          width: 100%;
+          padding: 12px 20px;
+          font-size: 14px;
+        }
+
+        .support-center-info {
+          padding: 15px;
+          margin-bottom: 15px;
+        }
+
+        .support-center-info h2 {
+          font-size: 1.2em;
+        }
+
+        .support-details {
+          font-size: 0.9em;
+        }
+
+        .info-item {
+          padding: 8px;
+        }
+
+        .contact-form-btn {
+          padding: 10px 20px;
+          font-size: 0.9em;
+        }
+
+        .nav-buttons {
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .nav-btn {
+          width: 100%;
+          padding: 12px;
+          font-size: 0.95em;
+        }
+
+        .related-blogs {
+          padding: 15px;
+        }
+
+        .blog-grid {
+          grid-template-columns: 1fr;
+          gap: 15px;
+        }
+
+        .blog-card {
+          padding: 15px;
+        }
+
+        .links-section {
+          padding: 15px;
+        }
+
+        .links-section a {
+          padding: 10px 15px;
+          font-size: 0.9em;
+        }
+      }
+
+      /* さらに小さい画面用（スマートフォン縦向き） */
+      @media (max-width: 480px) {
+        .container {
+          padding: 8px;
+        }
+
+        .header h1 {
+          font-size: 1.5em;
+        }
+
+        .header p {
+          font-size: 0.9em;
+        }
+
+        .chat-container {
+          padding: 12px;
+        }
+
+        .chat-messages {
+          height: 300px;
+          padding: 10px;
+        }
+
+        .message {
+          padding: 10px;
+          font-size: 0.9em;
+          max-width: 98%;
+        }
+
+        .chat-input input {
+          padding: 10px;
+          font-size: 13px;
+        }
+
+        .chat-input button {
+          padding: 10px 15px;
+          font-size: 13px;
+        }
+
+        .support-center-info h2 {
+          font-size: 1.1em;
+        }
+
+        .support-details {
+          font-size: 0.85em;
+        }
+
+        .nav-btn {
+          padding: 10px;
+          font-size: 0.9em;
+        }
+
+        .blog-card h4 {
+          font-size: 1em;
+        }
+
+        .blog-card p {
+          font-size: 0.85em;
+        }
+
+        .links-section a {
+          padding: 8px 12px;
+          font-size: 0.85em;
         }
       }
     </style>

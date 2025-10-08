@@ -94,32 +94,39 @@ def initialize_services():
             else:
                 print("⚠️ テキストファイルが見つかりません")
         
-        print(f"🔄 RAGシステム初期化中... (テキストファイル使用: {use_text_files})")
+        print(f"🔄 RAGシステムをバックグラウンドで初期化します... (テキストファイル使用: {use_text_files})")
         
-        # RAGシステムの初期化を試行
-        try:
-            db = create_notion_based_rag_system(use_text_files=use_text_files)
-            if db:
-                print("✅ Notion統合RAGシステム初期化完了")
-            else:
-                print("⚠️ Notion統合RAGシステムの初期化に失敗しました")
-                db = None
-        except Exception as e:
-            print(f"⚠️ Notion統合RAGシステムの初期化エラー: {e}")
-            db = None
+        # RAGシステムの初期化を非同期で試行（起動時間を短縮）
+        # Note: 実際のRAG検索は最初のリクエスト時に遅延ロードされます
+        db = None  # 初期はNoneにして高速起動
         
-        # フォールバック処理
-        if not db:
-            print("🔄 従来のRAGシステムで再試行中...")
+        # バックグラウンドで初期化（非ブロッキング）
+        import threading
+        def init_rag_background():
+            global db
             try:
-                db = create_enhanced_rag_system()
-                if db:
-                    print("✅ 従来のRAGシステムで初期化完了")
+                print("🔄 バックグラウンドでRAGシステム初期化中...")
+                db_temp = create_notion_based_rag_system(use_text_files=use_text_files)
+                if db_temp:
+                    db = db_temp
+                    print("✅ Notion統合RAGシステム初期化完了（バックグラウンド）")
                 else:
-                    print("❌ 従来のRAGシステムの初期化にも失敗しました")
+                    print("⚠️ Notion統合RAGシステムの初期化に失敗しました")
+                    # フォールバック処理
+                    print("🔄 従来のRAGシステムで再試行中...")
+                    db_temp = create_enhanced_rag_system()
+                    if db_temp:
+                        db = db_temp
+                        print("✅ 従来のRAGシステムで初期化完了（バックグラウンド）")
+                    else:
+                        print("❌ 従来のRAGシステムの初期化にも失敗しました")
             except Exception as e:
-                print(f"❌ 従来のRAGシステムの初期化エラー: {e}")
-                db = None
+                print(f"⚠️ RAGシステムの初期化エラー: {e}")
+        
+        # バックグラウンドスレッドで初期化
+        init_thread = threading.Thread(target=init_rag_background, daemon=True)
+        init_thread.start()
+        print("⚡ RAGシステムの初期化をバックグラウンドで開始しました（高速起動）")
         
         # カテゴリーマネージャーの初期化
         category_manager = RepairCategoryManager()
@@ -143,19 +150,10 @@ def initialize_services():
                 else:
                     print(f"✅ Notion APIキー確認済み: {api_key[:10]}...")
                 
-                # クライアント初期化
+                # クライアント初期化（診断データのテスト読み込みは削除してパフォーマンス改善）
                 result = notion_client_instance.initialize_client()
                 if result:
-                    print("✅ Notionクライアント初期化完了")
-                    # 診断データの読み込みテスト
-                    try:
-                        test_data = notion_client_instance.load_diagnostic_data()
-                        if test_data:
-                            print(f"✅ 診断データ読み込みテスト成功: {len(test_data.get('nodes', []))}件のノード")
-                        else:
-                            print("⚠️ 診断データの読み込みテストに失敗 - データが空です")
-                    except Exception as test_error:
-                        print(f"⚠️ 診断データ読み込みテストエラー: {test_error}")
+                    print("✅ Notionクライアント初期化完了（遅延ロード有効）")
                 else:
                     print("⚠️ Notionクライアント初期化に失敗")
                     notion_client_instance = None
@@ -1015,9 +1013,12 @@ def test_api():
 
 @app.route("/api/unified/health", methods=["GET"])
 def unified_health_check():
-    """統合ヘルスチェック"""
+    """統合ヘルスチェック（軽量版）"""
+    # RAGシステムがまだ初期化中でも「起動中」として返す
+    rag_status = "initializing" if db is None else "ready"
+    
     services_status = {
-        "rag_system": db is not None,
+        "rag_system": rag_status,
         "category_manager": category_manager is not None,
         "serp_system": serp_system is not None,
         "notion_client": notion_client_instance is not None,
@@ -1025,10 +1026,16 @@ def unified_health_check():
         "serp_api": SERP_API_KEY is not None
     }
     
-    all_healthy = all(services_status.values())
+    # RAGが初期化中でも基本サービスは動作
+    basic_healthy = (
+        category_manager is not None and 
+        notion_client_instance is not None and 
+        OPENAI_API_KEY is not None
+    )
     
     return jsonify({
-        "status": "healthy" if all_healthy else "degraded",
+        "status": "healthy" if basic_healthy else "degraded",
+        "rag_status": rag_status,
         "services": services_status,
         "timestamp": datetime.now().isoformat()
     })
