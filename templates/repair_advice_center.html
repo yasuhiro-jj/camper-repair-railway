@@ -1778,6 +1778,38 @@
             margin-right: 10px;
         }
 
+        /* 箇条書き表示用のスタイル */
+        .content-display {
+            margin-top: 10px;
+        }
+
+        .formatted-content {
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+
+        .section-header {
+            margin: 15px 0 10px 0;
+            padding: 8px 12px;
+            background: #f0f8ff;
+            border-left: 4px solid #007bff;
+            font-weight: bold;
+            color: #0056b3;
+        }
+
+        .bullet-item {
+            margin: 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .bullet-item:last-child {
+            border-bottom: none;
+        }
+
+        .bullet-item strong {
+            color: #007bff;
+        }
 
         /* レスポンシブ対応 */
         @media (max-width: 768px) {
@@ -3186,6 +3218,41 @@
         }
 
         // 結果表示（改善版）
+        // 内容を箇条書き形式にフォーマットする関数
+        function formatContentAsBulletPoints(content) {
+            if (!content || content === '内容なし') {
+                return '<p>内容がありません</p>';
+            }
+            
+            // 既に箇条書き形式の場合はそのまま返す
+            if (content.includes('●') || content.includes('-') || content.includes('•')) {
+                return content.replace(/\n/g, '<br>');
+            }
+            
+            // 文章を箇条書きに変換
+            let formatted = content;
+            
+            // 【】で囲まれたセクションを検出
+            formatted = formatted.replace(/【([^】]+)】/g, '<div class="section-header"><strong>【$1】</strong></div>');
+            
+            // 原因、対処法、注意点などのキーワードを検出して箇条書きに変換
+            formatted = formatted.replace(/(原因|対処法|注意点|手順|症状|修理方法|費用|価格)[：:]\s*([^\n]+)/g, '<div class="bullet-item">● <strong>$1:</strong> $2</div>');
+            
+            // 番号付きリストを箇条書きに変換
+            formatted = formatted.replace(/(\d+\.\s*)([^\n]+)/g, '<div class="bullet-item">● $2</div>');
+            
+            // 改行を保持
+            formatted = formatted.replace(/\n/g, '<br>');
+            
+            // 箇条書きでない文章を箇条書きに変換
+            if (!formatted.includes('●') && !formatted.includes('•') && !formatted.includes('-')) {
+                const sentences = content.split(/[。！？]/).filter(s => s.trim().length > 0);
+                formatted = sentences.map(sentence => `<div class="bullet-item">● ${sentence.trim()}</div>`).join('');
+            }
+            
+            return formatted;
+        }
+
         function displayResults(results, query) {
             console.log('📊 結果表示開始:', results.length, '件');
             console.log('📊 結果詳細:', JSON.stringify(results, null, 2));
@@ -3253,7 +3320,10 @@
                     <div class="result-content">
                         <p><strong>カテゴリー:</strong> ${result.category || 'N/A'}</p>
                         <p><strong>ソース:</strong> ${result.source || 'N/A'}</p>
-                        <p><strong>内容:</strong> ${result.content || result.text || '内容なし'}</p>
+                        <div class="content-display">
+                            <strong>内容:</strong>
+                            <div class="formatted-content">${formatContentAsBulletPoints(result.content || result.text || '内容なし')}</div>
+                        </div>
                         ${result.repair_steps && result.repair_steps.length > 0 ? `
                             <div class="repair-steps">
                                 <h4>🔧 修理手順:</h4>

@@ -1013,16 +1013,27 @@
           });
           
           if (response.ok) {
-            const data = await response.json();
-            
-            // AIの回答を追加
-            addMessage(data.response, false);
-            
-            // 関連ブログを表示（サーバーから取得した場合）
-            if (data.blog_links && data.blog_links.length > 0) {
-              showBlogLinks(data.blog_links);
+            // レスポンスのContent-Typeを確認
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const data = await response.json();
+              
+              // AIの回答を追加
+              addMessage(data.response, false);
+              
+              // 関連ブログを表示（サーバーから取得した場合）
+              if (data.blog_links && data.blog_links.length > 0) {
+                showBlogLinks(data.blog_links);
+              }
+            } else {
+              // JSON以外のレスポンスの場合
+              const text = await response.text();
+              console.error('JSON以外のレスポンス:', text);
+              addMessage('申し訳ございません。サーバーからの応答に問題があります。', false);
             }
           } else {
+            const errorText = await response.text();
+            console.error('エラーレスポンス:', errorText);
             throw new Error('サーバーエラー: ' + response.status);
           }
           
