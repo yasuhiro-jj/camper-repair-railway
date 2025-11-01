@@ -14,6 +14,13 @@ from functools import lru_cache
 from typing import Dict, List, Optional, Any
 import time
 
+# .envファイルを読み込む
+try:
+    from dotenv import load_dotenv
+    load_dotenv(override=True)  # 既存の環境変数を上書き
+except ImportError:
+    pass  # dotenvがインストールされていない場合はスキップ
+
 try:
     from .cache_manager import cache_manager, cached_result
 except ImportError:
@@ -423,29 +430,71 @@ class NotionClient:
                 # データベースアクセス権限のテスト
                 test_results = []
                 
+                # notion-clientのバージョンとメソッドの確認
+                try:
+                    import notion_client
+                    notion_version = getattr(notion_client, '__version__', 'unknown')
+                    print(f"📦 notion-clientバージョン: {notion_version}")
+                    
+                    # databasesオブジェクトの確認
+                    if hasattr(self.client, 'databases'):
+                        db_methods = [m for m in dir(self.client.databases) if not m.startswith('_')]
+                        print(f"📋 databases利用可能なメソッド: {', '.join(db_methods[:10])}")
+                        
+                        if not hasattr(self.client.databases, 'query'):
+                            print(f"⚠️ databases.query()メソッドが見つかりません")
+                            print(f"   利用可能なメソッド: {db_methods}")
+                            # 代替方法を試す
+                            if hasattr(self.client.databases, 'retrieve'):
+                                print(f"💡 databases.retrieve()を使用してテストします")
+                except Exception as e:
+                    print(f"⚠️ notion-clientバージョン確認エラー: {e}")
+                
                 if node_db_id:
                     try:
-                        response = self.client.databases.query(database_id=node_db_id)
+                        # 直接queryメソッドを呼び出す
+                        if hasattr(self.client.databases, 'query'):
+                            response = self.client.databases.query(database_id=node_db_id)
+                        else:
+                            # 代替方法：retrieveを使用してデータベース情報を取得
+                            db_info = self.client.databases.retrieve(database_id=node_db_id)
+                            response = {"results": [], "message": "queryメソッドが利用できないため、retrieveのみ実行"}
                         nodes_count = len(response.get("results", []))
                         test_results.append(f"✅ 診断フローDB: {nodes_count}件のノード")
                     except Exception as e:
-                        test_results.append(f"❌ 診断フローDB: アクセス失敗 - {str(e)[:100]}")
+                        error_msg = str(e)
+                        test_results.append(f"❌ 診断フローDB: アクセス失敗 - {error_msg[:100]}")
+                        print(f"🔍 詳細エラー: {error_msg}")
+                        import traceback
+                        traceback.print_exc()
                 
                 if case_db_id:
                     try:
-                        response = self.client.databases.query(database_id=case_db_id)
+                        if hasattr(self.client.databases, 'query'):
+                            response = self.client.databases.query(database_id=case_db_id)
+                        else:
+                            db_info = self.client.databases.retrieve(database_id=case_db_id)
+                            response = {"results": [], "message": "queryメソッドが利用できないため、retrieveのみ実行"}
                         cases_count = len(response.get("results", []))
                         test_results.append(f"✅ 修理ケースDB: {cases_count}件のケース")
                     except Exception as e:
-                        test_results.append(f"❌ 修理ケースDB: アクセス失敗 - {str(e)[:100]}")
+                        error_msg = str(e)
+                        test_results.append(f"❌ 修理ケースDB: アクセス失敗 - {error_msg[:100]}")
+                        print(f"🔍 詳細エラー: {error_msg}")
                 
                 if item_db_id:
                     try:
-                        response = self.client.databases.query(database_id=item_db_id)
+                        if hasattr(self.client.databases, 'query'):
+                            response = self.client.databases.query(database_id=item_db_id)
+                        else:
+                            db_info = self.client.databases.retrieve(database_id=item_db_id)
+                            response = {"results": [], "message": "queryメソッドが利用できないため、retrieveのみ実行"}
                         items_count = len(response.get("results", []))
                         test_results.append(f"✅ 部品・工具DB: {items_count}件のアイテム")
                     except Exception as e:
-                        test_results.append(f"❌ 部品・工具DB: アクセス失敗 - {str(e)[:100]}")
+                        error_msg = str(e)
+                        test_results.append(f"❌ 部品・工具DB: アクセス失敗 - {error_msg[:100]}")
+                        print(f"🔍 詳細エラー: {error_msg}")
                 
                 # テスト結果の簡易ログ（st が無い場合）
                 if not st_available:
