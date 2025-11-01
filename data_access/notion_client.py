@@ -1264,16 +1264,14 @@ class NotionClient:
             # Notionからナレッジベースデータを取得
             try:
                 if hasattr(self.client.databases, 'query'):
-                    if hasattr(self.client.databases, 'query'):
-                        response = self.client.databases.query(database_id=kb_db_id, page_size=100)
+                    response = self.client.databases.query(database_id=kb_db_id, page_size=100)
                 else:
                     response = self._query_database_direct(kb_db_id, page_size=100)
                 pages = response.get("results", [])
-                
+
                 # ページネーション対応（queryメソッドが存在する場合のみ）
                 if hasattr(self.client.databases, 'query'):
                     while response.get("has_more", False):
-                        if hasattr(self.client.databases, 'query'):
                         response = self.client.databases.query(
                             database_id=kb_db_id,
                             page_size=100,
