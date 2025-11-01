@@ -1572,19 +1572,28 @@ class NotionClient:
                         
                         # text型フィールドに対応した検索フィルター
                         if hasattr(self.client.databases, 'query'):
-                        response = self.client.databases.query(
-                            database_id=node_db_id,
-                            filter={
-                                "or": node_search_filters if node_search_filters else [
-                                    {
-                                        "property": "ノードID",
-                                        "title": {
-                                            "contains": query
+                            response = self.client.databases.query(
+                                database_id=node_db_id,
+                                filter={
+                                    "or": node_search_filters if node_search_filters else [
+                                        {
+                                            "property": "ノードID",
+                                            "title": {
+                                                "contains": query
+                                            }
                                         }
-                                    }
-                                ]
-                            }
-                        )
+                                    ]
+                                }
+                            )
+                        else:
+                            response = self._query_database_direct(node_db_id)
+                            # 簡易フィルタリング
+                            if response.get("results"):
+                                filtered_results = []
+                                for node in response.get("results", []):
+                                    if query.lower() in str(node).lower():
+                                        filtered_results.append(node)
+                                response["results"] = filtered_results
                         
                         for node in response.get("results", []):
                             properties = node.get("properties", {})
@@ -1609,30 +1618,39 @@ class NotionClient:
                     # text型フィールドに対応した検索フィルター
                     if hasattr(self.client.databases, 'query'):
                         response = self.client.databases.query(
-                        database_id=item_db_id,
-                        filter={
-                            "or": [
-                                {
-                                    "property": "部品名",
-                                    "title": {
-                                        "contains": query
+                            database_id=item_db_id,
+                            filter={
+                                "or": [
+                                    {
+                                        "property": "部品名",
+                                        "title": {
+                                            "contains": query
+                                        }
+                                    },
+                                    {
+                                        "property": "カテゴリ",
+                                        "rich_text": {
+                                            "contains": query
+                                        }
+                                    },
+                                    {
+                                        "property": "サプライヤー",
+                                        "rich_text": {
+                                            "contains": query
+                                        }
                                     }
-                                },
-                                {
-                                    "property": "カテゴリ",
-                                    "rich_text": {
-                                        "contains": query
-                                    }
-                                },
-                                {
-                                    "property": "サプライヤー",
-                                    "rich_text": {
-                                        "contains": query
-                                    }
-                                }
-                            ]
-                        }
-                    )
+                                ]
+                            }
+                        )
+                    else:
+                        response = self._query_database_direct(item_db_id)
+                        # 簡易フィルタリング
+                        if response.get("results"):
+                            filtered_results = []
+                            for item in response.get("results", []):
+                                if query.lower() in str(item).lower():
+                                    filtered_results.append(item)
+                            response["results"] = filtered_results
                     
                     for item in response.get("results", []):
                         properties = item.get("properties", {})
