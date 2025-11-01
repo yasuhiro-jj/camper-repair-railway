@@ -474,8 +474,7 @@ class NotionClient:
                     try:
                         # queryメソッドが存在する場合は使用、なければ直接HTTPリクエストを使用
                         if hasattr(self.client.databases, 'query'):
-                            if hasattr(self.client.databases, 'query'):
-                        response = self.client.databases.query(database_id=node_db_id)
+                            response = self.client.databases.query(database_id=node_db_id)
                         else:
                             print("💡 queryメソッドが存在しないため、直接HTTPリクエストを使用します")
                             response = self._query_database_direct(node_db_id)
@@ -491,8 +490,7 @@ class NotionClient:
                 if case_db_id:
                     try:
                         if hasattr(self.client.databases, 'query'):
-                            if hasattr(self.client.databases, 'query'):
-                        response = self.client.databases.query(database_id=case_db_id)
+                            response = self.client.databases.query(database_id=case_db_id)
                         else:
                             response = self._query_database_direct(case_db_id)
                         cases_count = len(response.get("results", []))
@@ -505,8 +503,7 @@ class NotionClient:
                 if item_db_id:
                     try:
                         if hasattr(self.client.databases, 'query'):
-                            if hasattr(self.client.databases, 'query'):
-                        response = self.client.databases.query(database_id=item_db_id)
+                            response = self.client.databases.query(database_id=item_db_id)
                         else:
                             response = self._query_database_direct(item_db_id)
                         items_count = len(response.get("results", []))
