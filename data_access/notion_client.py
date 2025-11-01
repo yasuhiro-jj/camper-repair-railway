@@ -93,6 +93,26 @@ class NotionClient:
             await self.session.close()
             self.session = None
     
+    def _query_database_direct(self, database_id: str, page_size: int = 100) -> Dict:
+        """データベースを直接HTTPリクエストでクエリ（queryメソッドが存在しない場合の代替）"""
+        import requests
+        
+        url = f"https://api.notion.com/v1/databases/{database_id}/query"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Notion-Version": "2022-06-28",
+            "Content-Type": "application/json"
+        }
+        
+        data = {"page_size": page_size}
+        
+        try:
+            response = requests.post(url, headers=headers, json=data, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            raise Exception(f"Database query failed: {str(e)}")
+    
     async def _make_request(self, method: str, url: str, data: Optional[Dict] = None) -> Dict:
         """非同期HTTPリクエストを実行（HTTPステータス検査付き）"""
         session = await self._get_session()
@@ -452,13 +472,13 @@ class NotionClient:
                 
                 if node_db_id:
                     try:
-                        # 直接queryメソッドを呼び出す
+                        # queryメソッドが存在する場合は使用、なければ直接HTTPリクエストを使用
                         if hasattr(self.client.databases, 'query'):
-                            response = self.client.databases.query(database_id=node_db_id)
+                            if hasattr(self.client.databases, 'query'):
+                        response = self.client.databases.query(database_id=node_db_id)
                         else:
-                            # 代替方法：retrieveを使用してデータベース情報を取得
-                            db_info = self.client.databases.retrieve(database_id=node_db_id)
-                            response = {"results": [], "message": "queryメソッドが利用できないため、retrieveのみ実行"}
+                            print("💡 queryメソッドが存在しないため、直接HTTPリクエストを使用します")
+                            response = self._query_database_direct(node_db_id)
                         nodes_count = len(response.get("results", []))
                         test_results.append(f"✅ 診断フローDB: {nodes_count}件のノード")
                     except Exception as e:
@@ -471,10 +491,10 @@ class NotionClient:
                 if case_db_id:
                     try:
                         if hasattr(self.client.databases, 'query'):
-                            response = self.client.databases.query(database_id=case_db_id)
+                            if hasattr(self.client.databases, 'query'):
+                        response = self.client.databases.query(database_id=case_db_id)
                         else:
-                            db_info = self.client.databases.retrieve(database_id=case_db_id)
-                            response = {"results": [], "message": "queryメソッドが利用できないため、retrieveのみ実行"}
+                            response = self._query_database_direct(case_db_id)
                         cases_count = len(response.get("results", []))
                         test_results.append(f"✅ 修理ケースDB: {cases_count}件のケース")
                     except Exception as e:
@@ -485,10 +505,10 @@ class NotionClient:
                 if item_db_id:
                     try:
                         if hasattr(self.client.databases, 'query'):
-                            response = self.client.databases.query(database_id=item_db_id)
+                            if hasattr(self.client.databases, 'query'):
+                        response = self.client.databases.query(database_id=item_db_id)
                         else:
-                            db_info = self.client.databases.retrieve(database_id=item_db_id)
-                            response = {"results": [], "message": "queryメソッドが利用できないため、retrieveのみ実行"}
+                            response = self._query_database_direct(item_db_id)
                         items_count = len(response.get("results", []))
                         test_results.append(f"✅ 部品・工具DB: {items_count}件のアイテム")
                     except Exception as e:
@@ -576,7 +596,12 @@ class NotionClient:
             
             # Notionから診断フローデータを取得（ルーティング対応）
             try:
-                response = self.client.databases.query(database_id=node_db_id)
+                # queryメソッドが存在する場合は使用、なければ直接HTTPリクエストを使用
+                if hasattr(self.client.databases, 'query'):
+                    if hasattr(self.client.databases, 'query'):
+                        response = self.client.databases.query(database_id=node_db_id)
+                else:
+                    response = self._query_database_direct(node_db_id)
                 nodes = response.get("results", [])
                 
                 if not nodes:
@@ -986,7 +1011,11 @@ class NotionClient:
             # Notionから修理ケースデータを取得
             try:
                 print(f"🔍 修理ケースDBからデータを取得中... (ID: {case_db_id})")
-                response = self.client.databases.query(database_id=case_db_id)
+                if hasattr(self.client.databases, 'query'):
+                    if hasattr(self.client.databases, 'query'):
+                        response = self.client.databases.query(database_id=case_db_id)
+                else:
+                    response = self._query_database_direct(case_db_id)
                 cases = response.get("results", [])
                 
                 print(f"📊 取得した修理ケース数: {len(cases)}件")
@@ -1136,15 +1165,34 @@ class NotionClient:
                 return []
             
             # text型フィールドに対応した検索フィルター
-            response = self.client.databases.query(
-                database_id=item_db_id,
-                filter={
-                    "property": "カテゴリ",
-                    "rich_text": {
-                        "contains": category
+            if hasattr(self.client.databases, 'query'):
+                response = self.client.databases.query(
+                    database_id=item_db_id,
+                    filter={
+                        "property": "カテゴリ",
+                        "rich_text": {
+                            "contains": category
+                        }
                     }
-                }
-            )
+                )
+            else:
+                # フィルター付きクエリは直接HTTPリクエストで実装（簡易版）
+                response = self._query_database_direct(item_db_id)
+                # フィルターは後でフィルタリング
+                if response.get("results"):
+                    filtered_results = []
+                    for item in response.get("results", []):
+                        props = item.get("properties", {})
+                        cat_prop = props.get("カテゴリ", {})
+                        if cat_prop.get("type") == "rich_text":
+                            rich_text_array = cat_prop.get("rich_text", [])
+                            if rich_text_array and category.lower() in rich_text_array[0].get("plain_text", "").lower():
+                                filtered_results.append(item)
+                        elif cat_prop.get("type") == "select":
+                            select_obj = cat_prop.get("select")
+                            if select_obj and category.lower() in select_obj.get("name", "").lower():
+                                filtered_results.append(item)
+                    response["results"] = filtered_results
             
             items = response.get("results", [])
             item_list = []
@@ -1218,17 +1266,26 @@ class NotionClient:
             
             # Notionからナレッジベースデータを取得
             try:
-                response = self.client.databases.query(database_id=kb_db_id, page_size=100)
+                if hasattr(self.client.databases, 'query'):
+                    if hasattr(self.client.databases, 'query'):
+                        response = self.client.databases.query(database_id=kb_db_id, page_size=100)
+                else:
+                    response = self._query_database_direct(kb_db_id, page_size=100)
                 pages = response.get("results", [])
                 
-                # ページネーション対応
-                while response.get("has_more", False):
-                    response = self.client.databases.query(
-                        database_id=kb_db_id,
-                        page_size=100,
-                        start_cursor=response.get("next_cursor")
-                    )
-                    pages.extend(response.get("results", []))
+                # ページネーション対応（queryメソッドが存在する場合のみ）
+                if hasattr(self.client.databases, 'query'):
+                    while response.get("has_more", False):
+                        if hasattr(self.client.databases, 'query'):
+                        response = self.client.databases.query(
+                            database_id=kb_db_id,
+                            page_size=100,
+                            start_cursor=response.get("next_cursor")
+                        )
+                        pages.extend(response.get("results", []))
+                else:
+                    # ページネーションは簡易版（最初の100件のみ）
+                    print("⚠️ ページネーションはqueryメソッドが必要です。最初の100件のみ取得します")
                 
                 if not pages:
                     print("⚠️ ナレッジベースDBにデータがありません")
@@ -1390,19 +1447,36 @@ class NotionClient:
                             ])
                     
                     # 修理ケースDBの実際のプロパティに基づいた検索フィルター
-                    response = self.client.databases.query(
-                        database_id=case_db_id,
-                        filter={
-                            "or": search_filters if search_filters else [
-                                {
-                                    "property": "ケースID",
-                                    "title": {
-                                        "contains": query
+                    if hasattr(self.client.databases, 'query'):
+                        response = self.client.databases.query(
+                            database_id=case_db_id,
+                            filter={
+                                "or": search_filters if search_filters else [
+                                    {
+                                        "property": "ケースID",
+                                        "title": {
+                                            "contains": query
+                                        }
                                     }
-                                }
-                            ]
-                        }
-                    )
+                                ]
+                            }
+                        )
+                    else:
+                        # フィルター付きクエリは直接HTTPリクエストで実装（簡易版）
+                        response = self._query_database_direct(case_db_id)
+                        # フィルターは後でフィルタリング（簡易版）
+                        if response.get("results") and search_filters:
+                            filtered_results = []
+                            for case in response.get("results", []):
+                                # 簡易的なフィルタリング（完全一致のみ）
+                                matched = False
+                                for keyword in [query] + [f.get("rich_text", {}).get("contains", "") for f in search_filters if f.get("rich_text")]:
+                                    if keyword and keyword.lower() in str(case).lower():
+                                        matched = True
+                                        break
+                                if matched:
+                                    filtered_results.append(case)
+                            response["results"] = filtered_results
                     
                     for case in response.get("results", []):
                         properties = case.get("properties", {})
@@ -1497,6 +1571,7 @@ class NotionClient:
                                 ])
                         
                         # text型フィールドに対応した検索フィルター
+                        if hasattr(self.client.databases, 'query'):
                         response = self.client.databases.query(
                             database_id=node_db_id,
                             filter={
@@ -1532,7 +1607,8 @@ class NotionClient:
             if item_db_id:
                 try:
                     # text型フィールドに対応した検索フィルター
-                    response = self.client.databases.query(
+                    if hasattr(self.client.databases, 'query'):
+                        response = self.client.databases.query(
                         database_id=item_db_id,
                         filter={
                             "or": [
