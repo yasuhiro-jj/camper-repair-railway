@@ -228,19 +228,21 @@ def start_conversation():
 
 @app.route("/ask", methods=["POST"])
 def ask():
-    """質問に回答するエンドポイント"""
+    """質問に回答するエンドポイント（フロントエンド互換用）"""
     try:
         # フォームデータとJSONの両方に対応
+        session_id = ""
         if request.content_type and 'application/json' in request.content_type:
-            data = request.get_json()
+            data = request.get_json() or {}
             question = data.get('question', '')
+            session_id = data.get('conversation_id') or data.get('session_id') or ''
         else:
             question = request.form.get('question', '')
+            session_id = request.form.get('conversation_id') or request.form.get('session_id') or ''
         
         if not question:
             return jsonify({"error": "質問が入力されていません"}), 400
         
-        # 統合チャット機能を呼び出し
         try:
             # 意図分析
             intent = analyze_intent(question)
@@ -252,11 +254,73 @@ def ask():
             answer = result.get("response", "回答を生成できませんでした")
             if isinstance(answer, dict):
                 answer = str(answer)
-            
+
+            # 会話ログ保存
+            try:
+                bot_text = answer
+                category = intent.get("category") if isinstance(intent, dict) else None
+                subcategory = None
+
+                urgency_value = None
+                try:
+                    urgency_label = (intent.get("urgency") if isinstance(intent, dict) else None) or ""
+                    mapping = {"low": 2, "medium": 3, "high": 5}
+                    if isinstance(urgency_label, str):
+                        urgency_value = mapping.get(urgency_label.lower())
+                except Exception:
+                    urgency_value = None
+
+                kw_list = []
+                try:
+                    if isinstance(intent, dict) and isinstance(intent.get("keywords"), list):
+                        kw_list = [str(x) for x in intent.get("keywords")[:10]]
+                except Exception:
+                    kw_list = []
+
+                tool_used = "chat"
+                try:
+                    if isinstance(result, dict):
+                        if result.get("notion_results") and (
+                            len(result["notion_results"].get("repair_cases", []))
+                            + len(result["notion_results"].get("diagnostic_nodes", []))
+                        ) > 0:
+                            tool_used = "notion"
+                        elif result.get("rag_results") and len(result["rag_results"].get("documents", [])) > 0:
+                            tool_used = "rag"
+                        elif result.get("serp_results") and len(result["serp_results"].get("results", [])) > 0:
+                            tool_used = "serp"
+                except Exception:
+                    pass
+
+                print("🔍 Notion保存処理を開始します...")
+                print(f"   - user_msg: {question[:50]}...")
+                print(f"   - session_id: {session_id}")
+                print(f"   - category: {category}")
+                print(f"   - tool_used: {tool_used}")
+
+                saved, error_msg = save_chat_log_to_notion(
+                    user_msg=question,
+                    bot_msg=bot_text,
+                    session_id=session_id or "",
+                    category=category,
+                    subcategory=subcategory,
+                    urgency=urgency_value,
+                    keywords=kw_list,
+                    tool_used=tool_used,
+                )
+                if saved:
+                    print("✅ Notion保存成功")
+                else:
+                    print(f"⚠️ Notion保存失敗: {error_msg}")
+            except Exception as log_error:
+                print(f"⚠️ Notion保存処理でエラー: {log_error}")
+                import traceback
+                traceback.print_exc()
+
             return jsonify({
                 "answer": answer,
                 "sources": result.get("rag_results", {}),
-                "confidence": 0.8,  # デフォルト値
+                "confidence": 0.8,
                 "timestamp": datetime.now().isoformat()
             })
         except Exception as e:
