@@ -20,6 +20,7 @@ from config import OPENAI_API_KEY, SERP_API_KEY, LANGSMITH_API_KEY
 from enhanced_rag_system import create_enhanced_rag_system, enhanced_rag_retrieve, create_notion_based_rag_system
 from serp_search_system import get_serp_search_system
 from repair_category_manager import RepairCategoryManager
+from save_to_notion import save_chat_log_to_notion
 
 # Notion関連のインポート
 try:
@@ -1248,6 +1249,79 @@ def debug_notion():
             "message": str(e)
         })
 
+@app.route("/api/test/notion-save", methods=["POST"])
+def test_notion_save_endpoint():
+    """Notion保存機能のテスト用エンドポイント（軽量版）"""
+    try:
+        data = request.get_json() or {}
+        user_msg = data.get("message", "テストメッセージ")
+        session_id = data.get("session_id", "test-session")
+        
+        print("🔍 テストエンドポイント: Notion保存処理を開始します...")
+        
+        # 環境変数の確認
+        import os
+        notion_api_key = os.getenv("NOTION_API_KEY")
+        notion_log_db_id = os.getenv("NOTION_LOG_DB_ID")
+        
+        print(f"   環境変数確認:")
+        print(f"   - NOTION_API_KEY: {'設定済み' if notion_api_key else '❌ 未設定'}")
+        print(f"   - NOTION_LOG_DB_ID: {'設定済み' if notion_log_db_id else '❌ 未設定'}")
+        
+        if not notion_api_key or not notion_log_db_id:
+            return jsonify({
+                "status": "error",
+                "message": "環境変数が未設定です",
+                "details": {
+                    "NOTION_API_KEY": "設定済み" if notion_api_key else "❌ 未設定",
+                    "NOTION_LOG_DB_ID": "設定済み" if notion_log_db_id else "❌ 未設定"
+                },
+                "saved": False
+            }), 500
+        
+        # 保存処理を直接実行
+        print(f"   - 保存処理開始: user_msg={user_msg[:50]}...")
+        print(f"   - session_id={session_id}")
+        
+        saved, error_msg = save_chat_log_to_notion(
+            user_msg=user_msg,
+            bot_msg="これはテスト用の応答です。",
+            session_id=session_id,
+            category="テスト",
+            urgency=3,
+            keywords=["テスト"],
+            tool_used="test",
+        )
+        
+        print(f"   - 保存結果: saved={saved}, error_msg={error_msg[:200] if error_msg else 'なし'}")
+        
+        if saved:
+            return jsonify({
+                "status": "success",
+                "message": "Notion保存成功",
+                "saved": True
+            })
+        else:
+            # エラーメッセージを詳細に返す
+            error_response = {
+                "status": "error",
+                "message": "Notion保存失敗（詳細はサーバーログを確認）",
+                "error_details": error_msg or "エラー詳細が取得できませんでした",
+                "saved": False
+            }
+            print(f"❌ エラーレスポンス: {error_response}")
+            return jsonify(error_response), 500
+            
+    except Exception as e:
+        print(f"❌ テストエンドポイントエラー: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "error_type": type(e).__name__
+        }), 500
+
 @app.route("/api/unified/chat", methods=["POST"])
 def unified_chat():
     """統合チャットAPI"""
@@ -1256,6 +1330,7 @@ def unified_chat():
         message = data.get("message", "").strip()
         mode = data.get("mode", "chat")
         include_serp = data.get("include_serp", True)
+        session_id = data.get("session_id", "")
         
         if not message:
             return jsonify({"error": "メッセージが空です"}), 400
@@ -1273,9 +1348,211 @@ def unified_chat():
         else:  # chat
             result = process_chat_mode(message, intent, include_serp)
         
+        # 返答テキストの抽出（Notion保存用）
+        print(f"🔍 会話ログ保存準備中... (session_id: {session_id})")
+        try:
+            bot_text = None
+            if isinstance(result, dict):
+                if isinstance(result.get("response"), str):
+                    bot_text = result.get("response")
+                elif isinstance(result.get("message"), str):
+                    bot_text = result.get("message")
+            if not bot_text:
+                import json as _json
+                bot_text = _json.dumps(result, ensure_ascii=False)[:1900]
+            print(f"   - bot_text長さ: {len(bot_text) if bot_text else 0}文字")
+
+            # カテゴリは意図分析の結果を利用
+            category = None
+            if isinstance(intent, dict):
+                category = intent.get("category")
+
+            # サブカテゴリ（現状なし）：将来拡張のため None
+            subcategory = None
+
+            # 緊急度マッピング（low/medium/high → 数値）
+            urgency_value = None
+            try:
+                urgency_label = (intent.get("urgency") if isinstance(intent, dict) else None) or ""
+                mapping = {"low": 2, "medium": 3, "high": 5}
+                if isinstance(urgency_label, str):
+                    urgency_value = mapping.get(urgency_label.lower())
+            except Exception:
+                urgency_value = None
+
+            # キーワード（意図分析の結果）
+            kw_list = []
+            try:
+                if isinstance(intent, dict) and isinstance(intent.get("keywords"), list):
+                    kw_list = [str(x) for x in intent.get("keywords")[:10]]
+            except Exception:
+                kw_list = []
+
+            # 使用ツール（NOTION/RAG/SERP の優先判定）
+            tool_used = "chat"
+            try:
+                if isinstance(result, dict):
+                    # 優先度: notion > rag > serp
+                    if result.get("notion_results") and (
+                        len(result["notion_results"].get("repair_cases", []))
+                        + len(result["notion_results"].get("diagnostic_nodes", []))
+                    ) > 0:
+                        tool_used = "notion"
+                    elif result.get("rag_results") and len(result["rag_results"].get("documents", [])) > 0:
+                        tool_used = "rag"
+                    elif result.get("serp_results") and len(result["serp_results"].get("results", [])) > 0:
+                        tool_used = "serp"
+                    elif isinstance(result.get("type"), str):
+                        if "notion" in result["type"]:
+                            tool_used = "notion"
+                        elif "diagnostic" in result["type"]:
+                            tool_used = "diagnostic"
+            except Exception:
+                pass
+
+            # Notion に会話ログ保存（失敗しても処理継続）
+            print("🔍 Notion保存処理を開始します...")
+            print(f"   - user_msg: {message[:50]}...")
+            print(f"   - session_id: {session_id}")
+            print(f"   - category: {category}")
+            print(f"   - tool_used: {tool_used}")
+            print(f"   - bot_text: {len(bot_text) if bot_text else 0}文字")
+            
+            saved, error_msg = save_chat_log_to_notion(
+                user_msg=message,
+                bot_msg=bot_text,
+                session_id=session_id,
+                category=category,
+                subcategory=subcategory,
+                urgency=urgency_value,
+                keywords=kw_list,
+                tool_used=tool_used,
+            )
+            if saved:
+                print("✅ Notion保存成功")
+            else:
+                print(f"⚠️ Notion保存失敗: {error_msg}")
+        except Exception as e:
+            # ログ保存の失敗はAPI応答に影響させない
+            print(f"⚠️ Notion保存処理でエラー: {e}")
+            import traceback
+            traceback.print_exc()
+
         return jsonify(result)
         
     except Exception as e:
+        return jsonify({"error": f"チャット処理エラー: {str(e)}"}), 500
+
+@app.route("/api/chat", methods=["POST"])
+def chat():
+    """チャットAPI（フロントエンド互換用）"""
+    try:
+        data = request.get_json()
+        message = data.get("message", "").strip()
+        conversation_id = data.get("conversation_id", "")
+        
+        if not message:
+            return jsonify({"error": "メッセージが空です"}), 400
+        
+        # /api/unified/chatの処理を再利用
+        # 意図分析
+        intent = analyze_intent(message)
+        
+        # チャットモードで処理
+        result = process_chat_mode(message, intent, include_serp=True)
+        
+        # レスポンス形式をフロントエンドの期待形式に変換
+        response_text = result.get("response", "")
+        
+        # ブログリンクを抽出（RAG結果から）
+        blog_links = []
+        try:
+            rag_results = result.get("rag_results", {})
+            if rag_results and isinstance(rag_results, dict):
+                blog_links = rag_results.get("blog_links", [])
+        except Exception:
+            pass
+        
+        # 返答テキストの抽出（Notion保存用）
+        bot_text = response_text
+        if not bot_text:
+            import json as _json
+            bot_text = _json.dumps(result, ensure_ascii=False)[:1900]
+
+        # カテゴリは意図分析の結果を利用
+        category = None
+        if isinstance(intent, dict):
+            category = intent.get("category")
+
+        # サブカテゴリ（現状なし）
+        subcategory = None
+
+        # 緊急度マッピング
+        urgency_value = None
+        try:
+            urgency_label = (intent.get("urgency") if isinstance(intent, dict) else None) or ""
+            mapping = {"low": 2, "medium": 3, "high": 5}
+            if isinstance(urgency_label, str):
+                urgency_value = mapping.get(urgency_label.lower())
+        except Exception:
+            urgency_value = None
+
+        # キーワード
+        kw_list = []
+        try:
+            if isinstance(intent, dict) and isinstance(intent.get("keywords"), list):
+                kw_list = [str(x) for x in intent.get("keywords")[:10]]
+        except Exception:
+            kw_list = []
+
+        # 使用ツール判定
+        tool_used = "chat"
+        try:
+            if isinstance(result, dict):
+                if result.get("notion_results") and (
+                    len(result["notion_results"].get("repair_cases", []))
+                    + len(result["notion_results"].get("diagnostic_nodes", []))
+                ) > 0:
+                    tool_used = "notion"
+                elif result.get("rag_results") and len(result["rag_results"].get("documents", [])) > 0:
+                    tool_used = "rag"
+                elif result.get("serp_results") and len(result["serp_results"].get("results", [])) > 0:
+                    tool_used = "serp"
+        except Exception:
+            pass
+
+        # Notion に会話ログ保存（失敗しても処理継続）
+        print("🔍 Notion保存処理を開始します...")
+        print(f"   - user_msg: {message[:50]}...")
+        print(f"   - conversation_id: {conversation_id}")
+        print(f"   - category: {category}")
+        print(f"   - tool_used: {tool_used}")
+        
+        saved, error_msg = save_chat_log_to_notion(
+            user_msg=message,
+            bot_msg=bot_text,
+            session_id=conversation_id,
+            category=category,
+            subcategory=subcategory,
+            urgency=urgency_value,
+            keywords=kw_list,
+            tool_used=tool_used,
+        )
+        if saved:
+            print("✅ Notion保存成功")
+        else:
+            print(f"⚠️ Notion保存失敗: {error_msg}")
+            
+        # フロントエンドの期待形式で返す
+        return jsonify({
+            "response": response_text,
+            "blog_links": blog_links[:3] if blog_links else []
+        })
+        
+    except Exception as e:
+        print(f"❌ /api/chat エラー: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"チャット処理エラー: {str(e)}"}), 500
 
 @app.route("/api/unified/search", methods=["POST"])
