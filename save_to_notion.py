@@ -212,7 +212,9 @@ def save_chat_log_to_notion(
             logger.warning("⚠️ urgencyを数値に変換できませんでした: %s", urgency)
         else:
             prop_type = schema.get("urgency")
-            if prop_type in {"rich_text", "text"}:
+            if not prop_type:
+                logger.info("ℹ️ NotionログDBに 'urgency' プロパティが存在しないためスキップします")
+            elif prop_type in {"rich_text", "text"}:
                 props["urgency"] = {"rich_text": _rt(str(urgency_value))}
             elif prop_type == "select":
                 props["urgency"] = {"select": {"name": str(int(urgency_value))}}
