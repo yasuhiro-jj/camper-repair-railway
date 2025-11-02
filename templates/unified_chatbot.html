@@ -988,10 +988,7 @@
                     }
                     
                     // 成功メッセージを表示
-                    showNotification('新しい会話を開始しました。APIキーが更新されました。', 'success');
-                    
-                    // テストメッセージを送信してAPIキーを確認
-                    await testApiKey();
+                    showNotification('新しい会話を開始しました。', 'success');
                 } else {
                     console.error('新しい会話開始エラー:', response.status);
                     showNotification('新しい会話の開始に失敗しました。', 'error');
@@ -1002,32 +999,7 @@
             }
         }
 
-        // APIキーテスト
-        async function testApiKey() {
-            try {
-                const testResponse = await fetch('/ask', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams({
-                        question: 'APIキーのテスト'
-                    })
-                });
-                
-                if (testResponse.ok) {
-                    console.log('APIキーテスト成功');
-                    showNotification('APIキーが正常に動作しています！', 'success');
-                } else {
-                    const errorData = await testResponse.json();
-                    console.error('APIキーテストエラー:', errorData);
-                    showNotification('APIキーに問題があります。管理者にお問い合わせください。', 'error');
-                }
-            } catch (error) {
-                console.error('APIキーテストエラー:', error);
-                showNotification('APIキーテスト中にエラーが発生しました。', 'error');
-            }
-        }
+        // APIキーテスト機能は初期化処理から削除
 
         // 通知表示（非表示化）
         function showNotification(message, type = 'info') {
@@ -1554,6 +1526,7 @@
                     },
                     body: new URLSearchParams({
                         question: processedMessage,
+                        raw_message: message,
                         conversation_id: conversationId || ''
                     })
                 });

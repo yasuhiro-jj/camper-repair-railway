@@ -232,12 +232,15 @@ def ask():
     try:
         # フォームデータとJSONの両方に対応
         session_id = ""
+        raw_message = ''
         if request.content_type and 'application/json' in request.content_type:
             data = request.get_json() or {}
             question = data.get('question', '')
+            raw_message = data.get('raw_message', '')
             session_id = data.get('conversation_id') or data.get('session_id') or ''
         else:
             question = request.form.get('question', '')
+            raw_message = request.form.get('raw_message', '')
             session_id = request.form.get('conversation_id') or request.form.get('session_id') or ''
         
         if not question:
@@ -293,13 +296,14 @@ def ask():
                     pass
 
                 print("🔍 Notion保存処理を開始します...")
-                print(f"   - user_msg: {question[:50]}...")
+                user_message_for_log = raw_message or question
+                print(f"   - user_msg: {user_message_for_log[:50]}...")
                 print(f"   - session_id: {session_id}")
                 print(f"   - category: {category}")
                 print(f"   - tool_used: {tool_used}")
 
                 saved, error_msg = save_chat_log_to_notion(
-                    user_msg=question,
+                    user_msg=user_message_for_log,
                     bot_msg=bot_text,
                     session_id=session_id or "",
                     category=category,
