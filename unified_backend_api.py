@@ -627,6 +627,11 @@ def format_text_content(text: str, query: str) -> str:
     try:
         formatted_lines = []
         
+        # パイプ(|)で区切られた長い文字列を検出して構造化
+        if '|' in text and len(text) > 100 and text.count('|') > 3:
+            # パイプ区切りのテキストを構造化
+            text = format_pipe_separated_text(text)
+        
         # 見出しと本文を分離
         lines = text.split('\n')
         current_section = ""
@@ -765,6 +770,214 @@ def format_text_content(text: str, query: str) -> str:
         # エラーの場合は元のテキストを返す（最大500文字）
         return text[:500] + "..." if len(text) > 500 else text
 
+def format_pipe_separated_text(text: str) -> str:
+    """パイプ(|)で区切られたテキストを構造化された形式に変換"""
+    try:
+        # デバッグ: 元のテキストの一部を表示
+        print(f"🔍 パイプ区切りテキスト処理開始: {len(text)}文字")
+        print(f"   最初の200文字: {text[:200]}")
+        
+        # 「内容:」以降の部分を優先的に使用（process_general_contentで生成された形式の場合）
+        if '内容:' in text:
+            content_start = text.find('内容:')
+            if content_start >= 0:
+                # 「内容:」以降の部分を取得
+                actual_content = text[content_start + 3:].strip()  # 「内容:」の3文字をスキップ
+                print(f"  ✅ '内容:'セクションを検出: {len(actual_content)}文字")
+                print(f"     最初の300文字: {actual_content[:300]}")
+                
+                # 実際の内容が元のテキストファイルの構造を保持している場合は、そのまま使用
+                if '\n' in actual_content and ('###' in actual_content or '##' in actual_content):
+                    print(f"  ✅ 構造化されたコンテンツを検出（パイプ区切りではなく構造化済み）")
+                    print(f"     構造化済みコンテンツの最初の300文字: {actual_content[:300]}")
+                    return actual_content
+                
+                # パイプ区切りテキストの場合は処理を続行
+                print(f"  📝 パイプ区切りテキストとして処理を続行")
+                text = actual_content
+        
+        # パイプで分割
+        parts = [p.strip() for p in text.split('|') if p.strip()]
+        
+        print(f"📊 パイプ分割結果: {len(parts)}個の要素")
+        print(f"   最初の10要素: {parts[:10]}")
+        
+        if not parts:
+            return text
+        
+        formatted_parts = []
+        current_case = None
+        current_section = None  # 現在のセクション（症状、原因、対処法など）
+        section_content = []  # セクションの内容を一時保存
+        
+        # セクションタイトル
+        section_keywords = ['症状', '原因', '対処法', '修理手順', '費用目安', '工具', '部品', '注意事項', '連絡先']
+        
+        for i, part in enumerate(parts):
+            part = part.strip()
+            if not part:
+                continue
+            
+            # 見出しパターンの検出（▲ **見出し: ...）
+            if part.startswith('▲') or part.startswith('**見出し'):
+                # 前のセクションの内容を出力
+                if current_section and section_content:
+                    formatted_parts.append(f"\n### {current_section}\n")
+                    formatted_parts.extend(section_content)
+                    section_content = []
+                    current_section = None
+                
+                # 見出しのマークアップを削除
+                clean_part = part.replace('▲', '').replace('**', '').replace('見出し:', '').strip()
+                if clean_part:
+                    formatted_parts.append(f"\n## {clean_part}\n")
+                continue
+            
+            # Caseパターンの検出（【Case XX-X】）
+            if '【Case' in part or ('Case' in part and '【' not in part):
+                # 前のセクションの内容を出力
+                if current_section and section_content:
+                    formatted_parts.append(f"\n### {current_section}\n")
+                    formatted_parts.extend(section_content)
+                    section_content = []
+                    current_section = None
+                
+                # Case番号を抽出
+                case_match = None
+                if '【Case' in part:
+                    case_match = part[part.find('【Case'):part.find('】')+1] if '】' in part else None
+                elif 'Case' in part:
+                    import re
+                    case_match = re.search(r'Case\s*[A-Z0-9-]+', part)
+                    if case_match:
+                        case_match = case_match.group(0)
+                
+                if case_match:
+                    current_case = case_match
+                    # Caseの後の説明を抽出
+                    case_desc = part.replace(case_match, '').strip()
+                    if case_desc:
+                        formatted_parts.append(f"\n## {case_match} {case_desc}\n")
+                    else:
+                        formatted_parts.append(f"\n## {case_match}\n")
+                else:
+                    formatted_parts.append(f"\n## {part}\n")
+                continue
+            
+            # セクションタイトル（症状、原因、対処法など）
+            is_section_title = False
+            matched_keyword = None
+            
+            # セクションタイトルかどうかを判定（完全一致または単独）
+            for keyword in section_keywords:
+                if part == keyword or part.strip() == keyword:
+                    is_section_title = True
+                    matched_keyword = keyword
+                    break
+            
+            if is_section_title:
+                # 前のセクションの内容を出力
+                if current_section and section_content:
+                    formatted_parts.append(f"\n### {current_section}\n")
+                    formatted_parts.extend(section_content)
+                    section_content = []
+                
+                # 新しいセクションを開始
+                current_section = matched_keyword
+                print(f"  ✅ セクション開始: {current_section}")
+                continue
+            
+            # セクションタイトルを含む場合（例：「症状 | 冷風が出ない」）
+            for keyword in section_keywords:
+                if keyword in part and '|' in part:
+                    # セクションタイトルと内容を分離
+                    sub_parts = [p.strip() for p in part.split('|') if p.strip()]
+                    for sub_part in sub_parts:
+                        if sub_part == keyword:
+                            # 前のセクションの内容を出力
+                            if current_section and section_content:
+                                formatted_parts.append(f"\n### {current_section}\n")
+                                formatted_parts.extend(section_content)
+                                section_content = []
+                            current_section = keyword
+                        elif sub_part and current_section:
+                            # セクションの内容として追加
+                            icon = get_icon_for_content(sub_part)
+                            section_content.append(f"- {icon} {sub_part}")
+                    break
+            
+            # 次の要素がセクションタイトルかどうかを確認
+            next_is_section = False
+            if i + 1 < len(parts):
+                next_part = parts[i + 1].strip()
+                for keyword in section_keywords:
+                    if next_part == keyword:
+                        next_is_section = True
+                        break
+            
+            # 次の要素がCaseかどうかを確認
+            next_is_case = False
+            if i + 1 < len(parts):
+                next_part = parts[i + 1].strip()
+                if '【Case' in next_part or ('Case' in next_part and '【' not in next_part):
+                    next_is_case = True
+            
+            # 現在のセクションの内容として追加
+            if current_section:
+                # セクションタイトルでもCaseでもない場合は内容として追加
+                icon = get_icon_for_content(part)
+                section_content.append(f"- {icon} {part}")
+                print(f"  📝 セクション '{current_section}' に追加: {part[:50]}...")
+            else:
+                # セクションが設定されていない場合は通常の項目として追加
+                icon = get_icon_for_content(part)
+                formatted_parts.append(f"- {icon} {part}")
+        
+        # 最後のセクションの内容を出力
+        if current_section and section_content:
+            formatted_parts.append(f"\n### {current_section}\n")
+            formatted_parts.extend(section_content)
+            print(f"  ✅ 最後のセクション '{current_section}' を出力: {len(section_content)}項目")
+        
+        # 構造化されたテキストを結合
+        result = '\n'.join(formatted_parts)
+        
+        # 連続する空行を削除
+        while '\n\n\n' in result:
+            result = result.replace('\n\n\n', '\n\n')
+        
+        print(f"✅ パイプ区切りテキスト処理完了: {len(result)}文字")
+        return result
+        
+    except Exception as e:
+        print(f"⚠️ パイプ区切りテキスト整形エラー: {e}")
+        import traceback
+        traceback.print_exc()
+        return text
+
+def get_icon_for_content(content: str) -> str:
+    """コンテンツに応じたアイコンを返す"""
+    if '費用' in content or '円' in content or '料金' in content or '価格' in content or '診断料' in content:
+        return "💰"
+    elif '症状' in content or '問題' in content:
+        return "🔍"
+    elif '原因' in content:
+        return "🎯"
+    elif '対処' in content or '修理' in content or '解決' in content:
+        return "✅"
+    elif '工具' in content or '部品' in content or '材料' in content:
+        return "🔧"
+    elif '注意' in content or '警告' in content:
+        return "⚠️"
+    elif '連絡' in content or '電話' in content or '住所' in content:
+        return "📞"
+    elif '電圧' in content or 'テスター' in content or '測定' in content or 'バッテリー' in content:
+        return "⚡"
+    elif '水' in content or '液' in content or '漏れ' in content:
+        return "💧"
+    else:
+        return "▪️"
+
 @app.route("/api/repair_advice/search", methods=["POST"])
 def repair_advice_search():
     """修理アドバイスセンター用検索API"""
@@ -801,23 +1014,68 @@ def repair_advice_search():
                 print(f"📊 RAG検索完了。結果の型: {type(rag_results)}")
                 print(f"📊 RAG結果のキー: {list(rag_results.keys()) if isinstance(rag_results, dict) else 'dict以外'}")
                 
-                # マニュアルコンテンツがある場合
+                # テキストファイルコンテンツがある場合（優先的に使用）
+                text_content = rag_results.get('text_file_content', '')
+                print(f"📄 text_file_content: {len(text_content) if text_content else 0}文字")
+                if text_content and len(text_content) > 10:
+                    # パイプ区切りテキストの検出と構造化
+                    if '|' in text_content and len(text_content) > 100 and text_content.count('|') > 3:
+                        print(f"  🔍 パイプ区切りテキストを検出: {text_content.count('|')}個のパイプ")
+                        try:
+                            # まずパイプ区切りテキストを構造化
+                            text_content = format_pipe_separated_text(text_content)
+                            print(f"  ✅ パイプ区切りテキスト処理完了: {len(text_content)}文字")
+                        except Exception as e:
+                            print(f"  ⚠️ パイプ区切りテキスト処理エラー: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            # エラーが発生しても処理を続行
+                    
+                    # テキストを読みやすく整形
+                    try:
+                        formatted_content = format_text_content(text_content, query)
+                        print(f"  ✅ テキスト整形完了: {len(formatted_content)}文字")
+                    except Exception as e:
+                        print(f"  ⚠️ テキスト整形エラー: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        # エラーが発生した場合は元のテキストを使用
+                        formatted_content = text_content[:2000] + "..." if len(text_content) > 2000 else text_content
+                    
+                    search_results.append({
+                        "title": f"📄 {query}の詳細情報",
+                        "content": formatted_content,
+                        "source": "技術資料（テキスト）",
+                        "category": "詳細情報",
+                        "url": None,
+                        "relevance": "high"
+                    })
+                    print(f"  ✅ テキストコンテンツを追加（整形済み）")
+                
+                # マニュアルコンテンツがある場合（text_file_contentがない場合のみ使用）
                 manual_content = rag_results.get('manual_content', '')
                 print(f"📚 manual_content: {len(manual_content) if manual_content else 0}文字")
-                if manual_content and len(manual_content) > 10:
+                if manual_content and len(manual_content) > 10 and not text_content:
+                    # まずパイプ区切りテキストを整形
+                    if '|' in manual_content and len(manual_content) > 100 and manual_content.count('|') > 3:
+                        manual_content = format_pipe_separated_text(manual_content)
+                    
+                    # 次にテキストコンテンツを整形
+                    formatted_manual_content = format_text_content(manual_content, query)
+                    
                     # 費用情報を抽出
                     cost_info = ""
-                    if "費用" in manual_content or "料金" in manual_content or "価格" in manual_content:
+                    if "費用" in formatted_manual_content or "料金" in formatted_manual_content or "価格" in formatted_manual_content:
                         # 費用関連の部分を抽出
-                        lines = manual_content.split('\n')
+                        lines = formatted_manual_content.split('\n')
                         for line in lines:
                             if any(keyword in line for keyword in ["費用", "料金", "価格", "円"]):
                                 cost_info += line + "\n"
                     
                     # 費用情報を含むコンテンツを構築
-                    full_content = manual_content[:500] + "..." if len(manual_content) > 500 else manual_content
+                    full_content = formatted_manual_content[:1500] + "\n\n...(以下省略)" if len(formatted_manual_content) > 1500 else formatted_manual_content
                     if cost_info:
-                        full_content = f"💰 費用情報:\n{cost_info}\n\n" + full_content
+                        full_content = f"### 💰 費用情報\n\n{cost_info}\n\n---\n\n" + full_content
                     
                     # LLMを使って人間的な回答を生成
                     try:
@@ -877,7 +1135,7 @@ def repair_advice_search():
                         
                     except Exception as e:
                         print(f"⚠️ AI生成エラー: {e}")
-                        # フォールバック: 元の情報をそのまま使用
+                        # フォールバック: 整形済みの情報をそのまま使用
                         search_results.append({
                             "title": f"📚 {query}の修理情報（RAG）",
                             "content": full_content,
@@ -886,24 +1144,7 @@ def repair_advice_search():
                             "url": None,
                             "relevance": "high"
                         })
-                        print(f"  ✅ マニュアルコンテンツを追加（費用情報含む）")
-                
-                # テキストファイルコンテンツがある場合
-                text_content = rag_results.get('text_file_content', '')
-                print(f"📄 text_file_content: {len(text_content) if text_content else 0}文字")
-                if text_content and len(text_content) > 10:
-                    # テキストを読みやすく整形
-                    formatted_content = format_text_content(text_content, query)
-                    
-                    search_results.append({
-                        "title": f"📄 {query}の詳細情報",
-                        "content": formatted_content,
-                        "source": "技術資料（テキスト）",
-                        "category": "詳細情報",
-                        "url": None,
-                        "relevance": "high"
-                    })
-                    print(f"  ✅ テキストコンテンツを追加（整形済み）")
+                        print(f"  ✅ マニュアルコンテンツを追加（整形済み・費用情報含む）")
                 
                 # ブログリンクがある場合
                 blog_links = rag_results.get('blog_links', [])
@@ -962,7 +1203,11 @@ def repair_advice_search():
                                     content_parts.append(f"🔍 症状: {symptoms_str}")
                                 
                                 if case.get('solution'):
-                                    content_parts.append(f"🛠️ 解決方法: {case['solution']}")
+                                    solution_text = case.get('solution')
+                                    # パイプ区切りテキストの整形
+                                    if '|' in solution_text and len(solution_text) > 50:
+                                        solution_text = format_pipe_separated_text(solution_text)
+                                    content_parts.append(f"🛠️ 解決方法:\n{solution_text}")
                                 
                                 if case.get('cost'):
                                     content_parts.append(f"💰 費用目安: {case['cost']}円")
@@ -972,6 +1217,10 @@ def repair_advice_search():
                                 
                                 if case.get('time_estimate'):
                                     content_parts.append(f"⏱️ 推定時間: {case['time_estimate']}")
+                                
+                                # 整形されたコンテンツを結合して整形
+                                formatted_case_content = '\n\n'.join(content_parts)
+                                formatted_case_content = format_text_content(formatted_case_content, query)
                                 
                                 # LLMを使って人間的な回答を生成
                                 try:
@@ -1002,7 +1251,7 @@ Notionデータベースから取得した修理ケース情報を基に、ユ�
                                     # ユーザープロンプト
                                     user_prompt = f"""以下の修理ケース情報を基に、「{query}」についての修理アドバイスを生成してください：
 
-{chr(10).join(content_parts)}
+{formatted_case_content}
 
 上記の情報を参考に、実用的で分かりやすい修理ガイドを作成してください。"""
                                     
@@ -1032,10 +1281,10 @@ Notionデータベースから取得した修理ケース情報を基に、ユ�
                                     
                                 except Exception as e:
                                     print(f"⚠️ AI生成エラー: {e}")
-                                    # フォールバック: 元の情報をそのまま使用
+                                    # フォールバック: 整形済みの情報をそのまま使用
                                     search_results.append({
                                         'title': f'🔧 {case.get("title", "修理ケース")}',
-                                        'content': '\n'.join(content_parts),
+                                        'content': formatted_case_content,
                                         'source': 'Notionデータベース',
                                         'category': case.get('category', '修理ケース'),
                                         'url': case.get('url', ''),
@@ -1055,7 +1304,7 @@ Notionデータベースから取得した修理ケース情報を基に、ユ�
             print("🔄 ハイブリッド検索を実行中...")
             try:
                 # RAG検索を実行
-                rag_results = enhanced_rag_retrieve(db, query, k=5)
+                rag_results = enhanced_rag_retrieve(query, db, max_results=5)
                 if rag_results:
                     for result in rag_results:
                         # ソースタイプに応じて処理
@@ -1159,7 +1408,7 @@ Notionデータベースから取得した修理ケース情報を基に、ユ�
         if serp_system and len(search_results) < 3:
             try:
                 print("🔍 SERP検索実行中...")
-                serp_results = serp_system.search(f"{query} キャンピングカー 修理 価格", num_results=2)
+                serp_results = serp_system.search(f"{query} キャンピングカー 修理 価格")
                 if serp_results and 'results' in serp_results:
                     print(f"📊 SERP検索結果: {len(serp_results['results'])}件")
                     for result in serp_results['results'][:2]:
@@ -1739,7 +1988,7 @@ def debug_info():
         node_db_id = os.getenv("NODE_DB_ID")
         case_db_id = os.getenv("CASE_DB_ID")
         item_db_id = os.getenv("ITEM_DB_ID")
-        openai_api_key = os.getenv("OPENAI_API_KEY")
+        openai_api_key = os.getenv("OPENAI_API_KEY") or OPENAI_API_KEY
         
         # .envファイルの存在確認
         env_exists = os.path.exists('.env')
@@ -1767,7 +2016,8 @@ def debug_info():
             "api_keys": {
                 "notion_api_key": f"{notion_api_key[:10]}...{notion_api_key[-4:] if notion_api_key and len(notion_api_key) > 14 else ''}" if notion_api_key else None,
                 "notion_token": f"{notion_token[:10]}...{notion_token[-4:] if notion_token and len(notion_token) > 14 else ''}" if notion_token else None,
-                "openai_api_key": f"{openai_api_key[:10]}...{openai_api_key[-4:] if openai_api_key and len(openai_api_key) > 14 else ''}" if openai_api_key else None
+                "openai_api_key": f"{openai_api_key[:10]}...{openai_api_key[-4:] if openai_api_key and len(openai_api_key) > 14 else ''}" if openai_api_key else None,
+                "openai_api_key_full_preview": f"{openai_api_key[:20]}...{openai_api_key[-10:] if openai_api_key and len(openai_api_key) > 30 else ''}" if openai_api_key else None
             },
             "database_ids": {
                 "node_db_id": node_db_id,
@@ -1779,7 +2029,12 @@ def debug_info():
             },
             "services_status": services_status,
             "diagnostic_data_available": load_notion_diagnostic_data() is not None,
-            "repair_cases_available": len(load_notion_repair_cases()) > 0 if notion_client_instance else False
+            "repair_cases_available": len(load_notion_repair_cases()) > 0 if notion_client_instance else False,
+            "openai_info": {
+                "key_source": "config.py" if OPENAI_API_KEY else ("環境変数" if openai_api_key else "未設定"),
+                "key_length": len(openai_api_key) if openai_api_key else 0,
+                "key_prefix": openai_api_key[:7] if openai_api_key else None
+            }
         }
         
         return jsonify(debug_info)
@@ -2558,95 +2813,198 @@ def generate_safety_warning(safety_warnings: List[str]) -> str:
 
 def generate_ai_response(message: str, rag_results: Dict, serp_results: Dict, intent: Dict, notion_results: Dict = None) -> str:
     """AI回答生成（セーフティ警告・重みづけ対応）"""
-    try:
-        from langchain_openai import ChatOpenAI
-        
-        llm = ChatOpenAI(api_key=OPENAI_API_KEY, model_name="gpt-4o-mini")
-        
-        # セーフティ警告の生成
-        safety_warning = ""
-        if notion_results and notion_results.get("safety_warnings"):
-            safety_warning = generate_safety_warning(notion_results["safety_warnings"])
-        
-        # コンテキストの構築
-        context = build_context(rag_results, serp_results, intent)
-        
-        # Notion検索結果の処理（重みづけとスニペット優先）
-        notion_context = ""
-        if notion_results and not notion_results.get("error"):
-            # スニペット要約を先頭に配置
-            notion_summary = ""
-            if notion_results.get("repair_cases") or notion_results.get("diagnostic_nodes"):
-                notion_summary = "📋 **Notionデータベースからの関連情報:**\n\n"
-                
-                # 修理ケースのスニペット要約
-                if notion_results.get("repair_cases"):
-                    for i, case in enumerate(notion_results["repair_cases"], 1):
-                        notion_summary += f"🔧 **{case['title']}** ({case['category']})\n"
-                        if case.get("snippets", {}).get("repair_steps"):
-                            notion_summary += f"   修理手順: {case['snippets']['repair_steps']}\n"
-                        elif case.get("snippets", {}).get("solution"):
-                            notion_summary += f"   解決方法: {case['snippets']['solution']}\n"
-                        notion_summary += f"   マッチキーワード: {', '.join(case.get('matched_keywords', [])[:3])}\n\n"
-                
-                # 診断ノードのスニペット要約
-                if notion_results.get("diagnostic_nodes"):
-                    for i, node in enumerate(notion_results["diagnostic_nodes"], 1):
-                        notion_summary += f"🔍 **{node['title']}** ({node['category']})\n"
-                        if node.get("snippets", {}).get("diagnosis_result"):
-                            notion_summary += f"   診断結果: {node['snippets']['diagnosis_result']}\n"
-                        elif node.get("snippets", {}).get("question"):
-                            notion_summary += f"   質問: {node['snippets']['question']}\n"
-                        notion_summary += f"   マッチキーワード: {', '.join(node.get('matched_keywords', [])[:3])}\n\n"
+    import time
+    max_retries = 3
+    retry_delay = 2  # 秒
+    
+    for attempt in range(max_retries):
+        try:
+            from langchain_openai import ChatOpenAI
             
-            notion_context = notion_summary
-        
-        # 重みづけ情報をプロンプトに追加
-        weight_info = f"""
-        情報ソースの重みづけ:
-        - Notionデータベース: {SOURCE_WEIGHTS['notion']} (最優先)
-        - RAG検索: {SOURCE_WEIGHTS['rag']} (補完)
-        - SERP検索: {SOURCE_WEIGHTS['serp']} (参考)
-        """
-        
-        prompt = f"""
-        あなたは最強のキャンピングカー修理専門AIです。
-        以下の情報を統合して、最高品質の回答を生成してください。
-        
-        ユーザーの質問: {message}
-        
-        意図分析: {json.dumps(intent, ensure_ascii=False, indent=2)}
-        
-        {weight_info}
-        
-        検索結果:
-        RAG検索: {json.dumps(rag_results, ensure_ascii=False, indent=2)}
-        SERP検索: {json.dumps(serp_results, ensure_ascii=False, indent=2)}
-        {notion_context}
-        
-        回答形式:
-        1. 【状況確認】- 症状の詳細確認
-        2. 【診断結果】- 原因の特定
-        3. 【修理手順】- 段階的な修理方法
-        4. 【費用目安】- 修理費用の概算
-        5. 【推奨部品】- 必要な部品・工具
-        6. 【注意事項】- 安全な作業のポイント
-        7. 【関連情報】- 追加の参考資料
-        
-        専門的で実用的な回答を生成してください。
-        Notionデータベースの情報を最優先で活用し、必要に応じてRAG検索結果とSERP検索結果を補完として使用してください。
-        """
-        
-        response = llm.invoke(prompt)
-        
-        # セーフティ警告を回答の先頭に挿入
-        if safety_warning:
-            return safety_warning + response.content
-        else:
-            return response.content
-        
-    except Exception as e:
-        return f"AI回答生成エラー: {e}"
+            # APIキーの確認
+            api_key = OPENAI_API_KEY or os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                return """⚠️ **OpenAI APIキーが設定されていません**
+
+**対処方法：**
+1. `.env`ファイルに`OPENAI_API_KEY`を設定してください
+2. Railwayの環境変数に`OPENAI_API_KEY`を設定してください
+3. サーバーを再起動してください
+
+詳細は管理者にお問い合わせください。"""
+            
+            llm = ChatOpenAI(api_key=api_key, model_name="gpt-4o-mini")
+            
+            # セーフティ警告の生成
+            safety_warning = ""
+            if notion_results and notion_results.get("safety_warnings"):
+                safety_warning = generate_safety_warning(notion_results["safety_warnings"])
+            
+            # コンテキストの構築
+            context = build_context(rag_results, serp_results, intent)
+            
+            # Notion検索結果の処理（重みづけとスニペット優先）
+            notion_context = ""
+            if notion_results and not notion_results.get("error"):
+                # スニペット要約を先頭に配置
+                notion_summary = ""
+                if notion_results.get("repair_cases") or notion_results.get("diagnostic_nodes"):
+                    notion_summary = "📋 **Notionデータベースからの関連情報:**\n\n"
+                    
+                    # 修理ケースのスニペット要約
+                    if notion_results.get("repair_cases"):
+                        for i, case in enumerate(notion_results["repair_cases"], 1):
+                            notion_summary += f"🔧 **{case['title']}** ({case['category']})\n"
+                            if case.get("snippets", {}).get("repair_steps"):
+                                notion_summary += f"   修理手順: {case['snippets']['repair_steps']}\n"
+                            elif case.get("snippets", {}).get("solution"):
+                                notion_summary += f"   解決方法: {case['snippets']['solution']}\n"
+                            notion_summary += f"   マッチキーワード: {', '.join(case.get('matched_keywords', [])[:3])}\n\n"
+                    
+                    # 診断ノードのスニペット要約
+                    if notion_results.get("diagnostic_nodes"):
+                        for i, node in enumerate(notion_results["diagnostic_nodes"], 1):
+                            notion_summary += f"🔍 **{node['title']}** ({node['category']})\n"
+                            if node.get("snippets", {}).get("diagnosis_result"):
+                                notion_summary += f"   診断結果: {node['snippets']['diagnosis_result']}\n"
+                            elif node.get("snippets", {}).get("question"):
+                                notion_summary += f"   質問: {node['snippets']['question']}\n"
+                            notion_summary += f"   マッチキーワード: {', '.join(node.get('matched_keywords', [])[:3])}\n\n"
+                
+                notion_context = notion_summary
+            
+            # 重みづけ情報をプロンプトに追加
+            weight_info = f"""
+            情報ソースの重みづけ:
+            - Notionデータベース: {SOURCE_WEIGHTS['notion']} (最優先)
+            - RAG検索: {SOURCE_WEIGHTS['rag']} (補完)
+            - SERP検索: {SOURCE_WEIGHTS['serp']} (参考)
+            """
+            
+            prompt = f"""
+            あなたは最強のキャンピングカー修理専門AIです。
+            以下の情報を統合して、最高品質の回答を生成してください。
+            
+            ユーザーの質問: {message}
+            
+            意図分析: {json.dumps(intent, ensure_ascii=False, indent=2)}
+            
+            {weight_info}
+            
+            検索結果:
+            RAG検索: {json.dumps(rag_results, ensure_ascii=False, indent=2)}
+            SERP検索: {json.dumps(serp_results, ensure_ascii=False, indent=2)}
+            {notion_context}
+            
+            回答形式:
+            1. 【状況確認】- 症状の詳細確認
+            2. 【診断結果】- 原因の特定
+            3. 【修理手順】- 段階的な修理方法
+            4. 【費用目安】- 修理費用の概算
+            5. 【推奨部品】- 必要な部品・工具
+            6. 【注意事項】- 安全な作業のポイント
+            7. 【関連情報】- 追加の参考資料
+            
+            専門的で実用的な回答を生成してください。
+            Notionデータベースの情報を最優先で活用し、必要に応じてRAG検索結果とSERP検索結果を補完として使用してください。
+            """
+            
+            response = llm.invoke(prompt)
+            
+            # セーフティ警告を回答の先頭に挿入
+            if safety_warning:
+                return safety_warning + response.content
+            else:
+                return response.content
+            
+        except Exception as e:
+            error_str = str(e)
+            error_lower = error_str.lower()
+            
+            # 429エラー（クォータ超過）の詳細処理
+            if "429" in error_str or "insufficient_quota" in error_lower or "quota" in error_lower:
+                error_details = ""
+                try:
+                    # エラーオブジェクトから詳細を抽出
+                    if hasattr(e, 'response') and hasattr(e.response, 'json'):
+                        error_data = e.response.json()
+                        error_details = f"\n\n**エラー詳細:**\n```json\n{json.dumps(error_data, ensure_ascii=False, indent=2)}\n```"
+                except:
+                    pass
+                
+                api_key_preview = ""
+                if api_key:
+                    api_key_preview = f"`{api_key[:10]}...{api_key[-4:]}`"
+                
+                error_message = f"""⚠️ **OpenAI API クォータ超過エラー（429）**
+
+**エラー内容：**
+```
+{error_str}
+```{error_details}
+
+**現在使用中のAPIキー：** {api_key_preview if api_key_preview else "未設定"}
+
+**対処方法：**
+
+1. **APIキーの確認**
+   - OpenAIダッシュボード（https://platform.openai.com/account/usage）で使用量を確認
+   - 支払い上限を引き上げた場合は、反映まで数分かかる場合があります
+
+2. **環境変数の更新**
+   - Railwayの環境変数`OPENAI_API_KEY`を確認・更新
+   - ローカルの`.env`ファイルを確認・更新
+   - サーバーを再起動してください
+
+3. **リトライ**
+   - 数分待ってから再度お試しください
+   - 支払い情報の反映には時間がかかる場合があります
+
+**確認事項：**
+- ✅ 支払い方法が正しく登録されているか
+- ✅ 使用上限が十分に設定されているか
+- ✅ APIキーが有効か
+- ✅ 環境変数が正しく設定されているか
+
+詳細は管理者にお問い合わせください。"""
+                
+                # 最後の試行でない場合はリトライ
+                if attempt < max_retries - 1:
+                    wait_time = retry_delay * (attempt + 1)
+                    print(f"⚠️ OpenAI API 429エラー - {wait_time}秒後にリトライします (試行 {attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    return error_message
+            
+            # その他のエラー
+            error_message = f"""⚠️ **AI回答生成エラー**
+
+**エラー内容：**
+```
+{error_str}
+```
+
+**エラータイプ：** {type(e).__name__}
+
+**対処方法：**
+1. サーバーログを確認してください
+2. APIキーが正しく設定されているか確認してください
+3. 管理者にお問い合わせください"""
+            
+            print(f"❌ AI回答生成エラー (試行 {attempt + 1}/{max_retries}): {error_str}")
+            import traceback
+            traceback.print_exc()
+            
+            # 最後の試行でない場合はリトライ
+            if attempt < max_retries - 1:
+                wait_time = retry_delay * (attempt + 1)
+                time.sleep(wait_time)
+                continue
+            else:
+                return error_message
+    
+    return "⚠️ AI回答生成に失敗しました。時間をおいて再度お試しください。"
 
 def build_context(rag_results: Dict, serp_results: Dict, intent: Dict) -> str:
     """コンテキスト構築"""

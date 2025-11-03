@@ -1800,8 +1800,13 @@
 
         .bullet-item {
             margin: 8px 0;
-            padding: 5px 0;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: #f8f9fb;
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            line-height: 1.6;
         }
 
         .bullet-item:last-child {
@@ -2300,6 +2305,45 @@
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-subtitle {
+            margin: 18px 0 8px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #2f3e4d;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .section-divider {
+            margin: 16px 0;
+            border-top: 1px dashed #ced4da;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin: 8px 0;
+            padding: 6px 10px;
+            background: #ffffff;
+            border-left: 3px solid #0d6efd;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .step-number {
+            font-weight: 700;
+            color: #0d6efd;
+            min-width: 32px;
+        }
+
+        .main-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #2c3e50;
         }
     </style>
 </head>
@@ -3408,32 +3452,184 @@
                 return '<p>内容がありません</p>';
             }
             
-            // 既に箇条書き形式の場合はそのまま返す
-            if (content.includes('●') || content.includes('-') || content.includes('•')) {
-                return content.replace(/\n/g, '<br>');
+            // 正規化と前置き除去（⚠️ **見出し / ⚠️ **リスト項目）
+            let normalize = content.replace(/\r\n/g, '\n');
+            
+            // メタデータ行を除去（⚠️ **見出し: と ⚠️ **リスト項目: を含む行全体）
+            const lines = normalize.split('\n');
+            const cleanedLines = [];
+            let skipUntilMarker = false;
+            const marker = '🔍 内容:';
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                
+                // 「🔍 内容:」マーカーが見つかったら、それ以降を処理
+                if (line.includes(marker)) {
+                    skipUntilMarker = false;
+                    const markerIndex = line.indexOf(marker);
+                    if (markerIndex !== -1) {
+                        // マーカー以降の部分を取得
+                        const afterMarker = line.slice(markerIndex + marker.length).trim();
+                        if (afterMarker) {
+                            cleanedLines.push(afterMarker);
+                        }
+                    }
+                    continue;
+                }
+                
+                // メタデータ行を検出してスキップ
+                if (skipUntilMarker || 
+                    /^\s*⚠️\s*\*\*見出し[:：]/.test(line) || 
+                    /^\s*⚠️\s*\*\*リスト項目[:：]/.test(line) ||
+                    /⚠️\s*\*\*見出し[:：]/.test(line) ||
+                    /⚠️\s*\*\*リスト項目[:：]/.test(line)) {
+                    // メタデータ行はスキップ（「🔍 内容:」が見つかるまで）
+                    if (!line.includes(marker)) {
+                        skipUntilMarker = true;
+                    }
+                    continue;
+                }
+                
+                // 通常の行は追加
+                if (!skipUntilMarker) {
+                    cleanedLines.push(line);
+                }
             }
             
-            // 文章を箇条書きに変換
-            let formatted = content;
+            normalize = cleanedLines.join('\n').trim();
             
-            // 【】で囲まれたセクションを検出
-            formatted = formatted.replace(/【([^】]+)】/g, '<div class="section-header"><strong>【$1】</strong></div>');
+            // まだメタデータが残っている場合は再度除去
+            normalize = normalize
+                .split('\n')
+                .filter(line => {
+                    return !(/^\s*⚠️\s*\*\*見出し/.test(line) || 
+                             /^\s*⚠️\s*\*\*リスト項目/.test(line) ||
+                             /⚠️\s*\*\*見出し[:：]/.test(line) ||
+                             /⚠️\s*\*\*リスト項目[:：]/.test(line));
+                })
+                .join('\n');
             
-            // 原因、対処法、注意点などのキーワードを検出して箇条書きに変換
-            formatted = formatted.replace(/(原因|対処法|注意点|手順|症状|修理方法|費用|価格)[：:]\s*([^\n]+)/g, '<div class="bullet-item">● <strong>$1:</strong> $2</div>');
+            const pipeCount = (normalize.match(/\|/g) || []).length;
+            const hasStructuredMarkers = /(^|\n)#{1,3}\s/.test(normalize) || /(^|\n)-\s/.test(normalize) || /(^|\n)[0-9]+️⃣/.test(normalize) || normalize.includes('## ') || normalize.includes('### ');
             
-            // 番号付きリストを箇条書きに変換
-            formatted = formatted.replace(/(\d+\.\s*)([^\n]+)/g, '<div class="bullet-item">● $2</div>');
+            const formatInline = (text) => {
+                if (!text) return '';
+                let formatted = text;
+                formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+                formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+                return formatted;
+            };
             
-            // 改行を保持
+            // 1) パイプ区切りの文章をフロント側で再構成（Railwayでバックエンド整形が効かないケースのフォールバック）
+            if (pipeCount > 3) {
+                const sectionKeywords = ['症状', '原因', '対処法', '修理手順', '費用目安', '工具', '部品', '注意事項', '連絡先'];
+                let text = normalize;
+                const ny = text.indexOf('内容:');
+                if (ny >= 0) text = text.slice(ny + 3);
+                
+                let html = '';
+                const tokens = text.split('|').map(t => t.trim()).filter(Boolean);
+                let currentSection = '';
+                const flushSection = (title, items) => {
+                    if (!items.length) return;
+                    if (title) html += `<div class="section-subtitle">${formatInline(title)}</div>`;
+                    items.forEach(it => { html += `<div class="bullet-item">${formatInline(it)}</div>`; });
+                };
+                
+                let buffer = [];
+                tokens.forEach(tok => {
+                    if (!tok) return;
+                    if (tok.startsWith('▲') || tok.startsWith('**見出し') || tok.startsWith('見出し')) {
+                        flushSection(currentSection, buffer); buffer = []; currentSection = '';
+                        const t = tok.replace(/^[▲\*]*見出し[:：]?\s*/,'').replace(/^▲\s*/,'');
+                        html += `<div class="section-title">${formatInline(t)}</div>`;
+                        return;
+                    }
+                    if (tok.includes('【Case') || /^Case\s*[A-Z0-9-]+/.test(tok)) {
+                        flushSection(currentSection, buffer); buffer = []; currentSection = '';
+                        html += `<div class="section-title">${formatInline(tok)}</div>`;
+                        return;
+                    }
+                    if (sectionKeywords.includes(tok)) {
+                        flushSection(currentSection, buffer); buffer = []; currentSection = tok;
+                        return;
+                    }
+                    buffer.push(tok);
+                });
+                flushSection(currentSection, buffer);
+                if (html) return html;
+            }
+            
+            // 2) すでにMarkdown風のマーカーがある場合はそれに従って描画
+            if (hasStructuredMarkers) {
+                const lines = normalize.split('\n');
+                let html = '';
+                
+                lines.forEach((rawLine) => {
+                    let line = rawLine.trim();
+                    if (!line) {
+                        return;
+                    }
+                    
+                    if (line.startsWith('###')) {
+                        const title = formatInline(line.replace(/^###\s*/, ''));
+                        html += `<div class="section-subtitle">${title}</div>`;
+                        return;
+                    }
+                    
+                    if (line.startsWith('##')) {
+                        const title = formatInline(line.replace(/^##\s*/, ''));
+                        html += `<div class="section-title">${title}</div>`;
+                        return;
+                    }
+                    
+                    if (line.startsWith('#')) {
+                        const title = formatInline(line.replace(/^#\s*/, ''));
+                        html += `<div class="section-title main-title">${title}</div>`;
+                        return;
+                    }
+                    
+                    if (line.startsWith('---') || line === '───' || line === '────────────────────────────────────────') {
+                        html += `<div class="section-divider"></div>`;
+                        return;
+                    }
+                    
+                    const stepMatch = line.match(/^(\d+️⃣|\d+\.|[①-⑩])\s*(.+)/);
+                    if (stepMatch) {
+                        const number = formatInline(stepMatch[1]);
+                        const text = formatInline(stepMatch[2]);
+                        html += `<div class="step-item"><span class="step-number">${number}</span><span>${text}</span></div>`;
+                        return;
+                    }
+                    
+                    if (line.startsWith('-')) {
+                        const itemText = formatInline(line.replace(/^-\s*/, ''));
+                        html += `<div class="bullet-item">${itemText}</div>`;
+                        return;
+                    }
+                    
+                    const bulletMatch = line.match(/^([●・▪️•◾️▶️➤►])\s*(.+)/);
+                    if (bulletMatch) {
+                        const icon = bulletMatch[1];
+                        const text = formatInline(bulletMatch[2]);
+                        html += `<div class="bullet-item">${icon} ${text}</div>`;
+                        return;
+                    }
+                    
+                    html += `<p>${formatInline(line)}</p>`;
+                });
+                
+                return html;
+            }
+            
+            // 3) 非構造テキストの簡易整形
+            let formatted = formatInline(normalize);
+            formatted = formatted.replace(/【([^】]+)】/g, '<div class="section-subtitle"><strong>【$1】</strong></div>');
+            formatted = formatted.replace(/(原因|対処法|注意点|手順|症状|修理方法|費用|価格)[：:]\s*([^\n]+)/g, '<div class="bullet-item"><strong>$1:</strong> $2</div>');
+            formatted = formatted.replace(/\n{2,}/g, '\n');
             formatted = formatted.replace(/\n/g, '<br>');
-            
-            // 箇条書きでない文章を箇条書きに変換
-            if (!formatted.includes('●') && !formatted.includes('•') && !formatted.includes('-')) {
-                const sentences = content.split(/[。！？]/).filter(s => s.trim().length > 0);
-                formatted = sentences.map(sentence => `<div class="bullet-item">● ${sentence.trim()}</div>`).join('');
-            }
-            
             return formatted;
         }
 
@@ -3492,6 +3688,10 @@
                     return; // この結果をスキップ
                 }
                 
+                // 本文の前処理（前置き除去）
+                const rawContent = result.content || result.text || '内容なし';
+                const sanitizedContent = sanitizeContentForDisplay(rawContent);
+                
                 // 簡易版の結果表示を作成
                 const resultElement = document.createElement('div');
                 resultElement.className = 'result-item fade-in';
@@ -3506,7 +3706,7 @@
                         <p><strong>ソース:</strong> ${result.source || 'N/A'}</p>
                         <div class="content-display">
                             <strong>内容:</strong>
-                            <div class="formatted-content">${formatContentAsBulletPoints(result.content || result.text || '内容なし')}</div>
+                            <div class="formatted-content">${formatContentAsBulletPoints(sanitizedContent)}</div>
                         </div>
                         ${result.repair_steps && result.repair_steps.length > 0 ? `
                             <div class="repair-steps">
@@ -5250,6 +5450,25 @@ URL: ${url}
 注意: OpenAI APIキーの設定が必要です
             `;
             alert(errorMessage);
+        }
+
+        function sanitizeContentForDisplay(raw) {
+            if (!raw) return '';
+            let s = String(raw);
+            // 切り出し優先: 「🔍 内容:」以降
+            const marker = '🔍 内容:';
+            const i = s.indexOf(marker);
+            if (i !== -1) {
+                s = s.slice(i + marker.length).trim();
+            }
+            // 先頭の警告系プリフィックスを除去（行単位）
+            s = s
+                .split('\n')
+                .filter(line => !/^\s*⚠️\s*\*\*見出し/.test(line) && !/^\s*⚠️\s*\*\*リスト項目/.test(line))
+                .join('\n');
+            // 念のため、本文中に残った同種の行も除去（グローバル）
+            s = s.replace(/(^|\n)\s*⚠️\s*\*\*(見出し|リスト項目)[^\n]*/g, '$1');
+            return s;
         }
     </script>
 

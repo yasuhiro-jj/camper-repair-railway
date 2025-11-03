@@ -121,55 +121,104 @@ def health_check():
 @app.route("/api/categories")
 def get_categories():
     """カテゴリ一覧API"""
-    categories = [
-        {
-            "id": "battery",
-            "name": "バッテリー",
-            "icon": "🔋",
-            "description": "バッテリー関連の修理情報"
-        },
-        {
-            "id": "toilet",
-            "name": "トイレ",
-            "icon": "🚽",
-            "description": "トイレ関連の修理情報"
-        },
-        {
-            "id": "aircon",
-            "name": "エアコン",
-            "icon": "❄️",
-            "description": "エアコン関連の修理情報"
-        },
-        {
-            "id": "water_leak",
-            "name": "雨漏り",
-            "icon": "🌧️",
-            "description": "雨漏り関連の修理情報"
-        },
-        {
-            "id": "ff_heater",
-            "name": "FFヒーター",
-            "icon": "🔥",
-            "description": "FFヒーター関連の修理情報"
-        },
-        {
-            "id": "water_pump",
-            "name": "水道ポンプ",
-            "icon": "💧",
-            "description": "水道ポンプ関連の修理情報"
-        },
-        {
-            "id": "inverter",
-            "name": "インバーター",
-            "icon": "⚡",
-            "description": "インバーター関連の修理情報"
+    try:
+        # RepairCategoryManagerを使用してカテゴリを取得
+        try:
+            from repair_category_manager import RepairCategoryManager
+            category_manager = RepairCategoryManager()
+            categories = category_manager.get_all_categories()
+            
+            if categories:
+                return jsonify({
+                    "success": True,
+                    "categories": categories,
+                    "source": "category_definitions"
+                })
+        except Exception as e:
+            print(f"⚠️ RepairCategoryManagerの読み込みに失敗: {e}")
+            # フォールバック: 基本的なカテゴリ定義を返す
+            pass
+        
+        # フォールバック: 基本的なカテゴリ定義
+        categories_dict = {
+            "バッテリー": {
+                "name": "バッテリー",
+                "icon": "🔋",
+                "keywords": ["バッテリー", "電池", "電源"],
+                "description": "バッテリー関連の修理情報",
+                "repair_costs": [],
+                "repair_steps": [],
+                "warnings": []
+            },
+            "トイレ": {
+                "name": "トイレ",
+                "icon": "🚽",
+                "keywords": ["トイレ", "便器", "カセット"],
+                "description": "トイレ関連の修理情報",
+                "repair_costs": [],
+                "repair_steps": [],
+                "warnings": []
+            },
+            "エアコン": {
+                "name": "エアコン",
+                "icon": "❄️",
+                "keywords": ["エアコン", "冷房", "暖房", "空調"],
+                "description": "エアコン関連の修理情報",
+                "repair_costs": [],
+                "repair_steps": [],
+                "warnings": []
+            },
+            "雨漏り": {
+                "name": "雨漏り",
+                "icon": "🌧️",
+                "keywords": ["雨漏り", "漏水", "水漏れ"],
+                "description": "雨漏り関連の修理情報",
+                "repair_costs": [],
+                "repair_steps": [],
+                "warnings": []
+            },
+            "FFヒーター": {
+                "name": "FFヒーター",
+                "icon": "🔥",
+                "keywords": ["FFヒーター", "ヒーター", "暖房"],
+                "description": "FFヒーター関連の修理情報",
+                "repair_costs": [],
+                "repair_steps": [],
+                "warnings": []
+            },
+            "水道ポンプ": {
+                "name": "水道ポンプ",
+                "icon": "💧",
+                "keywords": ["水道ポンプ", "ポンプ", "水"],
+                "description": "水道ポンプ関連の修理情報",
+                "repair_costs": [],
+                "repair_steps": [],
+                "warnings": []
+            },
+            "インバーター": {
+                "name": "インバーター",
+                "icon": "⚡",
+                "keywords": ["インバーター", "電源", "変換"],
+                "description": "インバーター関連の修理情報",
+                "repair_costs": [],
+                "repair_steps": [],
+                "warnings": []
+            }
         }
-    ]
-    
-    return jsonify({
-        "categories": categories,
-        "total": len(categories)
-    })
+        
+        return jsonify({
+            "success": True,
+            "categories": categories_dict,
+            "source": "fallback"
+        })
+        
+    except Exception as e:
+        print(f"❌ カテゴリ定義取得エラー: {e}")
+        return jsonify({
+            "success": False,
+            "error": f"カテゴリ定義取得中にエラーが発生しました: {str(e)}",
+            "source": "error"
+        }), 500
 
 @app.route("/api/search", methods=["POST"])
 def search_repair_info():
