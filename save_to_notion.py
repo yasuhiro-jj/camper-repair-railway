@@ -117,6 +117,9 @@ def _assign_text_property(
         return
 
     prop_type = schema.get(name)
+    if prop_type is None:
+        logger.info("ℹ️ NotionログDBに '%s' プロパティが存在しないためスキップします", name)
+        return
     if prop_type == "title":
         props[name] = {"title": _rt(text_value)}
     elif prop_type in {"rich_text", "text"}:
@@ -180,16 +183,21 @@ def save_chat_log_to_notion(
     _assign_text_property(props, schema, "bot_message", bot_msg)
 
     timestamp_value = datetime.now(timezone.utc).isoformat()
-    if schema.get("timestamp") == "rich_text":
-        props["timestamp"] = {"rich_text": _rt(timestamp_value)}
+    if "timestamp" in schema:
+        if schema.get("timestamp") == "rich_text":
+            props["timestamp"] = {"rich_text": _rt(timestamp_value)}
+        else:
+            props["timestamp"] = {"date": {"start": timestamp_value}}
     else:
-        props["timestamp"] = {"date": {"start": timestamp_value}}
+        logger.info("ℹ️ NotionログDBに 'timestamp' プロパティが存在しないためスキップします")
 
     _assign_text_property(props, schema, "session_id", session_id)
 
     if category:
         prop_type = schema.get("category")
-        if prop_type == "multi_select":
+        if not prop_type:
+            logger.info("ℹ️ NotionログDBに 'category' プロパティが存在しないためスキップします")
+        elif prop_type == "multi_select":
             props["category"] = {"multi_select": [{"name": category}]}
         elif prop_type in {"rich_text", "text"}:
             props["category"] = {"rich_text": _rt(category)}
@@ -198,7 +206,9 @@ def save_chat_log_to_notion(
 
     if subcategory:
         prop_type = schema.get("subcategory")
-        if prop_type == "multi_select":
+        if not prop_type:
+            logger.info("ℹ️ NotionログDBに 'subcategory' プロパティが存在しないためスキップします")
+        elif prop_type == "multi_select":
             props["subcategory"] = {"multi_select": [{"name": subcategory}]}
         elif prop_type in {"rich_text", "text"}:
             props["subcategory"] = {"rich_text": _rt(subcategory)}
@@ -225,7 +235,9 @@ def save_chat_log_to_notion(
         cleaned_keywords = [str(k).strip() for k in keywords if str(k).strip()]
         if cleaned_keywords:
             prop_type = schema.get("keywords")
-            if prop_type in {"rich_text", "text"}:
+            if not prop_type:
+                logger.info("ℹ️ NotionログDBに 'keywords' プロパティが存在しないためスキップします")
+            elif prop_type in {"rich_text", "text"}:
                 props["keywords"] = {"rich_text": _rt(", ".join(cleaned_keywords))}
             else:
                 props["keywords"] = {
@@ -234,7 +246,9 @@ def save_chat_log_to_notion(
 
     if tool_used:
         prop_type = schema.get("tool_used")
-        if prop_type in {"rich_text", "text"}:
+        if not prop_type:
+            logger.info("ℹ️ NotionログDBに 'tool_used' プロパティが存在しないためスキップします")
+        elif prop_type in {"rich_text", "text"}:
             props["tool_used"] = {"rich_text": _rt(tool_used)}
         else:
             props["tool_used"] = {"select": {"name": tool_used}}
