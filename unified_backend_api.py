@@ -1438,6 +1438,64 @@ Notionデータベースから取得した修理ケース情報を基に、ユ�
             })
         
         print(f"✅ 検索完了: {len(search_results)}件の結果")
+        
+        # Chat logをNotionに保存
+        try:
+            # 検索結果を整形して回答文字列を作成
+            bot_response_parts = []
+            for i, result in enumerate(search_results[:3], 1):  # 最初の3件のみ使用
+                title = result.get('title', '')
+                content = result.get('content', '')
+                if title and content:
+                    bot_response_parts.append(f"{title}\n{content}")
+                elif content:
+                    bot_response_parts.append(content)
+                elif title:
+                    bot_response_parts.append(title)
+            
+            # 回答が空の場合はフォールバックメッセージを使用
+            if bot_response_parts:
+                bot_response = "\n\n---\n\n".join(bot_response_parts)
+            else:
+                bot_response = f"{query}に関する検索結果が見つかりませんでした。"
+            
+            # session_idをリクエストから取得（なければデフォルト値）
+            session_id = data.get('session_id', 'repair_advice_center')
+            
+            # categoryを最初の検索結果から取得
+            category = None
+            if search_results:
+                category = search_results[0].get('category', '修理アドバイス')
+            else:
+                category = '修理アドバイス'
+            
+            # keywordsをクエリから抽出（簡単な実装）
+            keywords = [word.strip() for word in query.split() if len(word.strip()) > 1][:5]
+            
+            # Chat logを保存（回答が空でない場合のみ）
+            if bot_response and bot_response.strip():
+                saved, error_msg = save_chat_log_to_notion(
+                    user_msg=query,
+                    bot_msg=bot_response,
+                    session_id=session_id,
+                    category=category,
+                    subcategory="修理アドバイスセンター",
+                    keywords=keywords if keywords else None,
+                    tool_used="repair_advice_search"
+                )
+                
+                if saved:
+                    print(f"✅ Chat logをNotionに保存しました: session_id={session_id}, category={category}")
+                else:
+                    print(f"⚠️ Chat logの保存に失敗しました: {error_msg}")
+            else:
+                print(f"⚠️ Chat logをスキップしました: 回答が空です")
+        except Exception as e:
+            # Chat logの保存に失敗してもAPIは正常に動作するようにする
+            print(f"⚠️ Chat log保存エラー（処理は継続）: {e}")
+            import traceback
+            traceback.print_exc()
+        
         response_data = {
             "query": query,
             "results": search_results,
