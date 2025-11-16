@@ -1,0 +1,418 @@
+**技術者向けロードマップ（実装計画）
+
+これをやろうかと思いますが、ここでやったほうが　いいですか？
+
+
+下記は、先ほどの「Cursor向け指示書」を実装ロードマップに落とし込んだ**技術者向けロードマップ（実装計画）**です。  
+1人開発でも進めやすいように、**フェーズ・週次マイルストーン・受け入れ基準・チェックリスト**まで具体化しています。
+
+---
+
+# 🧭 全体像（目的・到達点）
+
+**目的**：  
+キャンピングカー修理向けの「AI一次診断（Web/LINE）＋工場ネットワーク管理＋BtoBアフター代行」を備えたプラットフォームを、**SaaS化を見据えたモジュール構成**で構築・運用する。
+
+**到達点（MVP）**：
+
+1. Webチャットで一次診断→Notionへ100%ログ保存
+    
+2. RAG（ChromaDB）から根拠提示つき回答
+    
+3. 工場向けミニ・ダッシュボード（案件一覧/進捗更新）
+    
+4. LINE公式からも一次診断→Notion保存
+    
+5. Railwayに本番デプロイ & 運用ログ監視
+    
+
+---
+
+# 🏗 フェーズ別ロードマップ（8週間想定）
+
+## フェーズ1（Week 1–2）：基盤準備 & スケルトン実装
+
+**目標**：ディレクトリ作成、依存関係、.env周り、最小API起動
+
+- 1-1 環境/レポジトリ
+    
+    - ✅ Gitリポジトリ作成（main/devブランチ）
+        
+    - ✅ Python 3.10 環境、`requirements.txt` 下記最小構成
+        
+        - Flask(or FastAPI), langchain, langgraph, openai, chromadb, python-dotenv, requests, notion-client(or REST), gunicorn
+            
+    - ✅ Procfile, Railway用`railway.json`（任意）
+        
+    - ✅ `.env.template`（後述のキー名）
+        
+- 1-2 スケルトン
+    
+    - ✅ `app.py`：`/healthz`と`/api/chat`の空実装
+        
+    - ✅ `templates/index.html` + `/static/styles.css` + `/static/chatbot.js`（最小UI）
+        
+    - ✅ `data_access/notion_client.py`：Notion APIクライアントの基礎（DB作成はGUI、操作はAPI）
+        
+    - ✅ `data_access/chroma_manager.py`：コレクション作成/登録/検索の雛形
+        
+    - ✅ ローカル起動 & 初回コミット
+        
+
+**受け入れ基準**
+
+- `GET /healthz` が200返す
+    
+- `POST /api/chat` が固定メッセージを返す（ダミーでOK）
+    
+- `.env` 未設定でも起動し、落ちない（例外ハンドリング）
+    
+
+---
+
+## フェーズ2（Week 2–3）：Notion ログ保存 完成
+
+**目標**：会話ログをNotionに確実保存（分析の土台）
+
+- 2-1 Notion DB定義（GUI）
+    
+    - **修理ログDB**：`user_message, bot_response, category, subcategory, urgency, keywords, tool_used, session_id, timestamp`
+        
+    - **工場DB / カテゴリDB / 販売店DB**：今はスキーマだけ用意
+        
+- 2-2 API実装
+    
+    - `save_chat_log_to_notion(user_msg, bot_msg, ...)`実装（例外時でもAPIは落ちない）
+        
+    - `/api/chat`：返答後に Notion保存を必ず実行
+        
+- 2-3 セッション管理
+    
+    - `session_id`（クッキー or UUID）付与
+        
+    - タイムスタンプはUTCで保存（後段の分析が容易）
+        
+
+**受け入れ基準**
+
+- Web/LINE（後述）から送った会話が**100% Notionに記録**される（10件連続テスト）
+    
+- 例外時はログ出力しつつHTTP 200を返す（ユーザー影響最小）
+    
+
+---
+
+## フェーズ3（Week 3–4）：AI一次診断 + RAG（ChromaDB）
+
+**目標**：LLM + RAGで根拠つき回答、意図分類 & 信頼度
+
+- 3-1 LLMパイプライン
+    
+    - LangChainで意図分類チェーン（電気/水回り/雨漏り/冷却/FFヒーター…）
+        
+    - LangGraphで分岐（分類→RAG検索→補完→出力フォーマット）
+        
+    - 返答に**①短い共感リアクション＋②要点＋③手順＋④次アクション**をテンプレ化
+        
+- 3-2 RAG
+    
+    - `chroma_manager.py`：ドキュメント登録関数 `upsert_docs(docs, metadata)`
+        
+    - `/rag/rebuild`：Notion/テキストから同期＆ベクトル化（手動トリガーでOK）
+        
+    - RAGスコア（類似度）を`tool_used`や`score`としてNotion保存
+        
+- 3-3 信頼度/根拠
+    
+    - 返答に「参照元の要約」や「信頼度（low/medium/high）」を付与
+        
+    - 信頼度<しきい値 の場合は**追加質問**を促す
+        
+
+**受け入れ基準**
+
+- サンプル質問で**RAGヒット**→根拠の短文が返る
+    
+- Notionログに`tool_used=RAG/Notion/推論`が分類保存される
+    
+
+---
+
+## フェーズ4（Week 4–5）：工場向けミニ・ダッシュボード（Streamlit）
+
+**目標**：案件一覧/進捗更新/メモ追記（Notion同期）
+
+- 4-1 ダッシュボード `/streamlit_admin/dashboard.py`
+    
+    - パスコード簡易ログイン（.envの`ADMIN_CODE`）
+        
+    - 案件一覧（Notion修理ログDBのビュー）
+        
+    - ステータス変更（受付→診断→修理→完了）
+        
+    - コメント/画像URLの追記（Notionの別プロパティ or コメント欄）
+        
+    - **後で**写真アップロードをS3等に拡張できる設計に
+        
+- 4-2 役割
+    
+    - 工場：スマホから進捗更新
+        
+    - 本部：Notion上でも監視可能（どちらからでもOK）
+        
+
+**受け入れ基準**
+
+- 案件がStreamlitに一覧表示され、変更が**Notionに即時反映**
+    
+- 最低1件の案件が受付→完了まで遷移可能
+    
+
+---
+
+## フェーズ5（Week 5–6）：LINE連携（一次診断→Notion保存）
+
+**目標**：LINE公式からもWebと同等の一次診断体験
+
+- 5-1 `/line/webhook`
+    
+    - 受信→分類→RAG→返答
+        
+    - テキスト主体でOK（画像は次フェーズ）
+        
+    - すべてNotion保存（user_idを`session_id`に流用）
+        
+- 5-2 例外処理
+    
+    - 署名検証（LINEチャネルシークレット）
+        
+    - タイムアウト/レート制御（リトライは狭く）
+        
+- 5-3 テスト
+    
+    - 実機で10往復程度（夜間/休日/平日日中）
+        
+    - 応答遅延の観測（Flaskワーカー数/Gunicorn設定調整）
+        
+
+**受け入れ基準**
+
+- LINEからの質問が**Webと同レベル**で回答/Notion保存できる
+    
+- 例外ログが残る（Sentry or ログ集約）
+    
+
+---
+
+## フェーズ6（Week 6）：デプロイ & 監視
+
+**目標**：Railway本番、稼働監視・アラート
+
+- 6-1 Railwayデプロイ
+    
+    - `Procfile`（web: gunicorn app:app -w 2 -k gthread …）
+        
+    - 環境変数はRailway側に設定（.envは持ち込まない）
+        
+    - CORS/HTTPSリダイレクト
+        
+- 6-2 監視/ログ
+    
+    - アプリログ：構造化（jsonに近い形）
+        
+    - エラー通知：Sentry（無料枠） or Slack Webhook
+        
+    - ヘルスチェック：`/healthz` をUptimeRobot等で監視
+        
+
+**受け入れ基準**
+
+- 24時間安定稼働（503等が出ない）
+    
+- 例外はSentry/Slackに即通知
+    
+
+---
+
+## フェーズ7（Week 7）：分析（トレンド/離脱/RAG不足）
+
+**目標**：Notionログをもとに**意思決定に使える可視化**
+
+- 7-1 `/analytics` 実装
+    
+    - トレンド：カテゴリ別件数、季節性（暫定は月次）
+        
+    - 離脱：ターン数、未回答率、再質問率
+        
+    - RAG不足：低スコアのカテゴリ抽出、追加すべきナレッジ候補
+        
+- 7-2 ダッシュボード
+    
+    - Streamlitに簡易グラフ
+        
+    - 「追加すべき記事/Notionカード案」をLLMで自動提案（CSV出力）
+        
+
+**受け入れ基準**
+
+- 直近30日のレポートが**1クリック生成**
+    
+- 改善アクションリスト（ToDo）を自動出力
+    
+
+---
+
+## フェーズ8（Week 8）：BtoBパッケージ & 小規模SaaS化準備
+
+**目標**：販売店アフター代行パッケージ、テナント化の布石
+
+- 8-1 BtoBパッケージ
+    
+    - 「販売店ごとにWeb/LINE入口を分ける」= `tenant_id`設計
+        
+    - Notion側にも販売店DBを用意し、`tenant_id`で関連
+        
+- 8-2 APIモジュール化（SaaS布石）
+    
+    - `/chat`, `/rag/query`, `/rag/rebuild`, `/notion/sync`, `/analytics/report` …
+        
+    - 認可（APIキー or JWT）をmiddlewareに切り出し
+        
+
+**受け入れ基準**
+
+- `tenant_id`を切り替えるだけで**別クライアントの動線が構築**
+    
+- BtoB営業用のデモが即日できる
+    
+
+---
+
+# 🧪 テスト方針（最低限）
+
+- 単体：Notion保存・RAG検索・分類チェーン
+    
+- 結合：`/api/chat` のE2E（モックと本番キーの2系統）
+    
+- 負荷：並行10–20接続でタイムアウト/スループットを計測
+    
+- 回帰：主要プロンプトのスナップショットテスト（出力骨子一致）
+    
+
+---
+
+# 🔐 セキュリティ & プライバシー
+
+- APIキーはすべて`.env`（本番はRailwayの環境変数）
+    
+- LINE署名検証必須
+    
+- ログに個人情報を直書きしない（マスキング）
+    
+- CORS制御（許可ドメインのみに限定）
+    
+- 監査ログ（重要操作はINFO以上で記録）
+    
+
+---
+
+# 🪪 推奨 `.env.template` キー（例）
+
+`OPENAI_API_KEY=sk-... NOTION_API_KEY=secret_... NOTION_DB_CHAT_LOG=029bdc77fc23411390d3de6595b07dfe NOTION_DB_FACTORY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx NOTION_DB_CATEGORY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx NOTION_DB_DEALER=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  CHROMA_PERSIST_DIR=./chroma_db RAG_COLLECTION=camper_repair_knowledge  LINE_CHANNEL_SECRET=... LINE_CHANNEL_ACCESS_TOKEN=...  ADMIN_CODE=change-me APP_ENV=dev`
+
+---
+
+# 📡 主要API（MVP）
+
+- `POST /api/chat`：{message, session_id} → {reply, sources, score}（保存あり）
+    
+- `POST /rag/rebuild`：Notion/テキストから再構築（管理者のみ）
+    
+- `POST /line/webhook`：LINE受信→返答→保存
+    
+- `GET /analytics/summary?range=30d`：トレンド/離脱/不足の要約（JSON）
+    
+- `GET /healthz`：稼働確認
+    
+
+---
+
+# 📊 成功指標（KPI）
+
+- 会話ログ保存成功率：**99%+**
+    
+- 応答時間：Web < **2.5s**, LINE < **3.0s**
+    
+- RAG根拠提示率：**80%+**（残りは補足質問へ）
+    
+- Streamlit経由の案件完了率：**>50%**
+    
+- 障害時の復旧時間：**<15分**（手順をドキュメント化）
+    
+
+---
+
+# ⚠️ リスク & 回避策
+
+- **Notionレート制限**：保存を軽量化、バッチ化/リトライ
+    
+- **RAG精度不足**：しきい値管理、補足質問ループ、Notionから即時補填
+    
+- **LINE遅延**：応答簡略化モード（短文+後続URL）
+    
+- **運用負荷**：Sentry/Slack通知と簡易RunbookでMTTR短縮
+    
+
+---
+
+# 📈 次フェーズでやると強いこと（拡張）
+
+- 画像診断（雨漏り痕/割れ/腐食の検出 → ワークフロー）
+    
+- 月次PDFレポート自動生成（販売店向け）
+    
+- Notion→RAGの**夜間自動ビルド**（n8n/CRON）
+    
+- 工場の**AI技術スコア**可視化（認定制度）
+    
+- マルチテナント設定画面（SaaS本格化）
+    
+
+---
+
+# ✅ 最後に：進め方のチェックリスト（使い回しOK）
+
+-  Gitリポジトリ作成 & ルール（PR/レビュー）
+    
+-  `.env.template` 配布 & 本番はRailway環境変数
+    
+-  `/healthz` → `/api/chat` ダミー → 本実装
+    
+-  Notionログ保存の例外耐性 & 冪等性
+    
+-  RAG再構築 `/rag/rebuild` 手動→夜間自動へ
+    
+-  Streamlitダッシュボードの最小価値リリース
+    
+-  LINE受信→返答→保存→通知（Webhook）
+    
+-  監視/通知/Runbook
+    
+-  分析（30日レポート）→ 改善バックログ化
+    
+-  テナント分離の布石（`tenant_id`）
+    
+
+---
+
+必要であれば、このロードマップに沿って
+
+- 初期`requirements.txt`
+    
+- `app.py`と`notion_client.py`の**雛形コード**
+    
+- `chroma_manager.py`の**最小実装**  
+    まで**即納**します。どこから着手にしますか？
+    
+
+  

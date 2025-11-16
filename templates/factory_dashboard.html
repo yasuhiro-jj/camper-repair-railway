@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工場向けダッシュボード</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 24px;
+        }
+        
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+        
+        .filters {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .filter-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .cases-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .case-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #fafafa;
+            transition: box-shadow 0.3s;
+        }
+        
+        .case-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .case-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .case-title {
+            font-weight: bold;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .case-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status-受付 { background: #3498db; color: white; }
+        .status-診断中 { background: #f39c12; color: white; }
+        .status-修理中 { background: #9b59b6; color: white; }
+        .status-完了 { background: #27ae60; color: white; }
+        .status-キャンセル { background: #e74c3c; color: white; }
+        
+        .case-info {
+            color: #666;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        
+        .case-message {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 3px solid #667eea;
+        }
+        
+        .case-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .action-select {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .btn-update {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-update:hover {
+            background: #229954;
+        }
+        
+        .comment-section {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+        
+        .comment-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .btn-comment {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-comment:hover {
+            background: #2980b9;
+        }
+        
+        .existing-comments {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            font-size: 13px;
+            color: #666;
+            white-space: pre-wrap;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .case-header {
+                flex-direction: column;
+            }
+            
+            .case-actions {
+                flex-direction: column;
+            }
+            
+            .action-select {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔧 工場向けダッシュボード</h1>
+        <a href="/admin/logout" class="logout-btn">ログアウト</a>
+    </div>
+    
+    <div class="filters">
+        <div class="filter-group">
+            <span style="font-weight: bold; margin-right: 10px;">フィルタ:</span>
+            <button class="filter-btn" onclick="filterCases('')">すべて</button>
+            <button class="filter-btn" onclick="filterCases('受付')">受付</button>
+            <button class="filter-btn" onclick="filterCases('診断中')">診断中</button>
+            <button class="filter-btn" onclick="filterCases('修理中')">修理中</button>
+            <button class="filter-btn" onclick="filterCases('完了')">完了</button>
+            <button class="filter-btn" onclick="filterCases('キャンセル')">キャンセル</button>
+        </div>
+    </div>
+    
+    <div class="cases-container">
+        <div id="loading" class="loading">
+            <p>案件を読み込み中...</p>
+        </div>
+        
+        <div id="cases-list" style="display: none;"></div>
+        
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">📭</div>
+            <p>案件が見つかりませんでした</p>
+        </div>
+    </div>
+    
+    <script>
+        let currentFilter = '{{ status_filter }}';
+        
+        // ページ読み込み時に案件を取得
+        window.addEventListener('DOMContentLoaded', function() {
+            loadCases(currentFilter);
+            updateFilterButtons(currentFilter);
+        });
+        
+        function filterCases(status) {
+            currentFilter = status;
+            loadCases(status);
+            updateFilterButtons(status);
+        }
+        
+        function updateFilterButtons(activeStatus) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent === (activeStatus || 'すべて')) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+        
+        async function loadCases(status = '') {
+            const loadingEl = document.getElementById('loading');
+            const casesListEl = document.getElementById('cases-list');
+            const emptyStateEl = document.getElementById('empty-state');
+            
+            loadingEl.style.display = 'block';
+            casesListEl.style.display = 'none';
+            emptyStateEl.style.display = 'none';
+            
+            try {
+                const url = `/admin/api/cases${status ? '?status=' + encodeURIComponent(status) : ''}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                loadingEl.style.display = 'none';
+                
+                if (data.success && data.cases.length > 0) {
+                    casesListEl.style.display = 'block';
+                    renderCases(data.cases);
+                } else {
+                    emptyStateEl.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('案件取得エラー:', error);
+                loadingEl.innerHTML = '<p style="color: red;">エラーが発生しました</p>';
+            }
+        }
+        
+        function renderCases(cases) {
+            const casesListEl = document.getElementById('cases-list');
+            casesListEl.innerHTML = cases.map(case => `
+                <div class="case-card" data-page-id="${case.page_id}">
+                    <div class="case-header">
+                        <div class="case-title">${escapeHtml(case.title)}</div>
+                        <span class="case-status status-${case.status || '受付'}">${case.status || '受付'}</span>
+                    </div>
+                    
+                    <div class="case-info">
+                        <div>📅 ${formatDate(case.timestamp || case.created_time)}</div>
+                        ${case.category ? `<div>🏷️ ${escapeHtml(case.category)}</div>` : ''}
+                        ${case.session_id ? `<div>🆔 ${escapeHtml(case.session_id.substring(0, 8))}...</div>` : ''}
+                    </div>
+                    
+                    ${case.user_message ? `
+                        <div class="case-message">
+                            <strong>ユーザー:</strong> ${escapeHtml(case.user_message.substring(0, 200))}${case.user_message.length > 200 ? '...' : ''}
+                        </div>
+                    ` : ''}
+                    
+                    ${case.bot_message ? `
+                        <div class="case-message">
+                            <strong>AI応答:</strong> ${escapeHtml(case.bot_message.substring(0, 200))}${case.bot_message.length > 200 ? '...' : ''}
+                        </div>
+                    ` : ''}
+                    
+                    <div class="case-actions">
+                        <select class="action-select" id="status-${case.page_id}">
+                            <option value="受付" ${case.status === '受付' ? 'selected' : ''}>受付</option>
+                            <option value="診断中" ${case.status === '診断中' ? 'selected' : ''}>診断中</option>
+                            <option value="修理中" ${case.status === '修理中' ? 'selected' : ''}>修理中</option>
+                            <option value="完了" ${case.status === '完了' ? 'selected' : ''}>完了</option>
+                            <option value="キャンセル" ${case.status === 'キャンセル' ? 'selected' : ''}>キャンセル</option>
+                        </select>
+                        <button class="btn-update" onclick="updateStatus('${case.page_id}')">ステータス更新</button>
+                    </div>
+                    
+                    <div class="comment-section">
+                        <input type="text" class="comment-input" id="comment-${case.page_id}" placeholder="コメントを入力...">
+                        <button class="btn-comment" onclick="addComment('${case.page_id}')">コメント追加</button>
+                        ${case.comment ? `<div class="existing-comments">${escapeHtml(case.comment)}</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function updateStatus(pageId) {
+            const statusSelect = document.getElementById(`status-${pageId}`);
+            const newStatus = statusSelect.value;
+            
+            try {
+                const response = await fetch('/admin/api/update-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        page_id: pageId,
+                        status: newStatus
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ ステータスを更新しました');
+                    loadCases(currentFilter); // 再読み込み
+                } else {
+                    alert('❌ エラー: ' + data.error);
+                }
+            } catch (error) {
+                console.error('ステータス更新エラー:', error);
+                alert('❌ エラーが発生しました');
+            }
+        }
+        
+        async function addComment(pageId) {
+            const commentInput = document.getElementById(`comment-${pageId}`);
+            const comment = commentInput.value.trim();
+            
+            if (!comment) {
+                alert('コメントを入力してください');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/api/add-comment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        page_id: pageId,
+                        comment: comment
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ コメントを追加しました');
+                    commentInput.value = '';
+                    loadCases(currentFilter); // 再読み込み
+                } else {
+                    alert('❌ エラー: ' + data.error);
+                }
+            } catch (error) {
+                console.error('コメント追加エラー:', error);
+                alert('❌ エラーが発生しました');
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function formatDate(dateString) {
+            if (!dateString) return '日時不明';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleString('ja-JP');
+            } catch {
+                return dateString;
+            }
+        }
+    </script>
+</body>
+</html>
+

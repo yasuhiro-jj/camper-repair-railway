@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, g, session
+from flask import Flask, render_template, request, jsonify, g, session, redirect
 from flask_cors import CORS
 from typing import Literal
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -12,6 +12,10 @@ from langchain_chroma import Chroma
 
 import os
 import uuid
+import logging
+
+# ロギング設定
+logger = logging.getLogger(__name__)
 
 # 設定ファイルをインポート
 from config import OPENAI_API_KEY, SERP_API_KEY, LANGSMITH_API_KEY
@@ -425,9 +429,44 @@ def call_tools(state: MessagesState):
     
     return {"messages": tool_messages}
 
-# === 拡張RAG用ロジック ===
-def rag_retrieve(question: str):
-    # 拡張RAGシステムを使用してブログURLも含めて検索
+# === 拡張RAG用ロジック（Phase 3対応） ===
+def rag_retrieve(question: str, return_scores: bool = False):
+    """
+    RAG検索（Phase 3対応：スコア返却オプション）
+    
+    Args:
+        question: 検索クエリ
+        return_scores: スコアも返すか
+    
+    Returns:
+        str or Tuple[str, float]: マニュアル内容（スコア含む場合はタプル）
+    """
+    # chroma_managerを使用（Phase 3対応）
+    try:
+        from data_access.chroma_manager import get_chroma_manager
+        chroma_manager = get_chroma_manager()
+        
+        if chroma_manager.db:
+            results = chroma_manager.search(question, max_results=5)
+            
+            # スコアをグローバル変数に保存
+            if results.get("scores"):
+                g.rag_scores = results["scores"]
+                g.rag_avg_score = sum(results["scores"]) / len(results["scores"]) if results["scores"] else 0.0
+            else:
+                g.rag_scores = []
+                g.rag_avg_score = 0.0
+            
+            # ブログリンクを保存
+            g.blog_links = results.get("blog_links", [])
+            
+            # マニュアル内容を返す
+            manual_content = results.get("manual_content", "")
+            return manual_content
+    except Exception as e:
+        print(f"⚠️ chroma_manager使用エラー（フォールバック）: {e}")
+    
+    # フォールバック: 既存のenhanced_rag_systemを使用
     results = enhanced_rag_retrieve(question, db, max_results=5)
     
     # マニュアル内容とブログリンクを組み合わせ
@@ -436,6 +475,8 @@ def rag_retrieve(question: str):
     
     # グローバル変数にブログリンクを保存（後で使用）
     g.blog_links = blog_links
+    g.rag_scores = []
+    g.rag_avg_score = 0.0
     
     # マニュアル内容のみを返す（ブログリンクは後でAIの回答内に組み込む）
     return manual_content
@@ -558,14 +599,473 @@ def unified_chatbot():
     """統合チャットボットのHTMLページ"""
     return render_template("unified_chatbot.html")
 
+@app.route("/healthz")
+def healthz():
+    """シンプルなヘルスチェック（ロードマップ準拠）"""
+    return jsonify({"status": "ok"}), 200
+
+@app.route("/api/chat", methods=["POST"])
+def api_chat():
+    """
+    ロードマップ準拠のチャットエンドポイント（Phase 3対応）
+    会話ログをNotionに100%保存 + 意図分類 & 信頼度付与
+    """
+    try:
+        # リクエストデータの取得（JSON形式を優先、フォームデータにも対応）
+        if request.is_json:
+            data = request.get_json()
+            message = data.get("message", "").strip()
+            session_id = data.get("session_id")
+        else:
+            message = request.form.get("message", "").strip()
+            session_id = request.form.get("session_id")
+        
+        if not message:
+            return jsonify({
+                "success": False,
+                "error": "メッセージが空です"
+            }), 400
+        
+        # セッションIDの確実な付与（ロードマップ準拠）
+        if not session_id:
+            session_id = session.get('conversation_id')
+            if not session_id:
+                session_id = str(uuid.uuid4())
+                session['conversation_id'] = session_id
+        
+        # Phase 3: 意図分類（先に実行）
+        intent_result = None
+        try:
+            from data_access.intent_classifier import IntentClassifier, get_confidence_level
+            intent_classifier = IntentClassifier()
+            intent_result = intent_classifier.classify(message)
+            category = intent_result.get("category")
+            confidence_score = intent_result.get("confidence", 0.5)
+            confidence_level = get_confidence_level(confidence_score)
+            intent_keywords = intent_result.get("keywords", [])
+        except Exception as e:
+            print(f"⚠️ 意図分類エラー（フォールバック）: {e}")
+            category = None
+            confidence_score = 0.5
+            confidence_level = "medium"
+            intent_keywords = []
+        
+        # RAG検索（Phase 3対応：スコア取得）
+        g.search_results = []
+        g.rag_scores = []
+        g.rag_avg_score = 0.0
+        
+        document_snippet = rag_retrieve(message)
+        
+        # RAGスコアを取得
+        rag_avg_score = getattr(g, "rag_avg_score", 0.0)
+        rag_scores = getattr(g, "rag_scores", [])
+        
+        # プロンプトテンプレートにRAG結果を組み込み
+        inputs = preprocess_message(message, session_id)
+        thread = {"configurable": {"thread_id": session_id}}
+        
+        response = ""
+        tool_used_list = []
+        
+        # AI応答生成
+        for event in app_flow.stream({"messages": inputs}, thread, stream_mode="values"):
+            if "messages" in event and event["messages"]:
+                last_message = event["messages"][-1]
+                response = last_message.content
+                
+                # ツール使用の検出
+                if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+                    for tool_call in last_message.tool_calls:
+                        tool_used_list.append(tool_call.get('name', 'unknown'))
+        
+        # ブログリンクを取得
+        blog_links = getattr(g, "blog_links", [])
+        if not blog_links:
+            try:
+                from test_rag import get_relevant_blog_links
+                blog_links = get_relevant_blog_links(message)
+                g.blog_links = blog_links
+            except Exception as e:
+                print(f"フォールバック検索エラー: {e}")
+                blog_links = []
+        
+        # Phase 3: 返答テンプレート改善（共感リアクション+要点+手順+次アクション）
+        # 既存の回答に追加情報を付与
+        enhanced_response = response
+        
+        # 信頼度が低い場合は追加質問を促す
+        if confidence_level == "low" and rag_avg_score < 0.5:
+            enhanced_response += "\n\n💡 より正確な診断のため、以下の情報を教えていただけますか？\n"
+            enhanced_response += "- 症状が発生した時期\n"
+            enhanced_response += "- 他に気になる症状はありますか？\n"
+            enhanced_response += "- 最近のメンテナンス状況\n"
+        
+        # ブログリンクを追加
+        if blog_links:
+            blog_section = "\n\n🔗 関連ブログ\n"
+            for blog in blog_links[:3]:
+                blog_section += f"• {blog['title']}: {blog['url']}\n"
+            enhanced_response += blog_section
+        
+        # 参照元の要約（Phase 3対応、200文字にトリム）
+        sources_summary = ""
+        if document_snippet and len(document_snippet) > 50:
+            # 200文字にトリム（Notionの指示に従う）
+            sources_summary = document_snippet[:200].strip()
+        
+        # ツール使用情報の確定
+        tool_used = None
+        if tool_used_list:
+            tool_used = "/".join(tool_used_list)
+        elif rag_avg_score > 0.0:  # RAGが使用された場合
+            tool_used = "RAG"
+        else:
+            tool_used = "推論"
+        
+        # 最終的なキーワード（意図分類 + 抽出キーワード）
+        keywords = intent_keywords if intent_keywords else []
+        if not keywords:
+            import re
+            japanese_words = re.findall(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+', message)
+            keywords = [w for w in japanese_words if len(w) >= 2][:5]
+        
+        # Notionログ保存（Phase 3対応：スコアと信頼度を含む）
+        notion_saved = False
+        notion_error = None
+        try:
+            from save_to_notion import save_chat_log_to_notion
+            
+            saved, error_msg = save_chat_log_to_notion(
+                user_msg=message,
+                bot_msg=enhanced_response,
+                session_id=session_id,
+                category=category,
+                subcategory=None,  # Phase 3では未実装
+                urgency=None,  # Phase 3では未実装
+                keywords=keywords if keywords else None,
+                tool_used=tool_used,
+                rag_score=rag_avg_score if rag_avg_score > 0.0 else None,  # Phase 3対応
+                confidence=confidence_level,  # Phase 3対応（lower case）
+                confidence_score=confidence_score,  # Phase 3対応
+                sources_summary=sources_summary if sources_summary else None  # Phase 3対応（200文字にトリム済み）
+            )
+            
+            if saved:
+                notion_saved = True
+                print(f"✅ Notionログ保存成功: session_id={session_id}, category={category}, tool={tool_used}")
+            else:
+                notion_error = error_msg
+                print(f"⚠️ Notionログ保存失敗（APIは継続）: {error_msg}")
+        except Exception as e:
+            notion_error = str(e)
+            print(f"⚠️ Notionログ保存例外（APIは継続）: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        # 会話履歴を更新（既存機能維持）
+        if session_id not in conversation_history:
+            conversation_history[session_id] = []
+        
+        conversation_history[session_id].extend([
+            HumanMessage(content=message),
+            AIMessage(content=enhanced_response)
+        ])
+        
+        # レスポンス（Phase 3対応：信頼度・スコア・参照元を含む）
+        return jsonify({
+            "success": True,
+            "reply": enhanced_response,
+            "sources": [blog.get("url", "") for blog in blog_links[:3]] if blog_links else [],
+            "score": rag_avg_score,  # Phase 3対応：RAGスコア
+            "confidence": confidence_level,  # Phase 3対応：信頼度（low/medium/high）
+            "confidence_score": confidence_score,  # Phase 3対応：信頼度スコア（0.0-1.0）
+            "category": category,  # Phase 3対応：分類されたカテゴリ
+            "sources_summary": sources_summary,  # Phase 3対応：参照元の要約
+            "session_id": session_id,
+            "notion_saved": notion_saved,
+            "notion_error": notion_error if not notion_saved else None
+        }), 200
+    
+    except Exception as e:
+        import traceback
+        error_message = f"エラーが発生しました: {str(e)}"
+        print(f"詳細エラー: {traceback.format_exc()}")
+        
+        # エラー時でもHTTP 200を返す（ロードマップ準拠：ユーザー影響最小）
+        return jsonify({
+            "success": False,
+            "error": error_message,
+            "reply": "申し訳ございませんが、エラーが発生しました。もう一度お試しください。",
+            "session_id": session.get('conversation_id', str(uuid.uuid4())),
+            "notion_saved": False
+        }), 200
+
 @app.route("/api/health")
 def health_check():
-    """ヘルスチェック"""
+    """詳細なヘルスチェック（既存機能維持）"""
     return jsonify({
         "status": "healthy",
         "rag_available": db is not None,
         "openai_available": OPENAI_API_KEY is not None
     })
+
+# ============================================
+# Phase 4: 工場向けダッシュボード（Flask実装）
+# ============================================
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    """パスコード簡易ログイン（Phase 4）"""
+    if request.method == "POST":
+        code = request.form.get("code", "").strip()
+        admin_code = os.getenv("ADMIN_CODE", "change-me")
+        
+        if code == admin_code:
+            session["admin_authenticated"] = True
+            return redirect("/admin/dashboard")
+        else:
+            return render_template("admin_login.html", error="パスコードが正しくありません"), 401
+    
+    # GET: ログインページ表示
+    return render_template("admin_login.html")
+
+@app.route("/admin/logout")
+def admin_logout():
+    """ログアウト"""
+    session.pop("admin_authenticated", None)
+    return redirect("/admin/login")
+
+@app.route("/admin/dashboard")
+def admin_dashboard():
+    """工場向けダッシュボード（Phase 4）"""
+    # 認証チェック
+    if not session.get("admin_authenticated"):
+        return redirect("/admin/login")
+    
+    # ステータスフィルタ（クエリパラメータ）
+    status_filter = request.args.get("status", "")
+    
+    # 案件一覧を取得（テンプレート側でJavaScriptで取得する方式）
+    return render_template("factory_dashboard.html", status_filter=status_filter)
+
+@app.route("/admin/api/cases", methods=["GET"])
+def get_cases_api():
+    """案件一覧取得API（Phase 4）"""
+    # 認証チェック
+    if not session.get("admin_authenticated"):
+        return jsonify({"error": "認証が必要です"}), 401
+    
+    try:
+        from data_access.factory_dashboard_manager import FactoryDashboardManager
+        
+        manager = FactoryDashboardManager()
+        
+        status = request.args.get("status")  # フィルタ（受付/診断中/修理中/完了/キャンセル）
+        limit = int(request.args.get("limit", 100))
+        
+        cases = manager.get_cases(status=status if status else None, limit=limit)
+        
+        return jsonify({
+            "success": True,
+            "cases": cases,
+            "count": len(cases)
+        })
+    
+    except Exception as e:
+        import traceback
+        logger.error(f"❌ 案件取得APIエラー: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/admin/api/update-status", methods=["POST"])
+def update_case_status_api():
+    """ステータス更新API（Phase 4）"""
+    # 認証チェック
+    if not session.get("admin_authenticated"):
+        return jsonify({"error": "認証が必要です"}), 401
+    
+    try:
+        data = request.get_json()
+        page_id = data.get("page_id")
+        status = data.get("status")
+        
+        if not page_id or not status:
+            return jsonify({
+                "success": False,
+                "error": "page_idとstatusが必要です"
+            }), 400
+        
+        from data_access.factory_dashboard_manager import FactoryDashboardManager
+        
+        manager = FactoryDashboardManager()
+        success = manager.update_status(page_id, status)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "ステータスを更新しました"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "ステータス更新に失敗しました"
+            }), 500
+    
+    except Exception as e:
+        import traceback
+        logger.error(f"❌ ステータス更新APIエラー: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/admin/api/add-comment", methods=["POST"])
+def add_comment_api():
+    """コメント追加API（Phase 4）"""
+    # 認証チェック
+    if not session.get("admin_authenticated"):
+        return jsonify({"error": "認証が必要です"}), 401
+    
+    try:
+        data = request.get_json()
+        page_id = data.get("page_id")
+        comment = data.get("comment")
+        
+        if not page_id or not comment:
+            return jsonify({
+                "success": False,
+                "error": "page_idとcommentが必要です"
+            }), 400
+        
+        from data_access.factory_dashboard_manager import FactoryDashboardManager
+        
+        manager = FactoryDashboardManager()
+        success = manager.add_comment(page_id, comment)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "コメントを追加しました"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "コメント追加に失敗しました"
+            }), 500
+    
+    except Exception as e:
+        import traceback
+        logger.error(f"❌ コメント追加APIエラー: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/admin/api/update-image-url", methods=["POST"])
+def update_image_url_api():
+    """画像URL更新API（Phase 4）"""
+    # 認証チェック
+    if not session.get("admin_authenticated"):
+        return jsonify({"error": "認証が必要です"}), 401
+    
+    try:
+        data = request.get_json()
+        page_id = data.get("page_id")
+        image_url = data.get("image_url")
+        
+        if not page_id or not image_url:
+            return jsonify({
+                "success": False,
+                "error": "page_idとimage_urlが必要です"
+            }), 400
+        
+        from data_access.factory_dashboard_manager import FactoryDashboardManager
+        
+        manager = FactoryDashboardManager()
+        success = manager.update_image_url(page_id, image_url)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "画像URLを更新しました"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "画像URL更新に失敗しました"
+            }), 500
+    
+    except Exception as e:
+        import traceback
+        logger.error(f"❌ 画像URL更新APIエラー: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/rag/rebuild", methods=["POST"])
+def rag_rebuild():
+    """
+    RAGシステムを再構築（Phase 3対応）
+    Notion/テキストから同期＆ベクトル化（手動トリガー）
+    """
+    try:
+        # 管理者認証（簡易版）
+        admin_code = request.headers.get("X-Admin-Code") or request.form.get("admin_code")
+        expected_code = os.getenv("ADMIN_CODE", "change-me")
+        
+        if admin_code != expected_code:
+            return jsonify({
+                "success": False,
+                "error": "管理者認証が必要です"
+            }), 401
+        
+        # ソースの指定（デフォルト: "notion"）
+        source = request.form.get("source", "notion")
+        
+        # chroma_managerを使用して再構築
+        try:
+            from data_access.chroma_manager import get_chroma_manager
+            chroma_manager = get_chroma_manager()
+            
+            success = chroma_manager.rebuild(source=source)
+            
+            if success:
+                return jsonify({
+                    "success": True,
+                    "message": f"RAGシステムを再構築しました（ソース: {source}）",
+                    "source": source
+                }), 200
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": "RAGシステムの再構築に失敗しました"
+                }), 500
+        except Exception as e:
+            import traceback
+            error_msg = f"RAG再構築エラー: {str(e)}"
+            print(f"❌ {error_msg}")
+            print(traceback.format_exc())
+            return jsonify({
+                "success": False,
+                "error": error_msg
+            }), 500
+    
+    except Exception as e:
+        import traceback
+        error_msg = f"エラーが発生しました: {str(e)}"
+        print(f"詳細エラー: {traceback.format_exc()}")
+        return jsonify({
+            "success": False,
+            "error": error_msg
+        }), 500
 
 @app.route("/api/repair_costs", methods=["GET"])
 def get_repair_costs():

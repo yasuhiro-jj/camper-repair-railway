@@ -1,0 +1,1466 @@
+# パートナーシップ機能実装ロードマップ
+
+既存のキャンピングカー修理チャットボットに、修理店パートナーシップ機能（問い合わせフォーム・修理店紹介・商談管理）を統合するための実装計画です。
+
+---
+
+## 📋 前提条件
+
+### 既存システムの技術スタック
+- **バックエンド**: Flask + Python 3.10+ (`unified_backend_api.py`)
+- **AI**: LangChain + OpenAI GPT-4 + LangGraph
+- **データベース**: Notion + ChromaDB
+- **フロントエンド**: HTML + CSS + JavaScript (Vanilla) (`templates/unified_chatbot.html`)
+- **デプロイ**: Railway
+- **メインUI**: `templates/unified_chatbot.html`
+- **メインAPI**: `unified_backend_api.py` (`/api/unified/chat`)
+
+### 統合する機能（対象範囲）
+```
+【ステップ6】問い合わせボタンをクリック
+├─ チャットボット上で問い合わせフォーム表示
+│  ├─ 名前
+│  ├─ 電話番号
+│  └─ 症状詳細（自動入力）
+├─ 送信ボタンをクリック
+└─ システムが以下を実行
+    ├─ Notionの商談管理DBに記録
+    ├─ 修理店に通知（メール or LINE）
+    └─ 顧客に確認メッセージ
+```
+
+---
+
+## 🗺️ 実装ロードマップ（全体）
+
+### フェーズ1: データベース設計・準備（1-2日）
+- Notionデータベースの作成
+- データ構造の定義
+
+### フェーズ2: バックエンドAPI開発（3-5日）
+- Flask APIエンドポイント作成（`unified_backend_api.py`に追加）
+- Notion統合処理（既存の`data_access/notion_client.py`を拡張）
+
+### フェーズ3: フロントエンド開発（2-3日）
+- 問い合わせフォームUI（`templates/unified_chatbot.html`に追加）
+- 修理店紹介カード
+
+### フェーズ4: 通知システム開発（2-3日）
+- メール通知機能
+- LINE通知機能（オプション）
+
+### フェーズ5: テスト・デプロイ（1-2日）
+- 統合テスト
+- Railway本番デプロイ
+
+**総開発期間: 約2週間（9-15日）**
+
+---
+
+## 📊 フェーズ1: Notionデータベース設計・準備
+
+### 1.1 必要なNotionデータベース
+
+#### ✅ パートナー修理店マスタDB
+```
+データベース名: 「パートナー修理店」
+
+【フィールド構成】
+1. 店舗ID (Title) - 自動採番（例: SHOP-001）
+2. 店舗名 (Text) - 例: 山田キャンピングカー修理
+3. 電話番号 (Phone) - 例: 086-123-4567
+4. メールアドレス (Email) - 通知先
+5. 所在地（都道府県） (Select) - 岡山県、広島県...
+6. 住所 (Text) - 詳細住所
+7. 専門分野 (Multi-select) - エアコン、電装系、サブバッテリー、水回り...
+8. 営業時間 (Text) - 例: 9:00-18:00
+9. 初診断料 (Number) - 例: 3000円
+10. 成約率 (Number) - 例: 85.5%
+11. 総紹介数 (Number) - 累計紹介件数
+12. 成約数 (Number) - 累計成約件数
+13. ステータス (Select) - アクティブ、休止中、退会
+14. LINE通知 (Checkbox) - LINE通知の有無
+15. LINE Webhook URL (URL) - LINE通知先
+16. 登録日 (Date) - パートナー登録日
+17. 備考 (Text) - メモ
+```
+
+#### ✅ 商談管理DB（新規作成）
+```
+データベース名: 「商談管理」
+
+【フィールド構成】
+1. 商談ID (Title) - 自動採番（例: DEAL-20241103-001）
+2. 顧客名 (Text)
+3. 電話番号 (Phone)
+4. メールアドレス (Email) - オプション
+5. 所在地（都道府県） (Select)
+6. 症状カテゴリ (Select) - エアコン、バッテリー、電装系...
+7. 症状詳細 (Text) - チャットボットから自動入力
+8. 紹介修理店 (Relation) - パートナー修理店DBとリレーション
+9. 問い合わせ日時 (Date)
+10. 紹介ステータス (Select)
+    - pending: 問い合わせ中
+    - contacted: 修理店から連絡済み
+    - completed: 成約済み
+    - cancelled: キャンセル
+11. 成約日 (Date)
+12. 成約金額 (Number)
+13. 手数料率 (Number) - デフォルト15%
+14. 手数料金額 (Formula) - 成約金額 × 手数料率
+15. 支払いステータス (Select) - 未払い、支払済み
+16. 備考 (Text)
+```
+
+#### ✅ 症状カテゴリマスタDB（既存拡張 or 新規作成）
+```
+データベース名: 「症状カテゴリ」（既存の修理ケースDBのカテゴリを使用可能）
+
+【フィールド構成】
+1. カテゴリ名 (Title) - エアコン、バッテリー、電装系...
+2. キーワード (Multi-select) - 検索用キーワード
+3. 専門分野マッピング (Text) - 修理店の専門分野と一致させる
+```
+
+### 1.2 Notion APIの準備
+```
+必要な作業:
+1. Notion Integration（API Key）の確認（既存のNOTION_API_KEYを使用）
+2. 上記2つのデータベース（パートナー修理店、商談管理）をIntegrationに共有
+3. データベースIDの取得
+4. .envファイルに設定を追加
+   - NOTION_PARTNER_DB_ID
+   - NOTION_DEAL_DB_ID
+```
+
+### 1.3 サンプルデータ投入
+```
+【パートナー修理店】
+- 3-5店舗のテストデータ
+- 岡山県内の架空の修理店
+
+【商談管理】
+- 空でOK（システムが自動作成）
+```
+
+---
+
+## 🔧 フェーズ2: バックエンドAPI開発
+
+### 2.1 ファイル構成
+```
+camper-repair-clean/
+├── unified_backend_api.py      # 【既存・修正】APIエンドポイント追加
+├── config.py                    # 設定管理（既存）
+├── data_access/
+│   ├── notion_client.py         # 【既存・拡張】Notionクライアント
+│   ├── partner_manager.py       # 【新規】パートナー管理
+│   └── deal_manager.py          # 【新規】商談管理
+├── notification/
+│   ├── __init__.py              # 【新規】
+│   ├── email_sender.py          # 【新規】メール通知
+│   └── line_notifier.py         # 【新規】LINE通知（オプション）
+├── templates/
+│   ├── unified_chatbot.html    # 【既存・修正】問い合わせフォーム追加
+│   └── repair_advice_center.html # 【既存】
+└── requirements.txt             # 依存関係（既存・追加不要）
+```
+
+### 2.2 新規ファイル: `data_access/partner_manager.py`
+```python
+"""
+パートナー修理店管理モジュール
+- 修理店の検索・取得
+- 症状から最適な修理店を選定
+"""
+
+import os
+from typing import List, Dict, Optional
+from data_access.notion_client import notion_client
+
+class PartnerManager:
+    def __init__(self):
+        # 既存のnotion_clientを使用
+        self.notion = notion_client.client
+        self.partner_db_id = os.environ.get("NOTION_PARTNER_DB_ID")
+        
+        if not self.partner_db_id:
+            raise ValueError("NOTION_PARTNER_DB_IDが設定されていません")
+    
+    def search_partners(
+        self, 
+        prefecture: str, 
+        specialty: str, 
+        limit: int = 3
+    ) -> List[Dict]:
+        """
+        症状と所在地から最適なパートナー修理店を検索
+        
+        Args:
+            prefecture: 都道府県（例: 岡山県）
+            specialty: 専門分野（例: エアコン）
+            limit: 取得件数（デフォルト3件）
+        
+        Returns:
+            修理店リスト（成約率順）
+        """
+        # Notion APIでフィルタリング
+        query = {
+            "database_id": self.partner_db_id,
+            "filter": {
+                "and": [
+                    {
+                        "property": "所在地（都道府県）",
+                        "select": {"equals": prefecture}
+                    },
+                    {
+                        "property": "専門分野",
+                        "multi_select": {"contains": specialty}
+                    },
+                    {
+                        "property": "ステータス",
+                        "select": {"equals": "アクティブ"}
+                    }
+                ]
+            },
+            "sorts": [
+                {
+                    "property": "成約率",
+                    "direction": "descending"
+                }
+            ],
+            "page_size": limit
+        }
+        
+        response = self.notion.databases.query(**query)
+        
+        # データ整形
+        partners = []
+        for page in response["results"]:
+            props = page["properties"]
+            partners.append({
+                "shop_id": self._get_title(props.get("店舗ID", {})),
+                "name": self._get_text(props.get("店舗名", {})),
+                "phone": self._get_phone(props.get("電話番号", {})),
+                "email": self._get_email(props.get("メールアドレス", {})),
+                "address": self._get_text(props.get("住所", {})),
+                "business_hours": self._get_text(props.get("営業時間", {})),
+                "initial_fee": self._get_number(props.get("初診断料", {})),
+                "success_rate": self._get_number(props.get("成約率", {})),
+                "line_webhook": self._get_url(props.get("LINE Webhook URL", {})),
+                "page_id": page["id"]
+            })
+        
+        return partners
+    
+    def _get_title(self, prop):
+        """Notionのタイトルプロパティから値を取得"""
+        if not prop or "title" not in prop:
+            return ""
+        return prop["title"][0]["text"]["content"] if prop["title"] else ""
+    
+    def _get_text(self, prop):
+        """Notionのテキストプロパティから値を取得"""
+        if not prop or "rich_text" not in prop:
+            return ""
+        return prop["rich_text"][0]["text"]["content"] if prop["rich_text"] else ""
+    
+    def _get_phone(self, prop):
+        """Notionの電話番号プロパティから値を取得"""
+        if not prop:
+            return ""
+        return prop.get("phone_number", "")
+    
+    def _get_email(self, prop):
+        """Notionのメールプロパティから値を取得"""
+        if not prop:
+            return ""
+        return prop.get("email", "")
+    
+    def _get_number(self, prop):
+        """Notionの数値プロパティから値を取得"""
+        if not prop:
+            return 0
+        return prop.get("number", 0)
+    
+    def _get_url(self, prop):
+        """NotionのURLプロパティから値を取得"""
+        if not prop:
+            return ""
+        return prop.get("url", "")
+```
+
+### 2.3 新規ファイル: `data_access/deal_manager.py`
+```python
+"""
+商談管理モジュール
+- 問い合わせの記録
+- ステータス更新
+- 成約処理
+"""
+
+import os
+from datetime import datetime
+from typing import Dict, Optional
+from data_access.notion_client import notion_client
+
+class DealManager:
+    def __init__(self):
+        # 既存のnotion_clientを使用
+        self.notion = notion_client.client
+        self.deal_db_id = os.environ.get("NOTION_DEAL_DB_ID")
+        
+        if not self.deal_db_id:
+            raise ValueError("NOTION_DEAL_DB_IDが設定されていません")
+    
+    def create_inquiry(
+        self,
+        customer_name: str,
+        phone: str,
+        prefecture: str,
+        symptom_category: str,
+        symptom_detail: str,
+        partner_page_id: str,
+        email: Optional[str] = None
+    ) -> Dict:
+        """
+        新規問い合わせを商談DBに記録
+        
+        Args:
+            customer_name: 顧客名
+            phone: 電話番号
+            prefecture: 都道府県
+            symptom_category: 症状カテゴリ
+            symptom_detail: 症状詳細
+            partner_page_id: 紹介修理店のNotion Page ID
+            email: メールアドレス（オプション）
+        
+        Returns:
+            作成された商談データ
+        """
+        # 商談IDを生成（例: DEAL-20241103-001）
+        deal_id = f"DEAL-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        
+        # Notion APIでページ作成
+        new_page = {
+            "parent": {"database_id": self.deal_db_id},
+            "properties": {
+                "商談ID": {
+                    "title": [{"text": {"content": deal_id}}]
+                },
+                "顧客名": {
+                    "rich_text": [{"text": {"content": customer_name}}]
+                },
+                "電話番号": {
+                    "phone_number": phone
+                },
+                "所在地（都道府県）": {
+                    "select": {"name": prefecture}
+                },
+                "症状カテゴリ": {
+                    "select": {"name": symptom_category}
+                },
+                "症状詳細": {
+                    "rich_text": [{"text": {"content": symptom_detail}}]
+                },
+                "紹介修理店": {
+                    "relation": [{"id": partner_page_id}]
+                },
+                "問い合わせ日時": {
+                    "date": {"start": datetime.now().isoformat()}
+                },
+                "紹介ステータス": {
+                    "select": {"name": "pending"}
+                },
+                "手数料率": {
+                    "number": 15
+                }
+            }
+        }
+        
+        # メールアドレスがあれば追加
+        if email:
+            new_page["properties"]["メールアドレス"] = {
+                "email": email
+            }
+        
+        response = self.notion.pages.create(**new_page)
+        
+        return {
+            "deal_id": deal_id,
+            "page_id": response["id"],
+            "created_time": response["created_time"]
+        }
+    
+    def update_status(self, page_id: str, status: str):
+        """商談ステータスを更新"""
+        self.notion.pages.update(
+            page_id=page_id,
+            properties={
+                "紹介ステータス": {"select": {"name": status}}
+            }
+        )
+    
+    def record_completion(
+        self, 
+        page_id: str, 
+        amount: float, 
+        completion_date: Optional[str] = None
+    ):
+        """成約を記録"""
+        if not completion_date:
+            completion_date = datetime.now().isoformat()
+        
+        self.notion.pages.update(
+            page_id=page_id,
+            properties={
+                "紹介ステータス": {"select": {"name": "completed"}},
+                "成約日": {"date": {"start": completion_date}},
+                "成約金額": {"number": amount}
+            }
+        )
+```
+
+### 2.4 新規ファイル: `notification/email_sender.py`
+```python
+"""
+メール通知モジュール
+- 修理店への通知
+- 顧客への確認メール
+"""
+
+import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from typing import Dict
+
+class EmailSender:
+    def __init__(self):
+        self.smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+        self.smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+        self.smtp_user = os.environ.get("SMTP_USER")
+        self.smtp_password = os.environ.get("SMTP_PASSWORD")
+        self.from_email = os.environ.get("FROM_EMAIL", self.smtp_user)
+    
+    def send_to_partner(
+        self, 
+        partner_email: str,
+        partner_name: str,
+        customer_info: Dict
+    ):
+        """
+        修理店に問い合わせ通知を送信
+        
+        Args:
+            partner_email: 修理店のメールアドレス
+            partner_name: 修理店名
+            customer_info: 顧客情報（名前、電話、症状）
+        """
+        subject = "【新規問い合わせ】岡山キャンピングカー修理サポートセンター"
+        
+        body = f"""
+{partner_name} 様
+
+お世話になっております。
+岡山キャンピングカー修理サポートセンターです。
+
+新しい問い合わせが届きました。
+
+【顧客情報】
+お名前: {customer_info['name']}
+電話番号: {customer_info['phone']}
+所在地: {customer_info['prefecture']}
+
+【症状】
+カテゴリ: {customer_info['category']}
+詳細:
+{customer_info['detail']}
+
+お手数ですが、お客様へのご連絡をお願いいたします。
+
+---
+岡山キャンピングカー修理サポートセンター
+https://web-production-c8b78.up.railway.app/
+"""
+        
+        self._send_email(partner_email, subject, body)
+    
+    def send_to_customer(
+        self,
+        customer_email: str,
+        customer_name: str,
+        partner_name: str
+    ):
+        """
+        顧客に確認メールを送信
+        
+        Args:
+            customer_email: 顧客のメールアドレス
+            customer_name: 顧客名
+            partner_name: 紹介した修理店名
+        """
+        subject = "【問い合わせ受付完了】岡山キャンピングカー修理サポートセンター"
+        
+        body = f"""
+{customer_name} 様
+
+お問い合わせいただきありがとうございます。
+岡山キャンピングカー修理サポートセンターです。
+
+以下の修理店にご連絡させていただきました。
+
+【紹介修理店】
+{partner_name}
+
+修理店より直接ご連絡がございますので、
+今しばらくお待ちください。
+
+ご不明な点がございましたら、お気軽にお問い合わせください。
+
+---
+岡山キャンピングカー修理サポートセンター
+https://web-production-c8b78.up.railway.app/
+"""
+        
+        if customer_email:
+            self._send_email(customer_email, subject, body)
+    
+    def _send_email(self, to_email: str, subject: str, body: str):
+        """メール送信の実処理"""
+        try:
+            if not self.smtp_user or not self.smtp_password:
+                print("⚠️ SMTP設定が不完全です。メール送信をスキップします。")
+                return
+            
+            msg = MIMEMultipart()
+            msg['From'] = self.from_email
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            
+            msg.attach(MIMEText(body, 'plain', 'utf-8'))
+            
+            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.smtp_user, self.smtp_password)
+                server.send_message(msg)
+            
+            print(f"✅ メール送信成功: {to_email}")
+        except Exception as e:
+            print(f"❌ メール送信失敗: {e}")
+```
+
+### 2.5 新規ファイル: `notification/line_notifier.py`
+```python
+"""
+LINE通知モジュール（オプション）
+- LINE Messaging APIを使った通知
+"""
+
+import os
+import requests
+from typing import Dict
+
+class LineNotifier:
+    def __init__(self):
+        self.channel_access_token = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
+    
+    def send_to_partner(
+        self,
+        webhook_url: str,
+        customer_info: Dict
+    ):
+        """
+        修理店にLINE通知を送信
+        
+        Args:
+            webhook_url: 修理店のLINE Webhook URL
+            customer_info: 顧客情報
+        """
+        if not webhook_url:
+            return
+        
+        message = f"""
+【新規問い合わせ】
+
+お名前: {customer_info['name']}
+電話: {customer_info['phone']}
+症状: {customer_info['category']}
+
+詳細: {customer_info['detail']}
+"""
+        
+        try:
+            # LINE Messaging APIで送信
+            # （実装は修理店のLINE連携方法による）
+            print(f"✅ LINE通知送信: {webhook_url}")
+        except Exception as e:
+            print(f"❌ LINE通知失敗: {e}")
+```
+
+### 2.6 `unified_backend_api.py`への追加エンドポイント
+```python
+# unified_backend_api.py のインポート部分に追加
+
+from data_access.partner_manager import PartnerManager
+from data_access.deal_manager import DealManager
+from notification.email_sender import EmailSender
+from notification.line_notifier import LineNotifier
+
+# グローバル変数セクションに追加
+partner_manager = None
+deal_manager = None
+email_sender = None
+line_notifier = None
+
+# initialize_services()関数内に追加
+def initialize_services():
+    """サービス初期化"""
+    global db, category_manager, serp_system, notion_client_instance
+    global partner_manager, deal_manager, email_sender, line_notifier
+    
+    # ... 既存の初期化コード ...
+    
+    # パートナーシップ機能の初期化
+    try:
+        partner_manager = PartnerManager()
+        deal_manager = DealManager()
+        email_sender = EmailSender()
+        line_notifier = LineNotifier()
+        print("✅ パートナーシップ機能が初期化されました")
+    except Exception as e:
+        print(f"⚠️ パートナーシップ機能の初期化に失敗: {e}")
+
+# 既存の@app.route()の後に追加
+
+@app.route('/api/partners/search', methods=['POST'])
+def search_partners():
+    """
+    症状から最適な修理店を検索
+    
+    リクエスト:
+    {
+        "prefecture": "岡山県",
+        "symptom_category": "エアコン"
+    }
+    
+    レスポンス:
+    {
+        "partners": [
+            {
+                "shop_id": "SHOP-001",
+                "name": "山田キャンピングカー修理",
+                "phone": "086-123-4567",
+                "address": "岡山県岡山市...",
+                "business_hours": "9:00-18:00",
+                "initial_fee": 3000,
+                "success_rate": 85.5,
+                "page_id": "notion-page-id"
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        if not partner_manager:
+            return jsonify({"error": "パートナーシップ機能が利用できません"}), 503
+        
+        data = request.json
+        prefecture = data.get('prefecture')
+        symptom_category = data.get('symptom_category')
+        
+        if not prefecture or not symptom_category:
+            return jsonify({"error": "必須パラメータが不足しています"}), 400
+        
+        partners = partner_manager.search_partners(
+            prefecture=prefecture,
+            specialty=symptom_category,
+            limit=3
+        )
+        
+        return jsonify({"partners": partners})
+    
+    except Exception as e:
+        print(f"❌ 修理店検索エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/partners/submit-inquiry', methods=['POST'])
+def submit_inquiry():
+    """
+    問い合わせを送信
+    
+    リクエスト:
+    {
+        "customer_name": "田中太郎",
+        "phone": "090-1234-5678",
+        "email": "tanaka@example.com",  // オプション
+        "prefecture": "岡山県",
+        "symptom_category": "エアコン",
+        "symptom_detail": "異音がして冷えない",
+        "partner_page_id": "notion-page-id-xxx",
+        "partner_email": "shop@example.com",
+        "partner_name": "山田キャンピングカー修理",
+        "partner_line_webhook": "https://..."  // オプション
+    }
+    
+    レスポンス:
+    {
+        "success": true,
+        "deal_id": "DEAL-20241103-001",
+        "message": "問い合わせを受け付けました"
+    }
+    """
+    try:
+        if not deal_manager:
+            return jsonify({"error": "パートナーシップ機能が利用できません"}), 503
+        
+        data = request.json
+        
+        # 必須項目チェック
+        required_fields = [
+            'customer_name', 'phone', 'prefecture', 
+            'symptom_category', 'symptom_detail', 'partner_page_id'
+        ]
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"error": f"{field}は必須です"}), 400
+        
+        # 商談DBに記録
+        deal_result = deal_manager.create_inquiry(
+            customer_name=data['customer_name'],
+            phone=data['phone'],
+            prefecture=data['prefecture'],
+            symptom_category=data['symptom_category'],
+            symptom_detail=data['symptom_detail'],
+            partner_page_id=data['partner_page_id'],
+            email=data.get('email')
+        )
+        
+        # 修理店にメール通知
+        if data.get('partner_email') and email_sender:
+            email_sender.send_to_partner(
+                partner_email=data['partner_email'],
+                partner_name=data.get('partner_name', '修理店様'),
+                customer_info={
+                    'name': data['customer_name'],
+                    'phone': data['phone'],
+                    'prefecture': data['prefecture'],
+                    'category': data['symptom_category'],
+                    'detail': data['symptom_detail']
+                }
+            )
+        
+        # 顧客に確認メール
+        if data.get('email') and email_sender:
+            email_sender.send_to_customer(
+                customer_email=data['email'],
+                customer_name=data['customer_name'],
+                partner_name=data.get('partner_name', '修理店')
+            )
+        
+        # LINE通知（オプション）
+        if data.get('partner_line_webhook') and line_notifier:
+            line_notifier.send_to_partner(
+                webhook_url=data['partner_line_webhook'],
+                customer_info={
+                    'name': data['customer_name'],
+                    'phone': data['phone'],
+                    'category': data['symptom_category'],
+                    'detail': data['symptom_detail']
+                }
+            )
+        
+        return jsonify({
+            "success": True,
+            "deal_id": deal_result['deal_id'],
+            "message": "問い合わせを受け付けました。修理店より連絡がありますので、しばらくお待ちください。"
+        })
+    
+    except Exception as e:
+        print(f"❌ 問い合わせ送信エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+```
+
+### 2.7 環境変数の追加（`.env`）
+```bash
+# 既存の環境変数
+OPENAI_API_KEY=sk-xxx
+NOTION_API_KEY=secret_xxx
+NOTION_LOG_DB_ID=xxx
+
+# 【追加】パートナーシップ機能用
+NOTION_PARTNER_DB_ID=your-partner-database-id
+NOTION_DEAL_DB_ID=your-deal-database-id
+
+# 【追加】メール設定
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+FROM_EMAIL=support@okayama-camper.com
+
+# 【オプション】LINE設定
+LINE_CHANNEL_ACCESS_TOKEN=your-line-token
+```
+
+### 2.8 依存関係の追加（`requirements.txt`）
+```
+# 既存の依存関係
+flask==2.3.0
+flask-cors==4.0.0
+...
+
+# 【追加不要】メール送信はPython標準ライブラリ（smtplib）を使用
+# 【オプション】LINE通知用
+# line-bot-sdk==3.0.0
+```
+
+---
+
+## 🎨 フェーズ3: フロントエンド開発
+
+### 3.1 修理店検索・表示UI（`templates/unified_chatbot.html`に追加）
+
+```html
+<!-- unified_chatbot.html の </body> タグの前に追加 -->
+
+<!-- 修理店紹介セクション -->
+<div id="partner-section" class="hidden" style="margin-top: 20px;">
+    <div class="partner-container">
+        <h3>🔧 お近くの修理店をご紹介します</h3>
+        <p>症状に対応できる修理店を検索しています...</p>
+        
+        <!-- ローディング -->
+        <div id="partner-loading" class="loading">
+            <div class="spinner"></div>
+        </div>
+        
+        <!-- 修理店カード一覧 -->
+        <div id="partner-list"></div>
+    </div>
+</div>
+
+<!-- 問い合わせフォームモーダル -->
+<div id="inquiry-modal" class="modal hidden">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3>📝 修理店へ問い合わせ</h3>
+        
+        <form id="inquiry-form">
+            <!-- 選択された修理店情報（hidden） -->
+            <input type="hidden" id="selected-partner-id" name="partner_page_id">
+            <input type="hidden" id="selected-partner-name" name="partner_name">
+            <input type="hidden" id="selected-partner-email" name="partner_email">
+            <input type="hidden" id="selected-partner-line" name="partner_line_webhook">
+            
+            <!-- 症状情報（自動入力） -->
+            <input type="hidden" id="inquiry-prefecture" name="prefecture">
+            <input type="hidden" id="inquiry-category" name="symptom_category">
+            <input type="hidden" id="inquiry-detail" name="symptom_detail">
+            
+            <!-- 顧客入力項目 -->
+            <div class="form-group">
+                <label for="customer-name">お名前 <span class="required">*</span></label>
+                <input type="text" id="customer-name" name="customer_name" required placeholder="例: 田中太郎">
+            </div>
+            
+            <div class="form-group">
+                <label for="customer-phone">電話番号 <span class="required">*</span></label>
+                <input type="tel" id="customer-phone" name="phone" required placeholder="例: 090-1234-5678">
+            </div>
+            
+            <div class="form-group">
+                <label for="customer-email">メールアドレス（任意）</label>
+                <input type="email" id="customer-email" name="email" placeholder="例: tanaka@example.com">
+            </div>
+            
+            <div class="form-group">
+                <label>症状詳細</label>
+                <textarea id="inquiry-detail-display" readonly rows="4"></textarea>
+            </div>
+            
+            <button type="submit" class="btn-submit">この修理店に問い合わせる</button>
+        </form>
+    </div>
+</div>
+
+<style>
+/* 修理店カードのスタイル */
+.partner-container {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 10px;
+}
+
+.partner-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.partner-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.partner-card h4 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.partner-info {
+    font-size: 14px;
+    color: #666;
+    margin: 5px 0;
+}
+
+.partner-badge {
+    display: inline-block;
+    background: #4CAF50;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 5px;
+}
+
+.btn-inquiry {
+    background: #FF9800;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.btn-inquiry:hover {
+    background: #F57C00;
+}
+
+/* モーダルのスタイル */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 30px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: black;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.required {
+    color: red;
+}
+
+.btn-submit {
+    width: 100%;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.btn-submit:hover {
+    background: #45a049;
+}
+
+.loading {
+    text-align: center;
+    padding: 20px;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+```
+
+### 3.2 JavaScript処理（`templates/unified_chatbot.html`内に追加）
+
+```javascript
+<script>
+// グローバル変数
+let currentSymptomData = {
+    prefecture: '',
+    category: '',
+    detail: ''
+};
+
+// 修理店検索を表示するトリガー（チャット内で呼び出し）
+function showPartnerSearch(prefecture, category, detail) {
+    // 症状データを保存
+    currentSymptomData = {
+        prefecture: prefecture,
+        category: category,
+        detail: detail
+    };
+    
+    // セクション表示
+    document.getElementById('partner-section').classList.remove('hidden');
+    document.getElementById('partner-loading').style.display = 'block';
+    document.getElementById('partner-list').innerHTML = '';
+    
+    // 修理店検索API呼び出し
+    searchPartners(prefecture, category);
+}
+
+// 修理店検索API
+async function searchPartners(prefecture, category) {
+    try {
+        const response = await fetch('/api/partners/search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                prefecture: prefecture,
+                symptom_category: category
+            })
+        });
+        
+        const data = await response.json();
+        
+        // ローディング非表示
+        document.getElementById('partner-loading').style.display = 'none';
+        
+        if (data.partners && data.partners.length > 0) {
+            displayPartners(data.partners);
+        } else {
+            document.getElementById('partner-list').innerHTML = 
+                '<p>申し訳ございません。現在対応可能な修理店が見つかりませんでした。</p>';
+        }
+    } catch (error) {
+        console.error('修理店検索エラー:', error);
+        document.getElementById('partner-loading').style.display = 'none';
+        document.getElementById('partner-list').innerHTML = 
+            '<p>エラーが発生しました。しばらくしてから再度お試しください。</p>';
+    }
+}
+
+// 修理店カードを表示
+function displayPartners(partners) {
+    const listElement = document.getElementById('partner-list');
+    listElement.innerHTML = '';
+    
+    partners.forEach((partner, index) => {
+        const card = document.createElement('div');
+        card.className = 'partner-card';
+        card.innerHTML = `
+            <h4>${index + 1}. ${partner.name}</h4>
+            <div class="partner-info">
+                <span class="partner-badge">成約率 ${partner.success_rate}%</span>
+            </div>
+            <div class="partner-info">
+                📍 ${partner.address}
+            </div>
+            <div class="partner-info">
+                📞 ${partner.phone}
+            </div>
+            <div class="partner-info">
+                🕐 ${partner.business_hours}
+            </div>
+            <div class="partner-info">
+                💰 初診断料: ${partner.initial_fee.toLocaleString()}円
+            </div>
+            <button class="btn-inquiry" onclick="openInquiryModal('${partner.shop_id}', '${partner.name}', '${partner.email || ''}', '${partner.line_webhook || ''}', '${partner.page_id}')">
+                この修理店に問い合わせる
+            </button>
+        `;
+        listElement.appendChild(card);
+    });
+}
+
+// 問い合わせモーダルを開く
+function openInquiryModal(shopId, name, email, lineWebhook, pageId) {
+    // hidden項目に値をセット
+    document.getElementById('selected-partner-id').value = pageId;
+    document.getElementById('selected-partner-name').value = name;
+    document.getElementById('selected-partner-email').value = email;
+    document.getElementById('selected-partner-line').value = lineWebhook;
+    
+    document.getElementById('inquiry-prefecture').value = currentSymptomData.prefecture;
+    document.getElementById('inquiry-category').value = currentSymptomData.category;
+    document.getElementById('inquiry-detail').value = currentSymptomData.detail;
+    
+    // 症状詳細を表示用テキストエリアに反映
+    document.getElementById('inquiry-detail-display').value = currentSymptomData.detail;
+    
+    // モーダル表示
+    document.getElementById('inquiry-modal').classList.remove('hidden');
+}
+
+// モーダルを閉じる
+document.querySelector('.close').onclick = function() {
+    document.getElementById('inquiry-modal').classList.add('hidden');
+};
+
+// モーダル外クリックで閉じる
+window.onclick = function(event) {
+    const modal = document.getElementById('inquiry-modal');
+    if (event.target == modal) {
+        modal.classList.add('hidden');
+    }
+};
+
+// 問い合わせフォーム送信
+document.getElementById('inquiry-form').onsubmit = async function(e) {
+    e.preventDefault();
+    
+    // フォームデータ取得
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    
+    // ボタンを無効化
+    const submitBtn = e.target.querySelector('.btn-submit');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '送信中...';
+    
+    try {
+        const response = await fetch('/api/partners/submit-inquiry', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✅ ${result.message}\n\n商談ID: ${result.deal_id}`);
+            
+            // モーダルを閉じる
+            document.getElementById('inquiry-modal').classList.add('hidden');
+            
+            // フォームをリセット
+            e.target.reset();
+        } else {
+            alert(`❌ エラー: ${result.error}`);
+        }
+    } catch (error) {
+        console.error('問い合わせ送信エラー:', error);
+        alert('エラーが発生しました。しばらくしてから再度お試しください。');
+    } finally {
+        // ボタンを有効化
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'この修理店に問い合わせる';
+    }
+};
+
+// チャットボットのAI応答から修理店検索をトリガー
+// 既存のチャット処理に統合する必要があります
+// 例: AIが「修理店を紹介しますか？」と聞いて、ユーザーが「はい」を選択した場合
+function triggerPartnerSearchFromChat() {
+    // チャット履歴から症状情報を抽出
+    // （実装は既存のチャットシステムに依存）
+    
+    // 仮の例
+    const prefecture = '岡山県';  // チャットから抽出
+    const category = 'エアコン';   // チャットから抽出
+    const detail = 'エアコンから異音がして冷えない';  // チャットから抽出
+    
+    showPartnerSearch(prefecture, category, detail);
+}
+</script>
+```
+
+### 3.3 チャットフローへの統合
+
+既存のチャットボット（`unified_backend_api.py`の`/api/unified/chat`）に、以下の処理を追加します：
+
+```python
+# unified_backend_api.py の unified_chat() 関数内に追加
+
+# AIの応答に「修理店紹介」の提案を含める
+if "修理店" in user_message or "専門業者" in user_message or "相談" in user_message:
+    # 症状情報を抽出（既存のカテゴリマネージャーを使用）
+    # ...
+    
+    # 応答に修理店検索トリガーを含める
+    response_data = {
+        "message": "お近くの修理店をご紹介できます。修理店を検索しますか？",
+        "action": "show_partner_search",
+        "data": {
+            "prefecture": extracted_prefecture,
+            "category": extracted_category,
+            "detail": user_message
+        }
+    }
+```
+
+---
+
+## 📧 フェーズ4: 通知システム開発
+
+### 4.1 Gmail SMTPの設定
+
+Gmailを使ってメール送信する場合：
+
+```
+1. Googleアカウントで「2段階認証」を有効化
+2. 「アプリパスワード」を生成
+   https://myaccount.google.com/apppasswords
+3. .envファイルに設定
+   SMTP_USER=your-email@gmail.com
+   SMTP_PASSWORD=generated-app-password
+```
+
+### 4.2 テストメール送信
+
+```python
+# test_email.py（テスト用スクリプト）
+
+from notification.email_sender import EmailSender
+
+sender = EmailSender()
+
+# テスト送信
+sender.send_to_partner(
+    partner_email="test@example.com",
+    partner_name="テスト修理店",
+    customer_info={
+        'name': 'テスト顧客',
+        'phone': '090-0000-0000',
+        'prefecture': '岡山県',
+        'category': 'バッテリー',
+        'detail': 'バッテリーが上がってエンジンがかからない'
+    }
+)
+
+print("テストメール送信完了")
+```
+
+### 4.3 LINE通知の実装（オプション）
+
+LINE Messaging APIを使う場合：
+
+```
+1. LINE Developersでチャネル作成
+2. Channel Access Tokenを取得
+3. Webhook URLを設定
+4. 修理店ごとにLINE連携設定
+```
+
+---
+
+## 🧪 フェーズ5: テスト・デプロイ
+
+### 5.1 ローカルテスト
+
+```bash
+# Anaconda Promptで実行
+
+# 1. 環境をアクティベート
+conda activate campingrepare
+
+# 2. Flaskサーバー起動
+python unified_backend_api.py
+
+# 3. ブラウザでアクセス
+# http://localhost:5000/unified_chatbot.html
+```
+
+### 5.2 テストシナリオ
+
+#### ✅ テスト1: 修理店検索
+```
+1. チャットで症状を入力
+2. 「専門業者に相談したい」を選択
+3. 修理店が3件表示されることを確認
+4. 各カードに正しい情報が表示されることを確認
+```
+
+#### ✅ テスト2: 問い合わせ送信
+```
+1. 修理店カードの「問い合わせボタン」をクリック
+2. フォームが表示されることを確認
+3. 名前・電話番号を入力
+4. 送信ボタンをクリック
+5. 「送信完了」メッセージが表示されることを確認
+6. Notion商談DBに記録されることを確認
+```
+
+#### ✅ テスト3: メール通知
+```
+1. 問い合わせ送信後
+2. 修理店にメールが届くことを確認
+3. 顧客にメールが届くことを確認（メールアドレス入力時）
+```
+
+### 5.3 Railwayデプロイ
+
+```bash
+# 1. 環境変数を設定
+# Railway ダッシュボードで以下を追加:
+# - NOTION_PARTNER_DB_ID
+# - NOTION_DEAL_DB_ID
+# - SMTP_HOST
+# - SMTP_PORT
+# - SMTP_USER
+# - SMTP_PASSWORD
+# - FROM_EMAIL
+
+# 2. Gitにプッシュ
+git add .
+git commit -m "Add partnership feature"
+git push origin main
+
+# 3. Railwayが自動デプロイ
+# デプロイログを確認
+```
+
+### 5.4 本番動作確認
+
+```
+1. デプロイされたURLにアクセス
+   https://web-production-c8b78.up.railway.app/unified_chatbot.html
+2. 全機能が正常に動作することを確認
+3. メール送信が正常に動作することを確認
+```
+
+---
+
+## 📋 実装チェックリスト
+
+### データベース準備
+- [ ] Notion「パートナー修理店」DB作成
+- [ ] Notion「商談管理」DB作成
+- [ ] データベースIDを取得
+- [ ] サンプルデータ投入
+
+### バックエンド開発
+- [ ] `data_access/partner_manager.py`作成
+- [ ] `data_access/deal_manager.py`作成
+- [ ] `notification/email_sender.py`作成
+- [ ] `notification/line_notifier.py`作成（オプション）
+- [ ] `unified_backend_api.py`にAPIエンドポイント追加
+- [ ] 環境変数設定（`.env`）
+
+### フロントエンド開発
+- [ ] 修理店検索UI追加（`templates/unified_chatbot.html`）
+- [ ] 問い合わせフォームモーダル作成
+- [ ] JavaScript処理実装
+- [ ] チャットフローとの統合
+
+### 通知システム
+- [ ] Gmail SMTP設定
+- [ ] メール送信テスト
+- [ ] LINE通知設定（オプション）
+
+### テスト
+- [ ] ローカルでテスト実行
+- [ ] 修理店検索動作確認
+- [ ] 問い合わせ送信動作確認
+- [ ] メール送信動作確認
+- [ ] Notion記録動作確認
+
+### デプロイ
+- [ ] Railway環境変数設定
+- [ ] 本番デプロイ
+- [ ] 本番動作確認
+
+---
+
+## 🚀 次のステップ（将来の拡張）
+
+### フェーズ6: 修理店ダッシュボード
+- 修理店専用の管理画面
+- 問い合わせ一覧表示
+- ステータス更新機能
+- 成約報告機能
+
+### フェーズ7: 収益分析機能
+- 月次収益レポート
+- 修理店別成約率グラフ
+- 顧客満足度追跡
+
+### フェーズ8: 自動マッチング改善
+- AIによる最適な修理店選定
+- 顧客評価システム
+- レコメンドエンジン
+
+---
+
+## 📞 サポート・質問
+
+実装中に不明点があれば、以下を確認してください：
+1. Notion APIドキュメント: https://developers.notion.com/
+2. Flask公式ドキュメント: https://flask.palletsprojects.com/
+3. LangChain公式ドキュメント: https://python.langchain.com/
+
+---
+
+このロードマップに従って実装を進めれば、約2週間でパートナーシップ機能を既存チャットボットに統合できます！🎉
+```
+
+主な変更点:
+1. **メインアプリ**: `app.py` → `unified_backend_api.py`
+2. **メインUI**: `templates/index.html` → `templates/unified_chatbot.html`
+3. **APIエンドポイント**: `/api/search-partners` → `/api/partners/search`
+4. **Notionクライアント**: 既存の`data_access/notion_client.py`を使用
+5. **URL**: 本番URL (`https://web-production-c8b78.up.railway.app/`) を反映
+
+現在のシステム構造に合わせて修正済みです。
+

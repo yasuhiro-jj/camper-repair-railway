@@ -154,6 +154,10 @@ def save_chat_log_to_notion(
     urgency: float | None = None,
     keywords: list[str] | None = None,
     tool_used: str | None = None,
+    rag_score: float | None = None,
+    confidence: str | None = None,
+    confidence_score: float | None = None,
+    sources_summary: str | None = None,
 ) -> tuple[bool, str]:
     """会話ログを Notion の Chat Logs DB に1件保存する。
 
@@ -252,6 +256,64 @@ def save_chat_log_to_notion(
             props["tool_used"] = {"rich_text": _rt(tool_used)}
         else:
             props["tool_used"] = {"select": {"name": tool_used}}
+
+    # Phase 3対応: rag_score (number型)
+    if rag_score is not None:
+        try:
+            rag_score_value = float(rag_score)
+        except (TypeError, ValueError):
+            logger.warning("⚠️ rag_scoreを数値に変換できませんでした: %s", rag_score)
+        else:
+            prop_type = schema.get("rag_score")
+            if not prop_type:
+                logger.info("ℹ️ NotionログDBに 'rag_score' プロパティが存在しないためスキップします")
+            elif prop_type in {"rich_text", "text"}:
+                props["rag_score"] = {"rich_text": _rt(str(rag_score_value))}
+            else:
+                props["rag_score"] = {"number": rag_score_value}
+
+    # Phase 3対応: confidence (select型、lower case必須)
+    if confidence:
+        # lower caseに統一（"low" | "medium" | "high"）
+        confidence_lower = str(confidence).lower().strip()
+        if confidence_lower in ("low", "medium", "high"):
+            prop_type = schema.get("confidence")
+            if not prop_type:
+                logger.info("ℹ️ NotionログDBに 'confidence' プロパティが存在しないためスキップします")
+            elif prop_type in {"rich_text", "text"}:
+                props["confidence"] = {"rich_text": _rt(confidence_lower)}
+            else:
+                props["confidence"] = {"select": {"name": confidence_lower}}
+        else:
+            logger.warning("⚠️ confidenceの値が無効です（low/medium/highのみ）: %s", confidence)
+
+    # Phase 3対応: confidence_score (number型)
+    if confidence_score is not None:
+        try:
+            confidence_score_value = float(confidence_score)
+        except (TypeError, ValueError):
+            logger.warning("⚠️ confidence_scoreを数値に変換できませんでした: %s", confidence_score)
+        else:
+            prop_type = schema.get("confidence_score")
+            if not prop_type:
+                logger.info("ℹ️ NotionログDBに 'confidence_score' プロパティが存在しないためスキップします")
+            elif prop_type in {"rich_text", "text"}:
+                props["confidence_score"] = {"rich_text": _rt(str(confidence_score_value))}
+            else:
+                props["confidence_score"] = {"number": confidence_score_value}
+
+    # Phase 3対応: sources_summary (rich_text型、200文字にトリム)
+    if sources_summary:
+        # 200文字にトリム（Notionの指示に従う）
+        sources_summary_trimmed = str(sources_summary).strip()[:200]
+        if sources_summary_trimmed:
+            prop_type = schema.get("sources_summary")
+            if not prop_type:
+                logger.info("ℹ️ NotionログDBに 'sources_summary' プロパティが存在しないためスキップします")
+            elif prop_type in {"rich_text", "text"}:
+                props["sources_summary"] = {"rich_text": _rt(sources_summary_trimmed)}
+            else:
+                props["sources_summary"] = {"rich_text": _rt(sources_summary_trimmed)}
 
     has_title_prop = any(schema.get(name) == "title" for name in props)
     if not has_title_prop and title_prop:
