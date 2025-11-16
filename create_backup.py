@@ -8,7 +8,14 @@
 import os
 import shutil
 import datetime
+import sys
 from pathlib import Path
+
+# WindowsのコマンドプロンプトでUTF-8出力を有効化
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
 # バックアップ先のディレクトリ
 BACKUP_DIR = Path.home() / "Desktop" / "camper-repair-backups"
@@ -93,9 +100,9 @@ def copy_file(src: Path, dst: Path):
     try:
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
-        print(f"  ✅ {src.name}")
+        print(f"  [OK] {src.name}")
     except Exception as e:
-        print(f"  ❌ {src.name}: {e}")
+        print(f"  [ERROR] {src.name}: {e}")
 
 def copy_directory(src: Path, dst: Path):
     """ディレクトリを再帰的にコピー（除外パターンを適用）"""
@@ -123,10 +130,10 @@ def copy_directory(src: Path, dst: Path):
 
 def main():
     print("=" * 60)
-    print("📦 プロジェクトバックアップ開始")
+    print("[BACKUP] プロジェクトバックアップ開始")
     print("=" * 60)
-    print(f"\n📁 バックアップ先: {BACKUP_PATH}")
-    print(f"📂 プロジェクトルート: {PROJECT_ROOT}")
+    print(f"\n[DIR] バックアップ先: {BACKUP_PATH}")
+    print(f"[DIR] プロジェクトルート: {PROJECT_ROOT}")
     
     # バックアップディレクトリを作成
     BACKUP_PATH.mkdir(parents=True, exist_ok=True)
@@ -134,7 +141,7 @@ def main():
     copied_count = 0
     skipped_count = 0
     
-    print("\n🔄 ファイルをコピー中...")
+    print("\n[COPY] ファイルをコピー中...")
     
     # バックアップ対象を処理
     for target in BACKUP_TARGETS:
