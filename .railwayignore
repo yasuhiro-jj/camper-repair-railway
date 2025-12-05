@@ -1,0 +1,17 @@
+# Railwayデプロイ時に除外するファイル
+test_*.py
+debug_*.py
+check_*.py
+analyze_*.py
+create_*.py
+set_*.py
+register_*.py
+demo_*.py
+quick_*.py
+run_*.py
+start_*.py
+restart_*.py
+backup_*.py
+*_test.py
+*_debug.py
+
