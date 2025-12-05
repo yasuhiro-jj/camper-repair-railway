@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notion保存機能テスト</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .result.info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .status {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Notion保存機能テスト</h1>
+        
+        <div id="serverStatus" class="status">
+            ⏳ サーバーステータスを確認中...
+        </div>
+
+        <div class="test-section">
+            <h2>1. /ask エンドポイントテスト</h2>
+            <p>このエンドポイントでNotionへの保存が動作するかテストします。</p>
+            <input type="text" id="askQuestion" placeholder="質問を入力してください（例: バッテリーが充電できません）" value="バッテリーが充電できません">
+            <button onclick="testAsk()">テスト実行</button>
+            <div id="askResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. /api/chat エンドポイントテスト</h2>
+            <p>このエンドポイントでもNotionへの保存が動作するかテストします。</p>
+            <input type="text" id="chatMessage" placeholder="メッセージを入力してください（例: エアコンが効きません）" value="エアコンが効きません">
+            <button onclick="testChat()">テスト実行</button>
+            <div id="chatResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. 確認方法</h2>
+            <ol>
+                <li>上記のテストを実行してください</li>
+                <li>サーバーのコンソールに「✅ Notionログ保存成功」と表示されることを確認</li>
+                <li>NotionのChat Logsデータベースに新しいレコードが追加されているか確認</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // サーバーステータス確認
+        async function checkServerStatus() {
+            try {
+                const response = await fetch('http://localhost:5001/healthz');
+                if (response.ok) {
+                    document.getElementById('serverStatus').className = 'status success';
+                    document.getElementById('serverStatus').textContent = '✅ サーバーは正常に動作しています';
+                } else {
+                    throw new Error('サーバーが応答しません');
+                }
+            } catch (error) {
+                document.getElementById('serverStatus').className = 'status error';
+                document.getElementById('serverStatus').textContent = '❌ サーバーに接続できません。サーバーが起動しているか確認してください。';
+            }
+        }
+
+        // /ask エンドポイントテスト
+        async function testAsk() {
+            const question = document.getElementById('askQuestion').value;
+            const resultDiv = document.getElementById('askResult');
+            
+            if (!question) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '❌ 質問を入力してください';
+                return;
+            }
+
+            resultDiv.className = 'result info';
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '⏳ リクエスト送信中...';
+
+            try {
+                const formData = new FormData();
+                formData.append('question', question);
+
+                const response = await fetch('http://localhost:5001/ask', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <strong>✅ テスト成功！</strong><br>
+                        <p><strong>質問:</strong> ${question}</p>
+                        <p><strong>回答:</strong> ${data.answer ? data.answer.substring(0, 200) + '...' : 'なし'}</p>
+                        <p><strong>ステータス:</strong> リクエストは正常に処理されました</p>
+                        <p><strong>確認:</strong> サーバーのコンソールに「✅ Notionログ保存成功」と表示されているか確認してください</p>
+                        <details>
+                            <summary>レスポンス詳細（クリックして展開）</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <strong>❌ エラーが発生しました</strong><br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ 接続エラー</strong><br>
+                    <p>${error.message}</p>
+                    <p>サーバーが起動しているか確認してください。</p>
+                `;
+            }
+        }
+
+        // /api/chat エンドポイントテスト
+        async function testChat() {
+            const message = document.getElementById('chatMessage').value;
+            const resultDiv = document.getElementById('chatResult');
+            
+            if (!message) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '❌ メッセージを入力してください';
+                return;
+            }
+
+            resultDiv.className = 'result info';
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '⏳ リクエスト送信中...';
+
+            try {
+                const response = await fetch('http://localhost:5001/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: 'test-session-' + Date.now()
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <strong>✅ テスト成功！</strong><br>
+                        <p><strong>メッセージ:</strong> ${message}</p>
+                        <p><strong>回答:</strong> ${data.response ? data.response.substring(0, 200) + '...' : 'なし'}</p>
+                        <p><strong>ステータス:</strong> リクエストは正常に処理されました</p>
+                        <p><strong>確認:</strong> サーバーのコンソールに「✅ Notionログ保存成功」と表示されているか確認してください</p>
+                        <details>
+                            <summary>レスポンス詳細（クリックして展開）</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <strong>❌ エラーが発生しました</strong><br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ 接続エラー</strong><br>
+                    <p>${error.message}</p>
+                    <p>サーバーが起動しているか確認してください。</p>
+                `;
+            }
+        }
+
+        // ページ読み込み時にサーバーステータス確認
+        window.onload = function() {
+            checkServerStatus();
+        };
+    </script>
+</body>
+</html>
+

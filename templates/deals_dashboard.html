@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商談管理ダッシュボード</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 24px;
+        }
+        
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+        
+        .filters {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .filter-btn:hover {
+            background: #f0f0f0;
+        }
+        
+        .filter-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .cases-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .case-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: #fafafa;
+        }
+        
+        .case-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .case-info {
+            flex: 1;
+        }
+        
+        .case-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .case-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .case-detail-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-contacted { background: #d1ecf1; color: #0c5460; }
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-cancelled { background: #f8d7da; color: #721c24; }
+        
+        .case-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .action-select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .btn-update, .btn-progress-report, .btn-complete {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn-update {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-update:hover {
+            background: #2980b9;
+        }
+        
+        .btn-progress-report {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-progress-report:hover {
+            background: #45a049;
+        }
+        
+        .btn-complete {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-complete:hover {
+            background: #229954;
+        }
+        
+        .progress-report-section {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f0f8ff;
+            border-radius: 5px;
+            border: 1px solid #b3d9ff;
+        }
+        
+        .progress-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .comment-section {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        
+        .comment-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .btn-comment {
+            padding: 8px 16px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-comment:hover {
+            background: #7f8c8d;
+        }
+        
+        .existing-comments {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            font-size: 13px;
+            color: #666;
+            white-space: pre-wrap;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .notification-method {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .notification-email {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .notification-line {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔧 商談管理ダッシュボード</h1>
+        <div>
+            <a href="/admin/dashboard" style="margin-right: 10px; color: #3498db; text-decoration: none;">チャットログ</a>
+            <a href="/admin/logout" class="logout-btn">ログアウト</a>
+        </div>
+    </div>
+    
+    <div class="filters">
+        <div class="filter-group">
+            <span style="font-weight: bold; margin-right: 10px;">フィルタ:</span>
+            <button class="filter-btn" onclick="filterDeals('')">すべて</button>
+            <button class="filter-btn" onclick="filterDeals('pending')">受付中</button>
+            <button class="filter-btn" onclick="filterDeals('contacted')">連絡済み</button>
+            <button class="filter-btn" onclick="filterDeals('completed')">完了</button>
+            <button class="filter-btn" onclick="filterDeals('cancelled')">キャンセル</button>
+        </div>
+    </div>
+    
+    <div class="cases-container">
+        <div id="loading" class="loading">
+            <p>商談を読み込み中...</p>
+        </div>
+        
+        <div id="deals-list" style="display: none;"></div>
+        
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">📭</div>
+            <p>商談が見つかりませんでした</p>
+        </div>
+    </div>
+    
+    <script>
+        let currentFilter = '{{ status_filter }}';
+        
+        // ページ読み込み時に商談を取得
+        window.addEventListener('DOMContentLoaded', function() {
+            loadDeals(currentFilter);
+            updateFilterButtons(currentFilter);
+        });
+        
+        function filterDeals(status) {
+            currentFilter = status;
+            loadDeals(status);
+            updateFilterButtons(status);
+        }
+        
+        function updateFilterButtons(activeStatus) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            const statusMap = {
+                '': 0,
+                'pending': 1,
+                'contacted': 2,
+                'completed': 3,
+                'cancelled': 4
+            };
+            
+            const btnIndex = statusMap[activeStatus] || 0;
+            document.querySelectorAll('.filter-btn')[btnIndex]?.classList.add('active');
+        }
+        
+        async function loadDeals(status = '') {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('deals-list').style.display = 'none';
+            document.getElementById('empty-state').style.display = 'none';
+            
+            try {
+                const url = status 
+                    ? `/api/v1/deals?status=${status}&limit=100`
+                    : '/api/v1/deals?limit=100';
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                const deals = data.deals || [];
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (deals.length === 0) {
+                    document.getElementById('empty-state').style.display = 'block';
+                } else {
+                    displayDeals(deals);
+                    document.getElementById('deals-list').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('商談取得エラー:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('empty-state').style.display = 'block';
+                document.getElementById('empty-state').innerHTML = `
+                    <div class="empty-state-icon">❌</div>
+                    <p>エラーが発生しました: ${error.message}</p>
+                `;
+            }
+        }
+        
+        function displayDeals(deals) {
+            const dealsList = document.getElementById('deals-list');
+            dealsList.innerHTML = deals.map(deal => {
+                const status = deal.status || 'pending';
+                const statusClass = `status-${status}`;
+                const statusText = {
+                    'pending': '受付中',
+                    'contacted': '連絡済み',
+                    'completed': '完了',
+                    'cancelled': 'キャンセル'
+                }[status] || status;
+                
+                const notificationMethod = deal.notification_method || 'email';
+                const notificationBadge = notificationMethod === 'line' 
+                    ? '<span class="notification-method notification-line">💬 LINE</span>'
+                    : '<span class="notification-method notification-email">📧 メール</span>';
+                
+                const progressReportCount = deal.progress_report_count || 0;
+                const canSendProgressReport = progressReportCount < 2;
+                
+                return `
+                <div class="case-card">
+                    <div class="case-header">
+                        <div class="case-info">
+                            <div class="case-title">
+                                ${escapeHtml(deal.deal_id || '未設定')}
+                                ${notificationBadge}
+                                <span class="status-badge ${statusClass}">${statusText}</span>
+                            </div>
+                            <div class="case-details">
+                                <div class="case-detail-item">
+                                    <strong>お客様:</strong> ${escapeHtml(deal.customer_name || '未設定')}
+                                </div>
+                                <div class="case-detail-item">
+                                    <strong>電話:</strong> ${escapeHtml(deal.phone || '未設定')}
+                                </div>
+                                <div class="case-detail-item">
+                                    <strong>メール:</strong> ${escapeHtml(deal.email || '未入力')}
+                                </div>
+                                <div class="case-detail-item">
+                                    <strong>所在地:</strong> ${escapeHtml(deal.prefecture || '未設定')}
+                                </div>
+                                <div class="case-detail-item">
+                                    <strong>症状カテゴリ:</strong> ${escapeHtml(deal.symptom_category || '未設定')}
+                                </div>
+                                <div class="case-detail-item">
+                                    <strong>問い合わせ日:</strong> ${formatDate(deal.inquiry_date)}
+                                </div>
+                            </div>
+                            ${deal.symptom_detail ? `
+                                <div style="margin-top: 10px; padding: 10px; background: white; border-radius: 5px;">
+                                    <strong>症状詳細:</strong><br>
+                                    <div style="margin-top: 5px; color: #666;">${escapeHtml(deal.symptom_detail)}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="case-actions">
+                        <select class="action-select" id="status-${deal.deal_id}">
+                            <option value="pending" ${status === 'pending' ? 'selected' : ''}>受付中</option>
+                            <option value="contacted" ${status === 'contacted' ? 'selected' : ''}>連絡済み</option>
+                            <option value="completed" ${status === 'completed' ? 'selected' : ''}>完了</option>
+                            <option value="cancelled" ${status === 'cancelled' ? 'selected' : ''}>キャンセル</option>
+                        </select>
+                        <button class="btn-update" onclick="updateStatus('${deal.deal_id}')">ステータス更新</button>
+                        ${canSendProgressReport ? `
+                            <button class="btn-progress-report" onclick="showProgressReportForm('${deal.deal_id}', ${progressReportCount})">
+                                📊 経過報告を送信 (${progressReportCount}/2)
+                            </button>
+                        ` : `
+                            <button class="btn-progress-report" disabled style="opacity: 0.5; cursor: not-allowed;">
+                                📊 経過報告送信済み (2/2)
+                            </button>
+                        `}
+                        ${status !== 'completed' ? `
+                            <button class="btn-complete" onclick="completeRepair('${deal.deal_id}')">✅ 修理完了を通知</button>
+                        ` : ''}
+                    </div>
+                    
+                    ${canSendProgressReport ? `
+                        <div class="progress-report-section" id="progress-form-${deal.deal_id}" style="display: none;">
+                            <strong>📊 経過報告を送信</strong>
+                            <p style="font-size: 12px; color: #666; margin: 5px 0;">例: あと残り1週間ほどで完了します</p>
+                            <input type="text" class="progress-input" id="progress-message-${deal.deal_id}" placeholder="経過報告を入力...">
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn-progress-report" onclick="sendProgressReport('${deal.deal_id}')">送信</button>
+                                <button class="btn-comment" onclick="hideProgressReportForm('${deal.deal_id}')">キャンセル</button>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="comment-section">
+                        <input type="text" class="comment-input" id="notes-${deal.deal_id}" placeholder="備考を入力（ステータス更新時に自動通知されます）...">
+                        <button class="btn-comment" onclick="updateStatusWithNotes('${deal.deal_id}')">ステータス更新（備考付き）</button>
+                        ${deal.notes ? `<div class="existing-comments">${escapeHtml(deal.notes)}</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function showProgressReportForm(dealId, currentCount) {
+            const form = document.getElementById(`progress-form-${dealId}`);
+            if (form) {
+                form.style.display = 'block';
+                document.getElementById(`progress-message-${dealId}`).focus();
+            }
+        }
+        
+        function hideProgressReportForm(dealId) {
+            const form = document.getElementById(`progress-form-${dealId}`);
+            if (form) {
+                form.style.display = 'none';
+                document.getElementById(`progress-message-${dealId}`).value = '';
+            }
+        }
+        
+        async function updateStatus(dealId) {
+            const statusSelect = document.getElementById(`status-${dealId}`);
+            const newStatus = statusSelect.value;
+            
+            try {
+                const response = await fetch(`/api/v1/deals/${dealId}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        status: newStatus
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ ステータスを更新しました。お客様に通知が送信されました。');
+                    loadDeals(currentFilter); // 再読み込み
+                } else {
+                    alert('❌ エラー: ' + data.error);
+                }
+            } catch (error) {
+                console.error('ステータス更新エラー:', error);
+                alert('❌ エラーが発生しました');
+            }
+        }
+        
+        async function updateStatusWithNotes(dealId) {
+            const statusSelect = document.getElementById(`status-${dealId}`);
+            const newStatus = statusSelect.value;
+            const notesInput = document.getElementById(`notes-${dealId}`);
+            const notes = notesInput.value.trim();
+            
+            if (!notes) {
+                alert('❌ 備考を入力してください');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/deals/${dealId}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        status: newStatus,
+                        notes: notes
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ ステータスを更新しました。お客様に通知が送信されました。');
+                    notesInput.value = '';
+                    loadDeals(currentFilter); // 再読み込み
+                } else {
+                    alert('❌ エラー: ' + data.error);
+                }
+            } catch (error) {
+                console.error('ステータス更新エラー:', error);
+                alert('❌ エラーが発生しました');
+            }
+        }
+        
+        async function sendProgressReport(dealId) {
+            const progressInput = document.getElementById(`progress-message-${dealId}`);
+            const progressMessage = progressInput.value.trim();
+            
+            if (!progressMessage) {
+                alert('❌ 経過報告内容を入力してください');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/deals/${dealId}/progress-report`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: progressMessage
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✅ ${data.message}`);
+                    progressInput.value = '';
+                    hideProgressReportForm(dealId);
+                    loadDeals(currentFilter); // 再読み込み
+                } else {
+                    alert('❌ エラー: ' + data.error);
+                }
+            } catch (error) {
+                console.error('経過報告送信エラー:', error);
+                alert('❌ エラーが発生しました');
+            }
+        }
+        
+        async function completeRepair(dealId) {
+            if (!confirm('修理完了を通知しますか？お客様に自動通知が送信されます。')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/deals/${dealId}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        status: 'completed',
+                        notes: '修理が完了しました。お車をお引き取りください。'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ 修理完了を通知しました。お客様に自動通知が送信されました。');
+                    loadDeals(currentFilter); // 再読み込み
+                } else {
+                    alert('❌ エラー: ' + data.error);
+                }
+            } catch (error) {
+                console.error('修理完了通知エラー:', error);
+                alert('❌ エラーが発生しました');
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function formatDate(dateString) {
+            if (!dateString) return '日時不明';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleString('ja-JP');
+            } catch {
+                return dateString;
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+
+
+
+

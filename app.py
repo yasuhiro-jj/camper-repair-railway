@@ -573,6 +573,75 @@ def ask():
             AIMessage(content=response)
         ])
 
+        # Notionログ保存処理を追加
+        notion_saved = False
+        notion_error = None
+        try:
+            from save_to_notion import save_chat_log_to_notion
+            
+            # 意図分析（IntentClassifierを使用）
+            category = None
+            confidence_score = 0.5
+            confidence_level = "medium"
+            intent_keywords = []
+            try:
+                from data_access.intent_classifier import IntentClassifier, get_confidence_level
+                intent_classifier = IntentClassifier()
+                intent_result = intent_classifier.classify(question)
+                category = intent_result.get("category")
+                confidence_score = intent_result.get("confidence", 0.5)
+                confidence_level = get_confidence_level(confidence_score)
+                intent_keywords = intent_result.get("keywords", [])
+            except Exception as e:
+                print(f"⚠️ 意図分類エラー（フォールバック）: {e}")
+                # 簡易的なキーワード抽出
+                import re
+                japanese_words = re.findall(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+', question)
+                intent_keywords = [w for w in japanese_words if len(w) >= 2][:5]
+            
+            # ツール使用情報の検出
+            tool_used = "推論"  # デフォルト
+            if blog_links:
+                tool_used = "RAG"  # ブログリンクが取得された場合はRAGを使用
+            
+            # RAGスコアの取得（利用可能な場合）
+            rag_avg_score = getattr(g, "rag_avg_score", 0.0)
+            
+            # キーワードの確定
+            keywords = intent_keywords if intent_keywords else []
+            if not keywords:
+                import re
+                japanese_words = re.findall(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+', question)
+                keywords = [w for w in japanese_words if len(w) >= 2][:5]
+            
+            # Notionに保存
+            saved, error_msg = save_chat_log_to_notion(
+                user_msg=question,
+                bot_msg=response,
+                session_id=conversation_id,
+                category=category,
+                subcategory=None,
+                urgency=None,
+                keywords=keywords if keywords else None,
+                tool_used=tool_used,
+                rag_score=rag_avg_score if rag_avg_score > 0.0 else None,
+                confidence=confidence_level,
+                confidence_score=confidence_score,
+                sources_summary=None
+            )
+            
+            if saved:
+                notion_saved = True
+                print(f"✅ Notionログ保存成功: session_id={conversation_id}, category={category}, tool={tool_used}")
+            else:
+                notion_error = error_msg
+                print(f"⚠️ Notionログ保存失敗（APIは継続）: {error_msg}")
+        except Exception as e:
+            notion_error = str(e)
+            print(f"⚠️ Notionログ保存例外（APIは継続）: {e}")
+            import traceback
+            traceback.print_exc()
+
         return jsonify({
             "answer": response, 
             "links": "",  # 空文字列（関連ブログは回答内に組み込まれている）
@@ -603,6 +672,15 @@ def unified_chatbot():
 def healthz():
     """シンプルなヘルスチェック（ロードマップ準拠）"""
     return jsonify({"status": "ok"}), 200
+
+@app.route("/test_notion_save.html")
+def test_notion_save():
+    """Notion保存機能のテストページ"""
+    try:
+        with open("test_notion_save.html", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "テストページが見つかりません", 404
 
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
@@ -838,7 +916,7 @@ def admin_logout():
 
 @app.route("/admin/dashboard")
 def admin_dashboard():
-    """工場向けダッシュボード（Phase 4）"""
+    """工場向けダッシュボード（Phase 4 - チャットログ用）"""
     # 認証チェック
     if not session.get("admin_authenticated"):
         return redirect("/admin/login")
@@ -848,6 +926,18 @@ def admin_dashboard():
     
     # 案件一覧を取得（テンプレート側でJavaScriptで取得する方式）
     return render_template("factory_dashboard.html", status_filter=status_filter)
+
+@app.route("/admin/deals-dashboard")
+def deals_dashboard():
+    """商談管理用工場ダッシュボード"""
+    # 認証チェック
+    if not session.get("admin_authenticated"):
+        return redirect("/admin/login")
+    
+    # ステータスフィルタ（クエリパラメータ）
+    status_filter = request.args.get("status", "")
+    
+    return render_template("deals_dashboard.html", status_filter=status_filter)
 
 @app.route("/admin/api/cases", methods=["GET"])
 def get_cases_api():

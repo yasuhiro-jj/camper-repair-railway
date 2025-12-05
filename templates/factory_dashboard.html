@@ -376,6 +376,11 @@
                         <button class="btn-comment" onclick="addComment('${case.page_id}')">コメント追加</button>
                         ${case.comment ? `<div class="existing-comments">${escapeHtml(case.comment)}</div>` : ''}
                     </div>
+                    
+                    <div class="progress-report-section" style="margin-top: 10px; padding: 10px; background: #f0f8ff; border-radius: 5px;">
+                        <input type="text" class="comment-input" id="progress-report-${case.page_id}" placeholder="経過報告を入力（例: あと残り1週間ほどで完了します）..." style="width: 100%; margin-bottom: 5px;">
+                        <button class="btn-progress-report" onclick="sendProgressReport('${case.page_id}')" style="background: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer;">📊 経過報告を送信（最大2回）</button>
+                    </div>
                 </div>
             `).join('');
         }
@@ -406,6 +411,53 @@
                 }
             } catch (error) {
                 console.error('ステータス更新エラー:', error);
+                alert('❌ エラーが発生しました');
+            }
+        }
+        
+        async function sendProgressReport(pageId) {
+            const progressInput = document.getElementById(`progress-report-${pageId}`);
+            const progressMessage = progressInput.value.trim();
+            
+            if (!progressMessage) {
+                alert('❌ 経過報告内容を入力してください');
+                return;
+            }
+            
+            try {
+                // まずpage_idからdeal_idを取得
+                const dealResponse = await fetch(`/api/v1/deals/by-page-id/${pageId}`);
+                const dealData = await dealResponse.json();
+                
+                if (!dealData.success || !dealData.deal_id) {
+                    alert('❌ 商談IDを取得できませんでした。商談管理DBにこの案件が登録されているか確認してください。');
+                    return;
+                }
+                
+                const dealId = dealData.deal_id;
+                
+                // 経過報告を送信
+                const response = await fetch(`/api/v1/deals/${dealId}/progress-report`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: progressMessage
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✅ ${data.message}`);
+                    progressInput.value = '';
+                    loadCases(currentFilter); // 再読み込み
+                } else {
+                    alert('❌ エラー: ' + data.error);
+                }
+            } catch (error) {
+                console.error('経過報告送信エラー:', error);
                 alert('❌ エラーが発生しました');
             }
         }

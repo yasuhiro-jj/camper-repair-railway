@@ -31,7 +31,7 @@ class NaturalConversationManager:
         
         # LLMの初期化
         self.llm = ChatOpenAI(
-            model="gpt-4",
+            model="gpt-4o-mini",
             temperature=0.8,
             openai_api_key=self.openai_api_key
         )

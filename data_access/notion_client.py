@@ -1833,6 +1833,25 @@ class NotionClient:
         
         return None
 
+    def get_all_pages(self, database_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        データベースから全ページを取得
+        
+        Args:
+            database_id: NotionデータベースID
+            limit: 取得する最大件数
+        
+        Returns:
+            ページのリスト
+        """
+        try:
+            result = self._query_database_direct(database_id, page_size=limit)
+            pages = result.get("results", [])
+            return pages
+        except Exception as e:
+            print(f"⚠️ ページ取得エラー: {e}")
+            return []
+    
     def get_diagnostic_data_with_routing(self, category=None):
         """診断データを取得してルーティング機能付きで返す"""
         try:

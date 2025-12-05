@@ -5,15 +5,30 @@
 Flask + RAG + SERP + Notion + AI の全機能を統合
 """
 
-from flask import Flask, request, jsonify, g
+from flask import Flask, request, jsonify, g, send_from_directory
 from flask_cors import CORS
 import asyncio
 import aiohttp
 import json
 import os
 import glob
+import time
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+
+# APIレスポンス共通ユーティリティ
+try:
+    from utils.api_response import (
+        success_response,
+        error_response,
+        validation_error_response,
+        not_found_response,
+        service_unavailable_response
+    )
+    API_RESPONSE_AVAILABLE = True
+except ImportError:
+    API_RESPONSE_AVAILABLE = False
+    print("⚠️ APIレスポンスユーティリティが利用できません。デフォルトのエラーハンドリングを使用します。")
 
 # 既存のモジュールをインポート
 from config import OPENAI_API_KEY, SERP_API_KEY, LANGSMITH_API_KEY
@@ -21,6 +36,40 @@ from enhanced_rag_system import create_enhanced_rag_system, enhanced_rag_retriev
 from serp_search_system import get_serp_search_system
 from repair_category_manager import RepairCategoryManager
 from save_to_notion import save_chat_log_to_notion
+
+# フェーズ2-1: エラーハンドリングとログ分析
+try:
+    from utils.response_logger import response_logger
+    from utils.error_handler import error_handler
+    PHASE2_LOGGING_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ フェーズ2-1モジュールが利用できません: {e}")
+    PHASE2_LOGGING_AVAILABLE = False
+    # ダミーオブジェクトを作成
+    class DummyLogger:
+        def log_response_quality(self, *args, **kwargs): pass
+        def log_error(self, *args, **kwargs): pass
+        def log_performance(self, *args, **kwargs): pass
+    class DummyErrorHandler:
+        @staticmethod
+        def handle_openai_error(*args, **kwargs): return ("エラー", False)
+        @staticmethod
+        def handle_notion_error(*args, **kwargs): return {"error": "エラー", "message": "エラー"}
+        @staticmethod
+        def handle_rag_error(*args, **kwargs): return {"error": "エラー", "message": "エラー"}
+        @staticmethod
+        def handle_serp_error(*args, **kwargs): return {"error": "エラー", "message": "エラー"}
+    response_logger = DummyLogger()
+    error_handler = DummyErrorHandler()
+
+# フェーズ1で追加: Factory ManagerとBuilder Manager
+try:
+    from data_access.factory_manager import FactoryManager
+    from data_access.builder_manager import BuilderManager
+    PHASE1_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ フェーズ1モジュールが利用できません: {e}")
+    PHASE1_AVAILABLE = False
 
 # Notion関連のインポート
 try:
@@ -35,11 +84,85 @@ except ImportError:
 app = Flask(__name__)
 CORS(app, origins=['http://localhost:8501', 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:5002'])
 
+# Swagger UI用のエンドポイント
+@app.route("/api/docs")
+def swagger_ui():
+    """Swagger UIを表示"""
+    try:
+        import yaml
+        with open('openapi.yaml', 'r', encoding='utf-8') as f:
+            openapi_spec = yaml.safe_load(f)
+        
+        # OpenAPI仕様書をJSON形式で提供
+        swagger_html = f"""
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Camper Repair System API Documentation</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
+    <style>
+        html {{
+            box-sizing: border-box;
+            overflow: -moz-scrollbars-vertical;
+            overflow-y: scroll;
+        }}
+        *, *:before, *:after {{
+            box-sizing: inherit;
+        }}
+        body {{
+            margin:0;
+            background: #fafafa;
+        }}
+    </style>
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"></script>
+    <script>
+        window.onload = function() {{
+            const ui = SwaggerUIBundle({{
+                url: "/api/docs/openapi.json",
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout",
+                validatorUrl: null
+            }});
+        }};
+    </script>
+</body>
+</html>
+"""
+        return swagger_html
+    except Exception as e:
+        return f"<html><body><h1>Swagger UI読み込みエラー</h1><p>{str(e)}</p></body></html>", 500
+
+@app.route("/api/docs/openapi.json")
+def openapi_json():
+    """OpenAPI仕様書をJSON形式で提供"""
+    try:
+        import yaml
+        with open('openapi.yaml', 'r', encoding='utf-8') as f:
+            openapi_spec = yaml.safe_load(f)
+        return jsonify(openapi_spec)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # グローバル変数
 db = None
 category_manager = None
 serp_system = None
 notion_client_instance = None
+factory_manager = None
+builder_manager = None
 
 # キャッシュシステム
 cache = {}
@@ -78,7 +201,7 @@ SAFETY_KEYWORDS = {
 
 def initialize_services():
     """サービス初期化"""
-    global db, category_manager, serp_system, notion_client_instance
+    global db, category_manager, serp_system, notion_client_instance, factory_manager, builder_manager
     
     try:
         # RAGシステムの初期化（Notion統合版）
@@ -166,6 +289,22 @@ def initialize_services():
         else:
             notion_client_instance = None
             print("⚠️ Notionクライアントが利用できません")
+        
+        # フェーズ1: Factory ManagerとBuilder Managerの初期化
+        if PHASE1_AVAILABLE:
+            try:
+                print("🔄 Factory ManagerとBuilder Managerを初期化中...")
+                factory_manager = FactoryManager()
+                builder_manager = BuilderManager()
+                print("✅ Factory ManagerとBuilder Manager初期化完了")
+            except Exception as e:
+                print(f"⚠️ Factory Manager/Builder Manager初期化エラー: {e}")
+                factory_manager = None
+                builder_manager = None
+        else:
+            factory_manager = None
+            builder_manager = None
+            print("⚠️ Factory ManagerとBuilder Managerが利用できません")
         
         return True
     except Exception as e:
@@ -1699,7 +1838,39 @@ def test_notion_save_endpoint():
 
 @app.route("/api/unified/chat", methods=["POST"])
 def unified_chat():
-    """統合チャットAPI"""
+    """
+    統合チャットAPI（タイムアウト対応）
+    
+    ユーザーからのメッセージを受け取り、AIが回答を生成します。
+    RAG検索、Notion検索、SERP検索を統合して、最適な回答を提供します。
+    
+    Request Body:
+        {
+            "message": "エアコンが効かない",
+            "mode": "chat" | "diagnostic" | "repair_search" | "cost_estimate",
+            "include_serp": true,
+            "session_id": "optional-session-id"
+        }
+    
+    Returns:
+        {
+            "response": "AIの回答テキスト",
+            "rag_results": {...},
+            "notion_results": {...},
+            "serp_results": {...}
+        }
+    
+    Raises:
+        400: メッセージが空の場合
+        500: サーバーエラー
+        504: タイムアウトエラー
+    """
+    import time
+    import concurrent.futures
+    
+    endpoint_start_time = time.time()
+    endpoint_timeout = 50  # エンドポイント全体のタイムアウト（秒）
+    
     try:
         data = request.get_json()
         message = data.get("message", "").strip()
@@ -1710,18 +1881,44 @@ def unified_chat():
         if not message:
             return jsonify({"error": "メッセージが空です"}), 400
         
-        # 意図分析
-        intent = analyze_intent(message)
+        print(f"🚀 /api/unified/chat リクエスト開始: message='{message[:50]}...', mode={mode}")
         
-        # モード別処理
-        if mode == "diagnostic":
-            result = process_diagnostic_mode(message, intent)
-        elif mode == "repair_search":
-            result = process_repair_search_mode(message, intent)
-        elif mode == "cost_estimate":
-            result = process_cost_estimate_mode(message, intent)
-        else:  # chat
-            result = process_chat_mode(message, intent, include_serp)
+        # タイムアウト付きで処理を実行
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                def process_request():
+                    # 意図分析
+                    intent_start = time.time()
+                    intent = analyze_intent(message)
+                    intent_time = time.time() - intent_start
+                    print(f"✅ 意図分析完了: {intent_time:.2f}秒")
+                    
+                    # モード別処理
+                    process_start = time.time()
+                    if mode == "diagnostic":
+                        result = process_diagnostic_mode(message, intent)
+                    elif mode == "repair_search":
+                        result = process_repair_search_mode(message, intent)
+                    elif mode == "cost_estimate":
+                        result = process_cost_estimate_mode(message, intent)
+                    else:  # chat
+                        result = process_chat_mode(message, intent, include_serp)
+                    process_time = time.time() - process_start
+                    print(f"✅ モード別処理完了: {process_time:.2f}秒")
+                    
+                    return result
+                
+                future = executor.submit(process_request)
+                result = future.result(timeout=endpoint_timeout)
+                
+        except concurrent.futures.TimeoutError:
+            elapsed_time = time.time() - endpoint_start_time
+            print(f"❌ /api/unified/chat タイムアウト: {elapsed_time:.2f}秒（制限: {endpoint_timeout}秒）")
+            return jsonify({
+                "error": f"リクエストがタイムアウトしました（{endpoint_timeout}秒以内に完了しませんでした）",
+                "timeout": True,
+                "elapsed_time": f"{elapsed_time:.2f}s"
+            }), 504
         
         # 返答テキストの抽出（Notion保存用）
         print(f"🔍 会話ログ保存準備中... (session_id: {session_id})")
@@ -1813,10 +2010,25 @@ def unified_chat():
             import traceback
             traceback.print_exc()
 
+        # 処理時間のログ
+        total_elapsed = time.time() - endpoint_start_time
+        print(f"✅ /api/unified/chat 完了: 合計処理時間 {total_elapsed:.2f}秒")
+        
+        # レスポンスに処理時間を追加
+        if isinstance(result, dict):
+            result["processing_time"] = f"{total_elapsed:.2f}s"
+        
         return jsonify(result)
         
     except Exception as e:
-        return jsonify({"error": f"チャット処理エラー: {str(e)}"}), 500
+        elapsed_time = time.time() - endpoint_start_time
+        print(f"❌ /api/unified/chat エラー: {str(e)} (処理時間: {elapsed_time:.2f}秒)")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "error": f"チャット処理エラー: {str(e)}",
+            "processing_time": f"{elapsed_time:.2f}s"
+        }), 500
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
@@ -2427,40 +2639,203 @@ def process_chat_mode(message: str, intent: Dict[str, Any], include_serp: bool =
         notion_results = {}
         
         def search_rag():
-            """RAG検索（タイムアウト付き）"""
+            """RAG検索（強化版・タイムアウト付き）"""
+            rag_start_time = time.time()
             try:
                 if db:
-                    return enhanced_rag_retrieve(message, db, max_results=5)
+                    # フェーズ2-4: 強化版RAG検索を使用
+                    try:
+                        from utils.rag_search_enhanced import enhanced_rag_retrieve_v2
+                        
+                        # カテゴリを取得
+                        category = intent.get('category') if isinstance(intent, dict) else None
+                        
+                        # 強化版RAG検索を実行
+                        result_v2 = enhanced_rag_retrieve_v2(
+                            query=message,
+                            db=db,
+                            max_results=5,
+                            relevance_threshold=0.65,
+                            use_query_expansion=True,
+                            category=category
+                        )
+                        
+                        # 結果を旧形式に変換（後方互換性）
+                        if result_v2 and 'results' in result_v2:
+                            duration = time.time() - rag_start_time
+                            response_logger.log_performance("RAG検索(強化版)", duration, True, {
+                                "total_found": result_v2.get('total_found', 0),
+                                "returned": result_v2.get('returned', 0),
+                                "queries_used": len(result_v2.get('queries_used', []))
+                            })
+                            
+                            print(f"✅ 強化版RAG検索完了: {result_v2.get('returned', 0)}件")
+                            return {'search_results': result_v2['results']}
+                    
+                    except ImportError:
+                        print("⚠️ 強化版RAG検索モジュールが見つかりません。標準版を使用します。")
+                    
+                    # フォールバック: 標準版RAG検索
+                    result = enhanced_rag_retrieve(message, db, max_results=5)
+                    duration = time.time() - rag_start_time
+                    response_logger.log_performance("RAG検索", duration, True)
+                    return result
             except Exception as e:
+                duration = time.time() - rag_start_time
+                error_info = error_handler.handle_rag_error(e, message)
+                response_logger.log_performance("RAG検索", duration, False, {"error": str(e)})
                 print(f"⚠️ RAG検索エラー: {e}")
             return {}
         
         def search_serp():
-            """SERP検索（タイムアウト付き・条件付き実行）"""
+            """SERP検索（強化版・タイムアウト付き・条件付き実行）"""
+            serp_start_time = time.time()
             try:
-                # SERP検索は価格情報や最新情報が必要な場合のみ実行
                 if include_serp and serp_system:
-                    # 価格や最新情報に関するクエリか判定
-                    price_keywords = ['価格', '値段', '費用', 'いくら', 'コスト', '料金']
-                    latest_keywords = ['最新', '新しい', '最近', '今', '現在']
+                    # フェーズ2-4: 強化版SERP検索を使用
+                    try:
+                        from utils.serp_query_optimizer import serp_query_optimizer, serp_result_filter
+                        
+                        # SERP検索が必要か判定（拡張版）
+                        should_search = serp_query_optimizer.should_use_serp(message, intent)
+                        
+                        if should_search:
+                            # クエリ最適化
+                            search_params = serp_query_optimizer.get_search_parameters(message)
+                            optimized_query = search_params['optimized_query']
+                            
+                            print(f"🌐 SERP検索実行")
+                            print(f"  元のクエリ: {message}")
+                            print(f"  最適化: {optimized_query}")
+                            print(f"  意図: {search_params['intent']}")
+                            
+                            # SERP検索実行
+                            result = serp_system.search(optimized_query, ['repair_info', 'parts_price', 'general_info'])
+                            
+                            # 結果をフィルタリングしてスコアリング
+                            if result and 'results' in result:
+                                filtered_results = serp_result_filter.filter_and_score_results(
+                                    results=result['results'],
+                                    query=message,
+                                    min_relevance=0.6,
+                                    max_results=5
+                                )
+                                
+                                result['results'] = filtered_results
+                                result['filtered_count'] = len(filtered_results)
+                                result['optimized_query'] = optimized_query
+                                
+                                print(f"✅ SERP検索完了: {len(filtered_results)}件（フィルタリング後）")
+                            
+                            duration = time.time() - serp_start_time
+                            response_logger.log_performance("SERP検索(強化版)", duration, True, {
+                                "optimized_query": optimized_query,
+                                "intent": search_params['intent'],
+                                "filtered_count": len(filtered_results) if result and 'results' in result else 0
+                            })
+                            
+                            return result
+                        else:
+                            print("⚡ SERP検索スキップ（不要）")
                     
-                    needs_serp = any(keyword in message for keyword in price_keywords + latest_keywords)
-                    
-                    if needs_serp:
-                        print("🌐 SERP検索実行（価格/最新情報）")
-                        return serp_system.search(message, ['repair_info', 'parts_price', 'general_info'])
-                    else:
-                        print("⚡ SERP検索スキップ（不要）")
+                    except ImportError:
+                        print("⚠️ 強化版SERP検索モジュールが見つかりません。標準版を使用します。")
+                        
+                        # フォールバック: 標準版SERP検索
+                        price_keywords = ['価格', '値段', '費用', 'いくら', 'コスト', '料金']
+                        latest_keywords = ['最新', '新しい', '最近', '今', '現在']
+                        
+                        needs_serp = any(keyword in message for keyword in price_keywords + latest_keywords)
+                        
+                        if needs_serp:
+                            print("🌐 SERP検索実行（価格/最新情報）")
+                            result = serp_system.search(message, ['repair_info', 'parts_price', 'general_info'])
+                            duration = time.time() - serp_start_time
+                            response_logger.log_performance("SERP検索", duration, True)
+                            return result
+                        else:
+                            print("⚡ SERP検索スキップ（不要）")
+            
             except Exception as e:
+                duration = time.time() - serp_start_time
+                error_info = error_handler.handle_serp_error(e, message)
+                response_logger.log_performance("SERP検索", duration, False, {"error": str(e)})
                 print(f"⚠️ SERP検索エラー: {e}")
             return {}
         
         def search_notion():
-            """Notion検索（タイムアウト付き）"""
+            """Notion検索（強化版・タイムアウト付き）"""
+            notion_start_time = time.time()
             try:
-                if NOTION_AVAILABLE:
-                    return search_notion_knowledge(message, include_cache=include_cache)
+                if NOTION_AVAILABLE and notion_client_instance:
+                    # フェーズ2-4: 強化版Notion検索を使用
+                    try:
+                        from utils.notion_search_enhanced import NotionSearchEnhanced
+                        
+                        # 強化版Notion検索インスタンスを作成
+                        enhanced_search = NotionSearchEnhanced(notion_client_instance.client)
+                        
+                        # カテゴリを取得
+                        category = intent.get('category') if isinstance(intent, dict) else None
+                        
+                        # 検索対象のデータベース
+                        databases = {
+                            '修理ケースDB': os.getenv('NOTION_CASE_DB_ID', '').replace('-', ''),
+                            '診断フローDB': os.getenv('NODE_DB_ID', '').replace('-', ''),
+                            '部品・工具DB': os.getenv('ITEM_DB_ID', '').replace('-', '')
+                        }
+                        
+                        # 空のデータベースIDを除外
+                        databases = {k: v for k, v in databases.items() if v}
+                        
+                        if databases:
+                            print(f"🔍 強化版Notion検索実行")
+                            print(f"  データベース数: {len(databases)}")
+                            
+                            # 強化版Notion検索を実行
+                            result_v2 = enhanced_search.search_notion_databases(
+                                query=message,
+                                databases=databases,
+                                max_results_per_db=5,
+                                min_relevance=0.6,
+                                use_relations=True
+                            )
+                            
+                            # 結果を旧形式に変換（後方互換性）
+                            if result_v2:
+                                duration = time.time() - notion_start_time
+                                response_logger.log_performance("Notion検索(強化版)", duration, True, {
+                                    "total_results": result_v2['metadata'].get('total_results', 0),
+                                    "keywords": result_v2['metadata'].get('keywords', []),
+                                    "databases": len(databases)
+                                })
+                                
+                                print(f"✅ 強化版Notion検索完了: {result_v2['metadata']['total_results']}件")
+                                
+                                # 旧形式に変換
+                                return {
+                                    'repair_cases': result_v2.get('cases', [])[:3],
+                                    'diagnostic_nodes': result_v2.get('nodes', [])[:3],
+                                    'items': result_v2.get('items', [])[:3],
+                                    'factories': result_v2.get('factories', [])[:3],
+                                    'builders': result_v2.get('builders', [])[:3],
+                                    'total_cases_found': len(result_v2.get('cases', [])),
+                                    'total_nodes_found': len(result_v2.get('nodes', [])),
+                                    'metadata': result_v2['metadata']
+                                }
+                    
+                    except ImportError:
+                        print("⚠️ 強化版Notion検索モジュールが見つかりません。標準版を使用します。")
+                    
+                    # フォールバック: 標準版Notion検索
+                    result = search_notion_knowledge(message, include_cache=include_cache)
+                    duration = time.time() - notion_start_time
+                    response_logger.log_performance("Notion検索", duration, True)
+                    return result
             except Exception as e:
+                duration = time.time() - notion_start_time
+                error_info = error_handler.handle_notion_error(e, "Notion検索")
+                response_logger.log_performance("Notion検索", duration, False, {"error": str(e)})
                 print(f"⚠️ Notion検索エラー: {e}")
             return {}
         
@@ -2495,13 +2870,161 @@ def process_chat_mode(message: str, intent: Dict[str, Any], include_serp: bool =
         search_time = time.time() - start_time
         print(f"⚡ 並列検索完了: {search_time:.2f}秒")
         
+        # フェーズ2-4: 統合検索最適化（タイムアウト付き）
+        integration_metadata = None
+        ab_test_variant = None
+        integration_timeout = 5  # 統合検索最適化のタイムアウト（秒）
+        print("🔄 統合検索最適化を開始...")
+        try:
+            print("📦 utils.search_integrationモジュールをインポート中...")
+            from utils.search_integration import search_integration
+            print("✅ インポート成功")
+            
+            # タイムアウト付きで統合検索最適化を実行
+            integration_start_time = time.time()
+            try:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    def run_integration():
+                        # A/Bテストフレームワークをインポート（オプション）
+                        ab_test_variant_local = None
+                        try:
+                            from utils.ab_test_framework import ab_test_framework
+                            # ユーザーIDを生成（メッセージのハッシュから）
+                            # 実際の実装では、session_idやuser_idを引数として渡すことを推奨
+                            user_id = f"user_{hash(message) % 10000}"
+                            
+                            # バリアントを割り当て
+                            ab_test_variant_local = ab_test_framework.assign_variant(user_id, message)
+                            print(f"🧪 A/Bテストバリアント: {ab_test_variant_local}")
+                        except ImportError:
+                            print("⚠️ A/Bテストフレームワークが利用できません（オプション）")
+                        except Exception as e:
+                            print(f"⚠️ A/Bテスト初期化エラー: {e}")
+                        
+                        # 動的な重み付けを計算
+                        print(f"📊 動的重み付けを計算中... (message='{message[:50]}...', intent={intent.get('intent')})")
+                        dynamic_weights = search_integration.calculate_dynamic_weights(message, intent)
+                        print(f"✅ 動的重み付け: {dynamic_weights}")
+                        
+                        # 結果をマージと重複排除（A/Bテストバリアントに応じて調整）
+                        print("🔗 検索結果をマージ中...")
+                        merge_start_time = time.time()
+                        integrated_results = search_integration.merge_search_results(
+                            rag_results=rag_results,
+                            serp_results=serp_results,
+                            notion_results=notion_results,
+                            weights=dynamic_weights,
+                            max_results=10
+                        )
+                        merge_time = time.time() - merge_start_time
+                        print(f"✅ マージ完了: {len(integrated_results)}件 ({merge_time:.2f}秒)")
+                        
+                        return integrated_results, ab_test_variant_local, dynamic_weights, merge_time
+                    
+                    future = executor.submit(run_integration)
+                    integrated_results, ab_test_variant, dynamic_weights, merge_time = future.result(timeout=integration_timeout)
+                    
+            except concurrent.futures.TimeoutError:
+                integration_duration = time.time() - integration_start_time
+                print(f"⚠️ 統合検索最適化タイムアウト: {integration_duration:.2f}秒（制限: {integration_timeout}秒）")
+                # タイムアウト時は統合検索最適化をスキップして、通常の検索結果を使用
+                integrated_results = []
+                dynamic_weights = {'rag': 0.5, 'serp': 0.3, 'notion': 0.7}
+                merge_time = 0
+                ab_test_variant = None
+            
+            response_time = time.time() - integration_start_time
+            
+            # A/Bテストの追跡（統合検索最適化が成功した場合のみ）
+            if ab_test_variant and integrated_results:
+                try:
+                    from utils.ab_test_framework import ab_test_framework
+                    user_id = f"user_{hash(message) % 10000}"
+                    ab_test_framework.track_query(
+                        user_id=user_id,
+                        query=message,
+                        variant=ab_test_variant,
+                        results_count=len(integrated_results),
+                        response_time=response_time,
+                        metadata={
+                            'intent': intent.get('intent'),
+                            'source_distribution': search_integration.get_source_distribution(integrated_results)
+                        }
+                    )
+                except Exception as e:
+                    print(f"⚠️ A/Bテスト追跡エラー: {e}")
+            
+            # ソース別の分布を取得（統合検索最適化が成功した場合のみ）
+            if integrated_results:
+                print("📈 ソース分布を計算中...")
+                distribution = search_integration.get_source_distribution(integrated_results)
+                print(f"✅ ソース分布: RAG={distribution['rag']}件, SERP={distribution['serp']}件, Notion={distribution['notion']}件")
+            else:
+                # タイムアウト時はデフォルトの分布を使用
+                distribution = {'rag': 0, 'serp': 0, 'notion': 0}
+            
+            # 統合結果をメタデータに追加
+            integration_metadata = {
+                'dynamic_weights': dynamic_weights,
+                'integrated_results_count': len(integrated_results),
+                'source_distribution': distribution,
+                'ab_test_variant': ab_test_variant,
+                'response_time': response_time
+            }
+            print("✅ 統合検索最適化: 正常に動作")
+        
+        except ImportError as e:
+            print(f"❌ 統合検索モジュールのインポートエラー: {e}")
+            print(f"❌ インポートエラー詳細: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
+            integration_metadata = None
+        except Exception as e:
+            print(f"❌ 統合検索最適化エラー: {e}")
+            print(f"❌ エラータイプ: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
+            integration_metadata = None
+            # エラー時も統合検索最適化をスキップして続行
+            integrated_results = []
+            distribution = {'rag': 0, 'serp': 0, 'notion': 0}
+        
         # ソース別引用情報をログに記録
         citation_log = log_source_citations(message, rag_results, serp_results, notion_results, intent)
         
         # AI回答生成
+        ai_start_time = time.time()
         ai_response = generate_ai_response(message, rag_results, serp_results, intent, notion_results)
+        ai_response_time = time.time() - ai_start_time
         
-        return {
+        # 修理店紹介の提案が必要か判定
+        should_suggest_partner = should_suggest_partner_shop(message, intent, ai_response)
+        
+        # 応答品質をログに記録
+        response_logger.log_response_quality(
+            message=message,
+            response=ai_response,
+            intent=intent,
+            sources={
+                "rag_results": rag_results,
+                "serp_results": serp_results,
+                "notion_results": notion_results
+            },
+            session_id=intent.get("session_id"),
+            response_time=search_time + ai_response_time
+        )
+        
+        # AI生成のパフォーマンスをログに記録
+        response_logger.log_performance("AI生成", ai_response_time, True)
+        
+        # 処理時間の詳細ログ
+        total_time = time.time() - start_time
+        print(f"📊 処理時間サマリー:")
+        print(f"   - 並列検索: {search_time:.2f}秒")
+        print(f"   - AI応答生成: {ai_response_time:.2f}秒")
+        print(f"   - 合計: {total_time:.2f}秒")
+        
+        response_data = {
             "type": "chat",
             "response": ai_response,
             "rag_results": rag_results,
@@ -2509,11 +3032,37 @@ def process_chat_mode(message: str, intent: Dict[str, Any], include_serp: bool =
             "notion_results": notion_results,
             "intent": intent,
             "citation_log": citation_log,
-            "search_time": f"{search_time:.2f}s"
+            "search_time": f"{search_time:.2f}s",
+            "ai_response_time": f"{ai_response_time:.2f}s",
+            "total_time": f"{total_time:.2f}s"
         }
         
+        # 修理店紹介の提案を追加
+        if should_suggest_partner:
+            response_data["suggest_partner"] = True
+            response_data["partner_suggestion"] = {
+                "message": "修理店を紹介しますか？",
+                "category": intent.get("category", ""),
+                "symptom": message[:100]  # 症状の最初の100文字
+            }
+        
+        # 統合検索のメタデータを追加
+        print(f"🔍 integration_metadata の値: {integration_metadata}")
+        print(f"🔍 integration_metadata の型: {type(integration_metadata)}")
+        if integration_metadata:
+            print("✅ integration_metadataをresponse_dataに追加")
+            response_data['integration'] = integration_metadata
+        else:
+            print("⚠️ integration_metadataがNoneまたは空のため、追加されません")
+        
+        print(f"📦 最終的なresponse_dataのキー: {list(response_data.keys())}")
+        return response_data
+        
     except Exception as e:
-        return {"error": f"チャット処理エラー: {str(e)}"}
+        error_str = str(e)
+        session_id = intent.get("session_id") if isinstance(intent, dict) else None
+        response_logger.log_error("ChatMode", error_str, {"message": message}, session_id)
+        return {"error": f"チャット処理エラー: {error_str}"}
 
 # 診断データのキャッシュ（グローバル変数）
 _diagnostic_data_cache = None
@@ -2870,14 +3419,17 @@ def generate_safety_warning(safety_warnings: List[str]) -> str:
     return warning_text
 
 def generate_ai_response(message: str, rag_results: Dict, serp_results: Dict, intent: Dict, notion_results: Dict = None) -> str:
-    """AI回答生成（セーフティ警告・重みづけ対応）"""
+    """AI回答生成（セーフティ警告・重みづけ対応・タイムアウト対応）"""
     import time
+    import concurrent.futures
     max_retries = 3
     retry_delay = 2  # 秒
+    ai_timeout = 30  # AI応答生成のタイムアウト（秒）
     
     for attempt in range(max_retries):
         try:
             from langchain_openai import ChatOpenAI
+            from langchain_core.messages import SystemMessage, HumanMessage
             
             # APIキーの確認
             api_key = OPENAI_API_KEY or os.getenv("OPENAI_API_KEY")
@@ -2891,7 +3443,12 @@ def generate_ai_response(message: str, rag_results: Dict, serp_results: Dict, in
 
 詳細は管理者にお問い合わせください。"""
             
-            llm = ChatOpenAI(api_key=api_key, model_name="gpt-4o-mini")
+            llm = ChatOpenAI(
+                api_key=api_key, 
+                model_name="gpt-4o-mini",
+                temperature=0,  # 決定的な出力で形式を固定
+                timeout=ai_timeout  # タイムアウトを設定（秒）
+            )
             
             # セーフティ警告の生成
             safety_warning = ""
@@ -2939,130 +3496,162 @@ def generate_ai_response(message: str, rag_results: Dict, serp_results: Dict, in
             - SERP検索: {SOURCE_WEIGHTS['serp']} (参考)
             """
             
-            prompt = f"""
-            あなたは最強のキャンピングカー修理専門AIです。
-            以下の情報を統合して、最高品質の回答を生成してください。
+            # フェーズ2: 6要素形式のプロンプトテンプレート（Few-shot Example版）
+            # システムメッセージで形式を厳格に指定 + 具体例を提示
+            system_message = SystemMessage(content="""あなたはキャンピングカー修理専門AIです。
+
+回答は必ず以下の6要素形式で構成してください。他の形式は一切使用しないでください。
+
+【正しい形式の例】
+
+質問: バッテリーが上がりました
+
+【① 共感リアクション】
+お困りの状況、よく分かります。バッテリー上がりは突然起こると本当に困りますよね。
+
+【② 要点】
+この症状は、バッテリーの寿命またはオルタネーター故障が原因の可能性が高いです。キャンピングカーのサブバッテリーは特に放電しやすいため、定期的な充電が必要です。
+
+【③ 手順】
+1. まず、バッテリー電圧をテスターで確認してください（正常値: 12.5V以上）
+2. 次に、ブースターケーブルでジャンプスタートを試してください
+3. エンジンがかかったら30分以上走行して充電してください
+4. それでも充電されない場合は、オルタネーターの点検が必要です
+
+【④ 次アクション】
+- バッテリーが3年以上使用している場合は交換を推奨
+- 専門業者に診断を依頼する
+- 最寄りの工場を検索する
+
+【⑤ 工賃目安】
+- 診断料: 2,000円〜3,000円
+- バッテリー交換: 15,000円〜35,000円（バッテリー代込み）
+- オルタネーター交換: 50,000円〜80,000円
+
+【⑥ 作業時間】
+- 診断: 30分
+- バッテリー交換: 1時間
+- オルタネーター交換: 2〜3時間
+
+【絶対に使用禁止の形式】
+❌ ### 1. 【状況確認】
+❌ ### 2. 【診断結果】
+❌ ### 3. 【修理手順】
+
+これらの番号付き形式は使用しないでください。必ず【①】【②】【③】【④】【⑤】【⑥】のマーカーを使用してください。""")
             
-            ユーザーの質問: {message}
+            # ユーザーメッセージ（簡潔版）
+            user_prompt = f"""ユーザーの質問: {message}
+
+カテゴリ: {intent.get('category', '不明')}
+緊急度: {intent.get('urgency', '不明')}
+
+{notion_context if notion_context else ''}
+
+上記の6要素形式で専門的な修理アドバイスを生成してください。"""
             
-            意図分析: {json.dumps(intent, ensure_ascii=False, indent=2)}
+            user_message = HumanMessage(content=user_prompt)
             
-            {weight_info}
+            # システムメッセージとユーザーメッセージを使用
+            messages = [system_message, user_message]
             
-            検索結果:
-            RAG検索: {json.dumps(rag_results, ensure_ascii=False, indent=2)}
-            SERP検索: {json.dumps(serp_results, ensure_ascii=False, indent=2)}
-            {notion_context}
-            
-            回答形式:
-            1. 【状況確認】- 症状の詳細確認
-            2. 【診断結果】- 原因の特定
-            3. 【修理手順】- 段階的な修理方法
-            4. 【費用目安】- 修理費用の概算
-            5. 【推奨部品】- 必要な部品・工具
-            6. 【注意事項】- 安全な作業のポイント
-            7. 【関連情報】- 追加の参考資料
-            
-            専門的で実用的な回答を生成してください。
-            Notionデータベースの情報を最優先で活用し、必要に応じてRAG検索結果とSERP検索結果を補完として使用してください。
-            """
-            
-            response = llm.invoke(prompt)
-            
-            # セーフティ警告を回答の先頭に挿入
-            if safety_warning:
-                return safety_warning + response.content
-            else:
-                return response.content
-            
-        except Exception as e:
-            error_str = str(e)
-            error_lower = error_str.lower()
-            
-            # 429エラー（クォータ超過）の詳細処理
-            if "429" in error_str or "insufficient_quota" in error_lower or "quota" in error_lower:
-                error_details = ""
-                try:
-                    # エラーオブジェクトから詳細を抽出
-                    if hasattr(e, 'response') and hasattr(e.response, 'json'):
-                        error_data = e.response.json()
-                        error_details = f"\n\n**エラー詳細:**\n```json\n{json.dumps(error_data, ensure_ascii=False, indent=2)}\n```"
-                except:
-                    pass
+            # タイムアウト付きでAI応答を生成
+            ai_start_time = time.time()
+            try:
+                # ThreadPoolExecutorでタイムアウトを制御
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(llm.invoke, messages)
+                    response = future.result(timeout=ai_timeout)
                 
-                api_key_preview = ""
-                if api_key:
-                    api_key_preview = f"`{api_key[:10]}...{api_key[-4:]}`"
+                ai_duration = time.time() - ai_start_time
+                print(f"✅ AI応答生成完了: {ai_duration:.2f}秒")
                 
-                error_message = f"""⚠️ **OpenAI API クォータ超過エラー（429）**
-
-**エラー内容：**
-```
-{error_str}
-```{error_details}
-
-**現在使用中のAPIキー：** {api_key_preview if api_key_preview else "未設定"}
-
-**対処方法：**
-
-1. **APIキーの確認**
-   - OpenAIダッシュボード（https://platform.openai.com/account/usage）で使用量を確認
-   - 支払い上限を引き上げた場合は、反映まで数分かかる場合があります
-
-2. **環境変数の更新**
-   - Railwayの環境変数`OPENAI_API_KEY`を確認・更新
-   - ローカルの`.env`ファイルを確認・更新
-   - サーバーを再起動してください
-
-3. **リトライ**
-   - 数分待ってから再度お試しください
-   - 支払い情報の反映には時間がかかる場合があります
-
-**確認事項：**
-- ✅ 支払い方法が正しく登録されているか
-- ✅ 使用上限が十分に設定されているか
-- ✅ APIキーが有効か
-- ✅ 環境変数が正しく設定されているか
-
-詳細は管理者にお問い合わせください。"""
-                
-                # 最後の試行でない場合はリトライ
-                if attempt < max_retries - 1:
-                    wait_time = retry_delay * (attempt + 1)
-                    print(f"⚠️ OpenAI API 429エラー - {wait_time}秒後にリトライします (試行 {attempt + 1}/{max_retries})")
-                    time.sleep(wait_time)
-                    continue
+                # セーフティ警告を回答の先頭に挿入
+                if safety_warning:
+                    return safety_warning + response.content
                 else:
-                    return error_message
+                    return response.content
+                    
+            except concurrent.futures.TimeoutError:
+                ai_duration = time.time() - ai_start_time
+                print(f"⚠️ AI応答生成タイムアウト: {ai_duration:.2f}秒（制限: {ai_timeout}秒）")
+                raise TimeoutError(f"AI応答生成がタイムアウトしました（{ai_timeout}秒以内に完了しませんでした）")
             
-            # その他のエラー
-            error_message = f"""⚠️ **AI回答生成エラー**
-
-**エラー内容：**
-```
-{error_str}
-```
-
-**エラータイプ：** {type(e).__name__}
-
-**対処方法：**
-1. サーバーログを確認してください
-2. APIキーが正しく設定されているか確認してください
-3. 管理者にお問い合わせください"""
+        except TimeoutError as e:
+            # タイムアウトエラーの場合はリトライしない
+            print(f"❌ AI回答生成タイムアウト (試行 {attempt + 1}/{max_retries}): {str(e)}")
+            if attempt < max_retries - 1:
+                wait_time = retry_delay * (attempt + 1)
+                print(f"⚠️ {wait_time}秒後にリトライします (試行 {attempt + 1}/{max_retries})")
+                time.sleep(wait_time)
+                continue
+            else:
+                return "⚠️ AI回答生成がタイムアウトしました。時間をおいて再度お試しください。"
+        except Exception as e:
+            # フェーズ2-1: 強化されたエラーハンドリングを使用
+            error_message, should_retry = error_handler.handle_openai_error(e, attempt, max_retries)
             
-            print(f"❌ AI回答生成エラー (試行 {attempt + 1}/{max_retries}): {error_str}")
+            print(f"❌ AI回答生成エラー (試行 {attempt + 1}/{max_retries}): {str(e)}")
             import traceback
             traceback.print_exc()
             
-            # 最後の試行でない場合はリトライ
-            if attempt < max_retries - 1:
+            # リトライ可能な場合はリトライ
+            if should_retry and attempt < max_retries - 1:
                 wait_time = retry_delay * (attempt + 1)
+                print(f"⚠️ {wait_time}秒後にリトライします (試行 {attempt + 1}/{max_retries})")
                 time.sleep(wait_time)
                 continue
             else:
                 return error_message
     
     return "⚠️ AI回答生成に失敗しました。時間をおいて再度お試しください。"
+
+def should_suggest_partner_shop(message: str, intent: Dict[str, Any], ai_response: str) -> bool:
+    """修理店紹介の提案が必要かどうかを判定"""
+    try:
+        # 修理関連のキーワードをチェック
+        repair_keywords = [
+            "修理", "故障", "不調", "異常", "問題", "トラブル", "症状",
+            "直したい", "直して", "交換", "点検", "メンテナンス",
+            "エアコン", "バッテリー", "トイレ", "水回り", "ガス", "電気",
+            "エンジン", "エンジンがかからない", "始動しない"
+        ]
+        
+        # 専門業者への相談を推奨するキーワード
+        professional_keywords = [
+            "専門", "業者", "工場", "修理店", "ショップ", "プロ",
+            "相談", "見積もり", "診断", "点検"
+        ]
+        
+        # メッセージに修理関連のキーワードが含まれているか
+        message_lower = message.lower()
+        has_repair_keyword = any(keyword in message_lower for keyword in repair_keywords)
+        
+        # 意図に修理カテゴリが含まれているか
+        category = intent.get("category", "").lower() if isinstance(intent, dict) else ""
+        has_repair_category = category and category not in ["不明", "その他", "general"]
+        
+        # AI応答に専門業者への相談が推奨されているか
+        response_lower = ai_response.lower()
+        suggests_professional = any(keyword in response_lower for keyword in professional_keywords)
+        
+        # 提案条件：
+        # 1. 修理関連のキーワードまたはカテゴリがある
+        # 2. AI応答が専門業者への相談を推奨している、または緊急度が高い
+        urgency = intent.get("urgency", "").lower() if isinstance(intent, dict) else ""
+        is_urgent = urgency in ["high", "緊急", "高"]
+        
+        should_suggest = (has_repair_keyword or has_repair_category) and (suggests_professional or is_urgent)
+        
+        if should_suggest:
+            print(f"✅ 修理店紹介の提案を追加: カテゴリ={category}, 緊急度={urgency}")
+        
+        return should_suggest
+        
+    except Exception as e:
+        print(f"⚠️ 修理店紹介提案判定エラー: {e}")
+        # エラー時は安全のため提案しない
+        return False
 
 def build_context(rag_results: Dict, serp_results: Dict, intent: Dict) -> str:
     """コンテキスト構築"""
@@ -3762,6 +4351,1679 @@ def handle_fallback_diagnosis(answer_text, session_id):
         response.headers['Content-Type'] = 'application/json'
         return response, 500
 
+# === フェーズ1: Factory & Builder API エンドポイント ===
+
+@app.route("/api/v1/factories", methods=["GET"])
+def get_factories():
+    """工場一覧取得"""
+    try:
+        if not factory_manager:
+            return jsonify({"error": "Factory Managerが利用できません"}), 503
+        
+        # クエリパラメータ取得
+        status = request.args.get("status")
+        prefecture = request.args.get("prefecture")
+        specialty = request.args.get("specialty")
+        limit = int(request.args.get("limit", 100))
+        
+        factories = factory_manager.list_factories(
+            status=status,
+            prefecture=prefecture,
+            specialty=specialty,
+            limit=limit
+        )
+        
+        return jsonify({
+            "factories": factories,
+            "count": len(factories)
+        })
+    except Exception as e:
+        print(f"❌ 工場一覧取得エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/v1/factories", methods=["POST"])
+def create_factory():
+    """工場登録"""
+    try:
+        if not factory_manager:
+            return jsonify({"error": "Factory Managerが利用できません"}), 503
+        
+        data = request.get_json()
+        
+        # 必須フィールドチェック
+        required_fields = ["name", "prefecture", "address", "phone", "email", "specialties", "business_hours", "service_areas"]
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"{field}は必須です"}), 400
+        
+        factory = factory_manager.create_factory(
+            name=data["name"],
+            prefecture=data["prefecture"],
+            address=data["address"],
+            phone=data["phone"],
+            email=data["email"],
+            specialties=data["specialties"],
+            business_hours=data["business_hours"],
+            service_areas=data["service_areas"],
+            status=data.get("status", "アクティブ"),
+            total_cases=data.get("total_cases", 0),
+            completed_cases=data.get("completed_cases", 0),
+            avg_response_time=data.get("avg_response_time", 0),
+            rating=data.get("rating", 0),
+            notes=data.get("notes")
+        )
+        
+        return jsonify(factory), 201
+    except Exception as e:
+        print(f"❌ 工場登録エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/v1/factories/<factory_id>", methods=["GET"])
+def get_factory_detail(factory_id):
+    """工場詳細取得"""
+    try:
+        if not factory_manager:
+            return jsonify({"error": "Factory Managerが利用できません"}), 503
+        
+        factory = factory_manager.get_factory(factory_id)
+        if not factory:
+            return jsonify({"error": "工場が見つかりません"}), 404
+        
+        return jsonify(factory)
+    except Exception as e:
+        print(f"❌ 工場取得エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/v1/factories/<factory_id>", methods=["PATCH"])
+def update_factory_detail(factory_id):
+    """工場更新"""
+    try:
+        if not factory_manager:
+            return jsonify({"error": "Factory Managerが利用できません"}), 503
+        
+        data = request.get_json()
+        factory = factory_manager.update_factory(factory_id, **data)
+        
+        if not factory:
+            return jsonify({"error": "工場が見つかりません"}), 404
+        
+        return jsonify(factory)
+    except Exception as e:
+        print(f"❌ 工場更新エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# ===== フェーズ2-3: 工場教育AIモード =====
+
+@app.route("/api/factory/manual/search", methods=["POST"])
+def search_manual():
+    """作業マニュアルを検索（フェーズ2-3）"""
+    try:
+        from data_access.manual_manager import get_manual_manager
+        
+        manual_mgr = get_manual_manager()
+        if not manual_mgr:
+            return jsonify({
+                "error": "マニュアル管理機能が利用できません",
+                "message": "NOTION_MANUAL_DB_IDが設定されていない可能性があります"
+            }), 503
+        
+        data = request.get_json() or {}
+        query = data.get("query", "").strip()
+        category = data.get("category", "")
+        difficulty = data.get("difficulty", "")
+        limit = int(data.get("limit", 10))
+        
+        if not query:
+            return jsonify({"error": "検索クエリが空です"}), 400
+        
+        # マニュアルを検索
+        manuals = manual_mgr.search_manuals(
+            query=query,
+            category=category if category else None,
+            difficulty=difficulty if difficulty else None,
+            limit=limit
+        )
+        
+        return jsonify({
+            "manuals": manuals,
+            "count": len(manuals),
+            "query": query,
+            "filters": {
+                "category": category,
+                "difficulty": difficulty
+            }
+        })
+    
+    except Exception as e:
+        print(f"❌ マニュアル検索エラー: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/factory/manual/<manual_id>", methods=["GET"])
+def get_manual_detail(manual_id):
+    """マニュアル詳細を取得（フェーズ2-3）"""
+    try:
+        from data_access.manual_manager import get_manual_manager
+        
+        manual_mgr = get_manual_manager()
+        if not manual_mgr:
+            return jsonify({"error": "マニュアル管理機能が利用できません"}), 503
+        
+        manual = manual_mgr.get_manual(manual_id)
+        if not manual:
+            return jsonify({"error": "マニュアルが見つかりません"}), 404
+        
+        return jsonify(manual)
+    
+    except Exception as e:
+        print(f"❌ マニュアル取得エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/factory/technical/answer", methods=["POST"])
+def answer_technical_question():
+    """技術質問への回答を生成（フェーズ2-3）"""
+    try:
+        from data_access.manual_manager import get_manual_manager
+        from ai_symptom_classifier import SymptomClassifier
+        
+        data = request.get_json() or {}
+        question = data.get("question", "").strip()
+        context = data.get("context", {})
+        
+        if not question:
+            return jsonify({"error": "質問が空です"}), 400
+        
+        # 1. 関連マニュアルを検索
+        manual_mgr = get_manual_manager()
+        related_manuals = []
+        if manual_mgr:
+            related_manuals = manual_mgr.search_manuals(
+                query=question,
+                category=context.get("category"),
+                limit=3
+            )
+        
+        # 2. 過去の類似質問を検索（Notion ChatLogsから）
+        similar_qa = []
+        # TODO: 過去のQ&Aを検索する機能を実装
+        # （実際の実装では、より高度な類似度計算を使用）
+        
+        # 3. AIで回答を生成
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=OPENAI_API_KEY)
+            
+            # プロンプトを構築
+            manual_context = ""
+            if related_manuals:
+                manual_context = "\n\n【関連マニュアル】\n"
+                for i, manual in enumerate(related_manuals[:3], 1):
+                    manual_context += f"{i}. {manual.get('title', '')}\n"
+                    manual_context += f"   手順: {manual.get('steps', '')[:200]}...\n"
+            
+            prompt = f"""あなたはキャンピングカー修理の専門家です。以下の技術質問に回答してください。
+
+【質問】
+{question}
+
+{manual_context}
+
+【回答要件】
+1. 専門的で正確な回答
+2. 具体的な手順や方法を含める
+3. 安全注意事項があれば明記
+4. 必要に応じて工具や部品の情報を含める
+
+【回答】
+"""
+            
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "あなたはキャンピングカー修理の技術エキスパートです。工場の技術者からの質問に専門的で実践的な回答を提供してください。"
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.7,
+                max_tokens=800
+            )
+            
+            answer = response.choices[0].message.content.strip()
+            
+            # 4. カテゴリを分類
+            classifier = SymptomClassifier()
+            category_result = classifier.classify_symptom(question, use_ai=False)
+            
+            return jsonify({
+                "answer": answer,
+                "category": category_result.get("category", "一般"),
+                "confidence": category_result.get("confidence", 0.5),
+                "references": [
+                    {
+                        "type": "manual",
+                        "title": manual.get("title", ""),
+                        "id": manual.get("id", ""),
+                        "url": manual.get("url", "")
+                    }
+                    for manual in related_manuals[:3]
+                ],
+                "similar_qa_count": len(similar_qa)
+            })
+        
+        except Exception as e:
+            print(f"❌ AI回答生成エラー: {e}")
+            return jsonify({
+                "error": "回答生成に失敗しました",
+                "message": str(e)
+            }), 500
+    
+    except Exception as e:
+        print(f"❌ 技術質問回答エラー: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/factory/best-practices/suggest", methods=["POST"])
+def suggest_best_practices():
+    """ベストプラクティスを提示（フェーズ2-3）"""
+    try:
+        data = request.get_json() or {}
+        context = data.get("context", {})
+        
+        category = context.get("category", "")
+        difficulty = context.get("difficulty", "")
+        current_step = context.get("current_step", "")
+        
+        # 簡易実装: マニュアルから関連情報を取得
+        from data_access.manual_manager import get_manual_manager
+        
+        manual_mgr = get_manual_manager()
+        practices = []
+        
+        if manual_mgr:
+            # カテゴリと難易度でマニュアルを検索
+            manuals = manual_mgr.search_manuals(
+                query=current_step or category,
+                category=category if category else None,
+                difficulty=difficulty if difficulty else None,
+                limit=5
+            )
+            
+            # マニュアルからベストプラクティスを抽出
+            for manual in manuals:
+                practices.append({
+                    "id": manual.get("id", ""),
+                    "title": manual.get("title", ""),
+                    "content": manual.get("steps", "")[:300] + "...",
+                    "effect": f"作業時間: 約{manual.get('estimated_time', 0)}分",
+                    "recommendation": "高" if manual.get("difficulty") == "初級" else "中",
+                    "category": manual.get("category", ""),
+                    "difficulty": manual.get("difficulty", "")
+                })
+        
+        return jsonify({
+            "practices": practices,
+            "count": len(practices),
+            "context": context
+        })
+    
+    except Exception as e:
+        print(f"❌ ベストプラクティス提示エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# ===== フェーズ2-3: 工場教育AIモード 終了 =====
+
+# ===== フェーズ3: 工場ダッシュボードAPI（Next.js用） =====
+
+@app.route("/admin/api/cases", methods=["GET"])
+def get_admin_cases():
+    """案件一覧取得API（Next.js用、認証なしで開発）"""
+    try:
+        from data_access.factory_dashboard_manager import FactoryDashboardManager
+        
+        manager = FactoryDashboardManager()
+        
+        status = request.args.get("status")  # フィルタ（受付/診断中/修理中/完了/キャンセル）
+        limit = int(request.args.get("limit", 100))
+        partner_page_id = request.args.get("partner_page_id")  # パートナー工場のNotion Page ID
+        
+        # パートナー工場IDが指定されている場合、その工場に紹介された案件のみ取得
+        cases = manager.get_cases(
+            status=status if status else None,
+            limit=limit,
+            partner_page_id=partner_page_id if partner_page_id else None
+        )
+        
+        if partner_page_id:
+            print(f"✅ パートナー工場専用の案件取得成功: {len(cases)}件（工場ID: {partner_page_id}）")
+        else:
+            print(f"✅ 全案件取得成功: {len(cases)}件")
+        
+        return jsonify({
+            "success": True,
+            "cases": cases,
+            "count": len(cases),
+            "partner_page_id": partner_page_id  # デバッグ用
+        })
+    
+    except Exception as e:
+        import traceback
+        print(f"❌ 案件取得APIエラー: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/admin/api/update-status", methods=["POST"])
+def update_admin_case_status():
+    """ステータス更新API（Next.js用、認証なしで開発）"""
+    try:
+        data = request.get_json()
+        page_id = data.get("page_id")
+        status = data.get("status")
+        
+        if not page_id or not status:
+            return jsonify({
+                "success": False,
+                "error": "page_idとstatusが必要です"
+            }), 400
+        
+        from data_access.factory_dashboard_manager import FactoryDashboardManager
+        
+        manager = FactoryDashboardManager()
+        success = manager.update_status(page_id, status)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "ステータスを更新しました"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "ステータス更新に失敗しました"
+            }), 500
+    
+    except Exception as e:
+        import traceback
+        print(f"❌ ステータス更新APIエラー: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/admin/api/add-comment", methods=["POST"])
+def add_admin_comment():
+    """コメント追加API（Next.js用、認証なしで開発）"""
+    try:
+        data = request.get_json()
+        page_id = data.get("page_id")
+        comment = data.get("comment")
+        
+        if not page_id or not comment:
+            return jsonify({
+                "success": False,
+                "error": "page_idとcommentが必要です"
+            }), 400
+        
+        from data_access.factory_dashboard_manager import FactoryDashboardManager
+        
+        manager = FactoryDashboardManager()
+        success = manager.add_comment(page_id, comment)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "コメントを追加しました"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "コメント追加に失敗しました"
+            }), 500
+    
+    except Exception as e:
+        import traceback
+        print(f"❌ コメント追加APIエラー: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+# ===== フェーズ3: 工場ダッシュボードAPI 終了 =====
+
+@app.route("/api/v1/factories/<factory_id>/cases", methods=["GET"])
+def get_factory_cases(factory_id):
+    """工場の案件一覧取得"""
+    try:
+        if not factory_manager:
+            return jsonify({"error": "Factory Managerが利用できません"}), 503
+        
+        status = request.args.get("status")
+        limit = int(request.args.get("limit", 100))
+        
+        cases = factory_manager.get_factory_cases(
+            factory_id=factory_id,
+            status=status,
+            limit=limit
+        )
+        
+        return jsonify({
+            "factory_id": factory_id,
+            "cases": cases,
+            "count": len(cases)
+        })
+    except Exception as e:
+        print(f"❌ 工場案件取得エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/v1/builders", methods=["GET"])
+def get_builders():
+    """ビルダー一覧取得"""
+    try:
+        if not builder_manager:
+            return jsonify({"error": "Builder Managerが利用できません"}), 503
+        
+        # クエリパラメータ取得
+        status = request.args.get("status")
+        prefecture = request.args.get("prefecture")
+        limit = int(request.args.get("limit", 100))
+        
+        builders = builder_manager.list_builders(
+            status=status,
+            prefecture=prefecture,
+            limit=limit
+        )
+        
+        return jsonify({
+            "builders": builders,
+            "count": len(builders)
+        })
+    except Exception as e:
+        print(f"❌ ビルダー一覧取得エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/v1/builders", methods=["POST"])
+def create_builder():
+    """ビルダー登録"""
+    try:
+        if not builder_manager:
+            return jsonify({"error": "Builder Managerが利用できません"}), 503
+        
+        data = request.get_json()
+        
+        # 必須フィールドチェック
+        required_fields = ["name", "prefecture", "address", "phone", "email", "contact_person"]
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"{field}は必須です"}), 400
+        
+        builder = builder_manager.create_builder(
+            name=data["name"],
+            prefecture=data["prefecture"],
+            address=data["address"],
+            phone=data["phone"],
+            email=data["email"],
+            contact_person=data["contact_person"],
+            line_account=data.get("line_account"),
+            status=data.get("status", "アクティブ"),
+            total_referrals=data.get("total_referrals", 0),
+            total_deals=data.get("total_deals", 0),
+            monthly_fee=data.get("monthly_fee", 0),
+            contract_start_date=data.get("contract_start_date"),
+            notes=data.get("notes")
+        )
+        
+        return jsonify(builder), 201
+    except Exception as e:
+        print(f"❌ ビルダー登録エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/v1/builders/<builder_id>", methods=["GET"])
+def get_builder_detail(builder_id):
+    """ビルダー詳細取得"""
+    try:
+        if not builder_manager:
+            return jsonify({"error": "Builder Managerが利用できません"}), 503
+        
+        builder = builder_manager.get_builder(builder_id)
+        if not builder:
+            return jsonify({"error": "ビルダーが見つかりません"}), 404
+        
+        return jsonify(builder)
+    except Exception as e:
+        print(f"❌ ビルダー取得エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/v1/builders/<builder_id>", methods=["PATCH"])
+def update_builder_detail(builder_id):
+    """ビルダー更新"""
+    try:
+        if not builder_manager:
+            return jsonify({"error": "Builder Managerが利用できません"}), 503
+        
+        data = request.get_json()
+        builder = builder_manager.update_builder(builder_id, **data)
+        
+        if not builder:
+            return jsonify({"error": "ビルダーが見つかりません"}), 404
+        
+        return jsonify(builder)
+    except Exception as e:
+        print(f"❌ ビルダー更新エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# === 評価システムAPI ===
+@app.route("/api/v1/reviews", methods=["POST"])
+def create_review():
+    """
+    評価を作成
+    
+    Request Body:
+    {
+        "deal_id": "DEAL-20241103-001",
+        "partner_page_id": "notion-page-id",
+        "customer_name": "田中太郎",
+        "star_rating": 5,
+        "comment": "とても丁寧に対応していただきました",
+        "anonymous": false
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "review": {
+            "review_id": "REVIEW-20241103-001",
+            "star_rating": 5,
+            "comment": "...",
+            ...
+        }
+    }
+    """
+    try:
+        from data_access.review_manager import ReviewManager
+        
+        data = request.get_json()
+        deal_id = data.get("deal_id")
+        partner_page_id = data.get("partner_page_id")
+        customer_name = data.get("customer_name")
+        star_rating = data.get("star_rating")
+        comment = data.get("comment", "")
+        anonymous = data.get("anonymous", False)
+        
+        if not all([deal_id, partner_page_id, customer_name, star_rating]):
+            return jsonify({
+                "success": False,
+                "error": "deal_id, partner_page_id, customer_name, star_ratingは必須です"
+            }), 400
+        
+        if not (1 <= star_rating <= 5):
+            return jsonify({
+                "success": False,
+                "error": "star_ratingは1〜5の範囲で指定してください"
+            }), 400
+        
+        review_manager = ReviewManager()
+        review = review_manager.create_review(
+            deal_id=deal_id,
+            partner_page_id=partner_page_id,
+            customer_name=customer_name,
+            star_rating=star_rating,
+            comment=comment,
+            anonymous=anonymous
+        )
+        
+        if not review:
+            return jsonify({
+                "success": False,
+                "error": "評価の作成に失敗しました"
+            }), 500
+        
+        return jsonify({
+            "success": True,
+            "review": review
+        })
+    
+    except Exception as e:
+        import traceback
+        print(f"❌ 評価作成エラー: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/api/v1/reviews", methods=["GET"])
+def get_reviews():
+    """
+    評価一覧を取得
+    
+    Query Parameters:
+    - partner_page_id: パートナー工場のNotion Page ID（フィルタ用）
+    - status: 承認ステータス（pending / approved / rejected）
+    - limit: 取得件数（デフォルト: 20）
+    
+    Returns:
+    {
+        "success": true,
+        "reviews": [...],
+        "count": 10
+    }
+    """
+    try:
+        from data_access.review_manager import ReviewManager
+        
+        partner_page_id = request.args.get("partner_page_id")
+        status = request.args.get("status")
+        limit = int(request.args.get("limit", 20))
+        
+        review_manager = ReviewManager()
+        reviews = review_manager.get_reviews(
+            partner_page_id=partner_page_id,
+            status=status,
+            limit=limit
+        )
+        
+        return jsonify({
+            "success": True,
+            "reviews": reviews,
+            "count": len(reviews)
+        })
+    
+    except Exception as e:
+        import traceback
+        print(f"❌ 評価取得エラー: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/api/v1/reviews/<review_id>/status", methods=["PATCH"])
+def update_review_status(review_id):
+    """
+    評価の承認ステータスを更新（運営側用）
+    
+    Request Body:
+    {
+        "status": "approved",  # approved / rejected
+        "admin_comment": "承認しました"  # オプション
+    }
+    
+    Returns:
+    {
+        "success": true
+    }
+    """
+    try:
+        from data_access.review_manager import ReviewManager
+        
+        data = request.get_json()
+        status = data.get("status")
+        admin_comment = data.get("admin_comment")
+        
+        if status not in ["approved", "rejected"]:
+            return jsonify({
+                "success": False,
+                "error": "statusはapprovedまたはrejectedを指定してください"
+            }), 400
+        
+        review_manager = ReviewManager()
+        success = review_manager.update_review_status(
+            review_id=review_id,
+            status=status,
+            admin_comment=admin_comment
+        )
+        
+        if not success:
+            return jsonify({
+                "success": False,
+                "error": "評価ステータスの更新に失敗しました"
+            }), 500
+        
+        return jsonify({
+            "success": True
+        })
+    
+    except Exception as e:
+        import traceback
+        print(f"❌ 評価ステータス更新エラー: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+# === フェーズ4-1: 工場ネットワーク機能の拡張 ===
+@app.route("/api/v1/factories/match", methods=["POST"])
+def match_factory_to_case():
+    """
+    案件に最適な工場をマッチング（フェーズ4-1）
+    
+    案件情報（カテゴリ、症状、顧客所在地）に基づいて、
+    最適な工場をAIでマッチングします。
+    マッチングスコアは以下の要素で計算されます：
+    - カテゴリマッチング（専門分野との一致度）
+    - 地域マッチング（対応エリアとの一致度）
+    - キャパシティマッチング（混雑状況）
+    - 評価スコア（過去の実績）
+    
+    Request Body:
+        {
+            "case": {
+                "category": "エアコン",           # 症状カテゴリ
+                "user_message": "エアコンが効かない",  # ユーザーメッセージ
+                "customer_location": "東京都"    # 顧客所在地
+            },
+            "max_results": 5  # 返す工場の最大数（デフォルト: 5）
+        }
+    
+    Returns:
+        {
+            "success": true,
+            "matched_factories": [
+                {
+                    "factory_id": "FACTORY-001",
+                    "name": "工場名",
+                    "matching_score": 0.85,  # 総合マッチングスコア（0-1）
+                    "score_details": {
+                        "category_match": 0.9,    # カテゴリマッチングスコア
+                        "location_match": 0.8,    # 地域マッチングスコア
+                        "capacity_match": 0.9,    # キャパシティスコア
+                        "rating_score": 0.8       # 評価スコア
+                    }
+                }
+            ],
+            "count": 5
+        }
+    
+    Raises:
+        400: case情報が不足している場合
+        500: サーバーエラー
+    """
+    try:
+        from data_access.factory_matching import FactoryMatchingEngine
+        
+        data = request.get_json()
+        case = data.get("case", {})
+        max_results = int(data.get("max_results", 5))
+        
+        if not case:
+            return jsonify({
+                "success": False,
+                "error": "case情報が必要です"
+            }), 400
+        
+        matching_engine = FactoryMatchingEngine()
+        matched_factories = matching_engine.match_factory_to_case(
+            case=case,
+            max_results=max_results
+        )
+        
+        return jsonify({
+            "success": True,
+            "matched_factories": matched_factories,
+            "count": len(matched_factories)
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ 工場マッチングエラー: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/api/v1/cases/<case_id>/auto-assign", methods=["POST"])
+def auto_assign_case_to_factory(case_id):
+    """
+    案件を自動的に最適な工場に割り当て（フェーズ4-1）
+    
+    Request Body:
+    {
+        "case": {
+            "category": "エアコン",
+            "user_message": "エアコンが効かない",
+            "customer_location": "東京都"
+        }
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "assigned_factory": {
+            "factory_id": "FACTORY-001",
+            "name": "工場名",
+            "matching_score": 0.85
+        }
+    }
+    """
+    try:
+        from data_access.factory_matching import FactoryMatchingEngine
+        
+        data = request.get_json()
+        case = data.get("case", {})
+        
+        if not case:
+            return jsonify({
+                "success": False,
+                "error": "case情報が必要です"
+            }), 400
+        
+        matching_engine = FactoryMatchingEngine()
+        assigned_factory = matching_engine.auto_assign_case(
+            case_id=case_id,
+            case=case
+        )
+        
+        if assigned_factory:
+            return jsonify({
+                "success": True,
+                "assigned_factory": assigned_factory
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "マッチする工場が見つかりませんでした"
+            }), 404
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ 案件自動割り当てエラー: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+# === フェーズ4-2: ビルダー（販売店）連携機能 ===
+@app.route("/api/v1/partner-shops", methods=["GET"])
+def get_partner_shops():
+    """パートナー修理店一覧取得"""
+    try:
+        from data_access.partner_shop_manager import PartnerShopManager
+        
+        manager = PartnerShopManager()
+        
+        status = request.args.get("status")
+        prefecture = request.args.get("prefecture")
+        specialty = request.args.get("specialty")
+        limit = int(request.args.get("limit", 100))
+        
+        shops = manager.list_shops(
+            status=status,
+            prefecture=prefecture,
+            specialty=specialty,
+            limit=limit
+        )
+        
+        return jsonify({
+            "shops": shops,
+            "count": len(shops)
+        })
+    except Exception as e:
+        print(f"❌ パートナー修理店一覧取得エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/v1/partner-shops/<shop_id>", methods=["GET"])
+def get_partner_shop_detail(shop_id):
+    """パートナー修理店詳細取得"""
+    try:
+        from data_access.partner_shop_manager import PartnerShopManager
+        
+        manager = PartnerShopManager()
+        shop = manager.get_shop(shop_id)
+        
+        if not shop:
+            return jsonify({"error": "パートナー修理店が見つかりません"}), 404
+        
+        return jsonify(shop)
+    except Exception as e:
+        print(f"❌ パートナー修理店取得エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/v1/deals", methods=["POST"])
+def create_deal():
+    """商談作成（問い合わせフォーム送信）"""
+    try:
+        from data_access.deal_manager import DealManager
+        
+        data = request.get_json()
+        
+        # 必須項目チェック
+        required_fields = [
+            "customer_name", "phone", "prefecture",
+            "symptom_category", "symptom_detail", "partner_page_id"
+        ]
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    "success": False,
+                    "error": f"{field}は必須です"
+                }), 400
+        
+        deal_manager = DealManager()
+        deal = deal_manager.create_inquiry(
+            customer_name=data["customer_name"],
+            phone=data["phone"],
+            prefecture=data["prefecture"],
+            symptom_category=data["symptom_category"],
+            symptom_detail=data["symptom_detail"],
+            partner_page_id=data["partner_page_id"],
+            email=data.get("email"),
+            notification_method=data.get("notification_method"),
+            line_user_id=data.get("line_user_id")
+        )
+        
+        # 通知機能（メール + LINE）
+        try:
+            from notification.email_sender import EmailSender
+            from notification.line_notifier import LineNotifier
+            from data_access.partner_shop_manager import PartnerShopManager
+            
+            email_sender = EmailSender()
+            line_notifier = LineNotifier()
+            
+            # 修理店情報を取得
+            partner_manager = PartnerShopManager()
+            partner_shop = partner_manager.get_shop_by_page_id(data["partner_page_id"])
+            
+            if partner_shop:
+                customer_info = {
+                    "name": data["customer_name"],
+                    "phone": data["phone"],
+                    "prefecture": data["prefecture"],
+                    "email": data.get("email", ""),
+                    "category": data["symptom_category"],
+                    "detail": data["symptom_detail"]
+                }
+                partner_name = partner_shop.get("name", "修理店様")
+                
+                # 通知方法を取得（デフォルトはメール）
+                notification_method = data.get("notification_method", "email")
+                
+                # メール通知機能（メールを選択した場合）
+                if notification_method == "email" and email_sender.enabled:
+                    # 修理店にメール通知
+                    if partner_shop.get("email"):
+                        email_sender.send_to_partner(
+                            partner_email=partner_shop["email"],
+                            partner_name=partner_name,
+                            customer_info=customer_info
+                        )
+                    
+                    # 顧客に確認メール（メールアドレスが入力されている場合）
+                    if data.get("email"):
+                        email_sender.send_to_customer(
+                            customer_email=data["email"],
+                            customer_name=data["customer_name"],
+                            partner_name=partner_name
+                        )
+                        
+                        # 自動返信メールを送信（システムフロー図のステップ0に対応）
+                        email_sender.send_auto_reply_to_customer(
+                            customer_email=data["email"],
+                            customer_name=data["customer_name"]
+                        )
+                elif notification_method == "email" and not email_sender.enabled:
+                    print("⚠️ SMTP設定が不完全です。メール送信をスキップします。")
+                
+                # LINE通知機能（LINEを選択した場合）
+                if notification_method == "line" and line_notifier.enabled and partner_shop.get("line_notification"):
+                    line_user_id = partner_shop.get("line_user_id")
+                    
+                    # LINEユーザーIDが設定されていない場合、Webhook URLから抽出を試みる
+                    if not line_user_id:
+                        line_webhook_url = partner_shop.get("line_webhook_url")
+                        if line_webhook_url:
+                            # Webhook URLからユーザーIDを抽出する試み（カスタムWebhookの場合は別途実装が必要）
+                            print("⚠️ LINEユーザーIDが設定されていません。Webhook URLから抽出を試みます。")
+                    
+                    # 修理店にLINE通知
+                    if line_user_id:
+                        line_result = line_notifier.send_to_partner(
+                            line_user_id=line_user_id,
+                            partner_name=partner_name,
+                            customer_info=customer_info
+                        )
+                        if line_result.get("success"):
+                            print(f"✅ LINE通知送信成功: {partner_name}")
+                        else:
+                            print(f"⚠️ LINE通知送信失敗: {line_result.get('error')}")
+                    else:
+                        print("⚠️ LINEユーザーIDが設定されていません。LINE通知をスキップします。")
+                elif notification_method == "line" and partner_shop.get("line_notification") and not line_notifier.enabled:
+                    print("⚠️ LINE_CHANNEL_ACCESS_TOKENが設定されていません。LINE通知をスキップします。")
+                
+                # 顧客へのLINE通知（顧客がLINE Loginでログインしている場合、かつLINE通知を希望している場合）
+                if notification_method == "line" and line_notifier.enabled and data.get("line_user_id"):
+                    customer_line_result = line_notifier.send_to_customer(
+                        line_user_id=data["line_user_id"],
+                        customer_name=data["customer_name"],
+                        partner_name=partner_name,
+                        deal_id=deal.get("deal_id")
+                    )
+                    if customer_line_result.get("success"):
+                        print(f"✅ 顧客へのLINE通知送信成功: {data['customer_name']}")
+                    else:
+                        print(f"⚠️ 顧客へのLINE通知送信失敗: {customer_line_result.get('error')}")
+                    
+        except Exception as notification_error:
+            # 通知エラーはログに記録するが、商談作成は成功とする
+            print(f"⚠️ 通知エラー（商談は正常に作成されました）: {notification_error}")
+            import traceback
+            traceback.print_exc()
+        
+        return jsonify({
+            "success": True,
+            "deal": deal,
+            "message": "問い合わせを受け付けました"
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ 商談作成エラー: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/api/v1/deals", methods=["GET"])
+def get_deals():
+    """商談一覧取得"""
+    try:
+        from data_access.deal_manager import DealManager
+        
+        deal_manager = DealManager()
+        
+        status = request.args.get("status")
+        partner_page_id = request.args.get("partner_page_id")
+        limit = int(request.args.get("limit", 100))
+        
+        deals = deal_manager.list_deals(
+            status=status,
+            partner_page_id=partner_page_id,
+            limit=limit
+        )
+        
+        return jsonify({
+            "deals": deals,
+            "count": len(deals)
+        })
+    except Exception as e:
+        print(f"❌ 商談一覧取得エラー: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/v1/deals/<deal_id>/status", methods=["PATCH"])
+def update_deal_status(deal_id):
+    """商談ステータス更新"""
+    try:
+        from data_access.deal_manager import DealManager
+        from data_access.partner_shop_manager import PartnerShopManager
+        from notification.email_sender import EmailSender
+        from notification.line_notifier import LineNotifier
+        
+        data = request.get_json()
+        status = data.get("status")
+        notes = data.get("notes")  # 備考（オプション）
+        
+        if not status:
+            return jsonify({
+                "success": False,
+                "error": "statusが必要です"
+            }), 400
+        
+        deal_manager = DealManager()
+        updated_deal = deal_manager.update_deal_status(deal_id, status)
+        
+        if not updated_deal:
+            return jsonify({
+                "success": False,
+                "error": "商談が見つかりません"
+            }), 404
+        
+        # ステータス更新通知を送信
+        try:
+            email_sender = EmailSender()
+            line_notifier = LineNotifier()
+            
+            # 商談情報を取得
+            deal = deal_manager.get_deal(deal_id)
+            if deal:
+                notification_method = deal.get("notification_method", "email")
+                customer_name = deal.get("customer_name", "")
+                customer_email = deal.get("email")
+                line_user_id = deal.get("line_user_id")
+                
+                # 修理店情報を取得
+                partner_page_ids = deal.get("partner_page_ids", [])
+                partner_name = "修理店"
+                if partner_page_ids:
+                    partner_manager = PartnerShopManager()
+                    partner_shop = partner_manager.get_shop_by_page_id(partner_page_ids[0])
+                    if partner_shop:
+                        partner_name = partner_shop.get("name", "修理店")
+                
+                # メール通知（メールを選択した場合）
+                if notification_method == "email" and email_sender.enabled and customer_email:
+                    email_sender.send_status_update_to_customer(
+                        customer_email=customer_email,
+                        customer_name=customer_name,
+                        partner_name=partner_name,
+                        status=status,
+                        deal_id=deal_id,
+                        notes=notes
+                    )
+                
+                # LINE通知（LINEを選択した場合）
+                if notification_method == "line" and line_notifier.enabled and line_user_id:
+                    line_notifier.send_status_update_notification(
+                        line_user_id=line_user_id,
+                        customer_name=customer_name,
+                        partner_name=partner_name,
+                        status=status,
+                        deal_id=deal_id,
+                        notes=notes
+                    )
+                    
+        except Exception as notification_error:
+            # 通知エラーはログに記録するが、ステータス更新は成功とする
+            print(f"⚠️ ステータス更新通知エラー（ステータス更新は正常に完了しました）: {notification_error}")
+            import traceback
+            traceback.print_exc()
+        
+        return jsonify({
+            "success": True,
+            "deal": updated_deal
+        })
+        
+    except Exception as e:
+        print(f"❌ 商談ステータス更新エラー: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/api/v1/deals/<deal_id>/customer-notes", methods=["POST"])
+def add_customer_note(deal_id):
+    """お客様からの備考追加"""
+    try:
+        from data_access.deal_manager import DealManager
+        from data_access.partner_shop_manager import PartnerShopManager
+        from notification.email_sender import EmailSender
+        from notification.line_notifier import LineNotifier
+        
+        data = request.get_json()
+        customer_note = data.get("note") or data.get("customer_note")
+        
+        if not customer_note:
+            return jsonify({
+                "success": False,
+                "error": "note（備考）が必要です"
+            }), 400
+        
+        deal_manager = DealManager()
+        updated_deal = deal_manager.add_customer_note(deal_id, customer_note)
+        
+        if not updated_deal:
+            return jsonify({
+                "success": False,
+                "error": "商談が見つかりません"
+            }), 404
+        
+        # 工場側への自動通知
+        try:
+            email_sender = EmailSender()
+            line_notifier = LineNotifier()
+            
+            # 商談情報を取得
+            deal = deal_manager.get_deal(deal_id)
+            if deal:
+                customer_name = deal.get("customer_name", "")
+                customer_phone = deal.get("phone", "")
+                
+                # 修理店情報を取得
+                partner_page_ids = deal.get("partner_page_ids", [])
+                if partner_page_ids:
+                    partner_manager = PartnerShopManager()
+                    partner_shop = partner_manager.get_shop_by_page_id(partner_page_ids[0])
+                    
+                    if partner_shop:
+                        partner_name = partner_shop.get("name", "修理店")
+                        partner_email = partner_shop.get("email")
+                        partner_line_user_id = partner_shop.get("line_user_id")
+                        
+                        # 工場側にメール通知
+                        if email_sender.enabled and partner_email:
+                            subject = "【お客様からのメッセージ】岡山キャンピングカー修理サポートセンター"
+                            body = f"""
+{partner_name} 様
+
+お世話になっております。
+岡山キャンピングカー修理サポートセンターです。
+
+お客様からメッセージが届きました。
+
+【商談ID】
+{deal_id}
+
+【お客様情報】
+お名前: {customer_name}
+電話番号: {customer_phone}
+
+【お客様からのメッセージ】
+{customer_note}
+
+Notionダッシュボードで詳細を確認してください。
+
+---
+岡山キャンピングカー修理サポートセンター
+https://camper-repair.net/
+"""
+                            email_sender._send_email(partner_email, subject, body)
+                        
+                        # 工場側にLINE通知
+                        if line_notifier.enabled and partner_shop.get("line_notification") and partner_line_user_id:
+                            message = f"""📝 お客様からメッセージが届きました
+
+【商談ID】
+{deal_id}
+
+【お客様】
+{customer_name}様
+
+【メッセージ】
+{customer_note}
+
+Notionダッシュボードで詳細を確認してください。
+"""
+                            line_notifier._send_notification(partner_line_user_id, message)
+                            
+        except Exception as notification_error:
+            # 通知エラーはログに記録するが、備考追加は成功とする
+            print(f"⚠️ 工場側通知エラー（備考追加は正常に完了しました）: {notification_error}")
+            import traceback
+            traceback.print_exc()
+        
+        return jsonify({
+            "success": True,
+            "deal": updated_deal,
+            "message": "メッセージを送信しました。修理店より連絡がありますので、しばらくお待ちください。"
+        })
+        
+    except Exception as e:
+        print(f"❌ お客様備考追加エラー: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/api/v1/deals/<deal_id>/progress-report", methods=["POST"])
+def add_progress_report(deal_id):
+    """工場側からの経過報告送信"""
+    try:
+        from data_access.deal_manager import DealManager
+        from data_access.partner_shop_manager import PartnerShopManager
+        from notification.email_sender import EmailSender
+        from notification.line_notifier import LineNotifier
+        
+        data = request.get_json()
+        progress_message = data.get("message") or data.get("progress_message")
+        
+        if not progress_message:
+            return jsonify({
+                "success": False,
+                "error": "message（経過報告内容）が必要です"
+            }), 400
+        
+        deal_manager = DealManager()
+        
+        # 経過報告を追加（最大2回まで）
+        try:
+            updated_deal = deal_manager.add_progress_report(deal_id, progress_message, max_reports=2)
+        except ValueError as ve:
+            # 最大回数に達した場合
+            return jsonify({
+                "success": False,
+                "error": str(ve)
+            }), 400
+        
+        if not updated_deal:
+            return jsonify({
+                "success": False,
+                "error": "商談が見つかりません"
+            }), 404
+        
+        # お客様への自動通知
+        try:
+            email_sender = EmailSender()
+            line_notifier = LineNotifier()
+            
+            # 商談情報を取得
+            deal = deal_manager.get_deal(deal_id)
+            if deal:
+                notification_method = deal.get("notification_method", "email")
+                customer_name = deal.get("customer_name", "")
+                customer_email = deal.get("email")
+                line_user_id = deal.get("line_user_id")
+                
+                # 修理店情報を取得
+                partner_page_ids = deal.get("partner_page_ids", [])
+                partner_name = "修理店"
+                if partner_page_ids:
+                    partner_manager = PartnerShopManager()
+                    partner_shop = partner_manager.get_shop_by_page_id(partner_page_ids[0])
+                    if partner_shop:
+                        partner_name = partner_shop.get("name", "修理店")
+                
+                # 現在の報告回数を取得
+                report_count = updated_deal.get("progress_report_count", 0)
+                
+                # メール通知（メールを選択した場合）
+                if notification_method == "email" and email_sender.enabled and customer_email:
+                    email_sender.send_progress_report_to_customer(
+                        customer_email=customer_email,
+                        customer_name=customer_name,
+                        partner_name=partner_name,
+                        progress_message=progress_message,
+                        report_count=report_count,
+                        deal_id=deal_id
+                    )
+                
+                # LINE通知（LINEを選択した場合）
+                if notification_method == "line" and line_notifier.enabled and line_user_id:
+                    line_notifier.send_progress_report_notification(
+                        line_user_id=line_user_id,
+                        customer_name=customer_name,
+                        partner_name=partner_name,
+                        progress_message=progress_message,
+                        report_count=report_count,
+                        deal_id=deal_id
+                    )
+                    
+        except Exception as notification_error:
+            # 通知エラーはログに記録するが、経過報告追加は成功とする
+            print(f"⚠️ 経過報告通知エラー（経過報告追加は正常に完了しました）: {notification_error}")
+            import traceback
+            traceback.print_exc()
+        
+        return jsonify({
+            "success": True,
+            "deal": updated_deal,
+            "message": f"経過報告を送信しました（{updated_deal.get('progress_report_count', 0)}/2回）"
+        })
+        
+    except Exception as e:
+        print(f"❌ 経過報告追加エラー: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/api/v1/deals/by-page-id/<page_id>", methods=["GET"])
+def get_deal_by_page_id(page_id):
+    """Page IDから商談IDを取得"""
+    try:
+        from data_access.deal_manager import DealManager
+        
+        deal_manager = DealManager()
+        
+        # すべての商談を検索してpage_idでフィルタ
+        deals = deal_manager.list_deals(limit=1000)
+        deal = next((d for d in deals if d.get("page_id") == page_id), None)
+        
+        if not deal:
+            return jsonify({
+                "success": False,
+                "error": "商談が見つかりません"
+            }), 404
+        
+        return jsonify({
+            "success": True,
+            "deal_id": deal.get("deal_id"),
+            "deal_data": deal
+        })
+        
+    except Exception as e:
+        print(f"❌ 商談取得エラー: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/api/v1/deals/<deal_id>/amount", methods=["PATCH"])
+def update_deal_amount(deal_id):
+    """成約金額更新"""
+    try:
+        from data_access.deal_manager import DealManager
+        
+        data = request.get_json()
+        deal_amount = data.get("deal_amount")
+        commission_rate = data.get("commission_rate")
+        
+        if deal_amount is None:
+            return jsonify({
+                "success": False,
+                "error": "deal_amountが必要です"
+            }), 400
+        
+        deal_manager = DealManager()
+        updated_deal = deal_manager.update_deal_amount(
+            deal_id=deal_id,
+            deal_amount=deal_amount,
+            commission_rate=commission_rate
+        )
+        
+        if not updated_deal:
+            return jsonify({
+                "success": False,
+                "error": "商談が見つかりません"
+            }), 404
+        
+        return jsonify({
+            "success": True,
+            "deal": updated_deal
+        })
+        
+    except Exception as e:
+        print(f"❌ 成約金額更新エラー: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+# === 管理者画面API ===
+@app.route("/reload_data", methods=["POST"])
+def reload_data():
+    """データベース再構築"""
+    try:
+        print("🔄 データベース再構築を開始します...")
+        
+        # RAGシステムを再構築
+        global db
+        use_text_files = os.getenv("USE_TEXT_FILES", "true").lower() == "true"
+        
+        # 既存のDBをクリア
+        db = None
+        
+        # 新しいRAGシステムを作成
+        db = create_notion_based_rag_system(use_text_files=use_text_files)
+        
+        if db:
+            print("✅ データベース再構築が完了しました")
+            return jsonify({
+                "success": True,
+                "message": "データベースを再構築しました"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "データベースの再構築に失敗しました"
+            }), 500
+            
+    except Exception as e:
+        import traceback
+        print(f"❌ データベース再構築エラー: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/api/admin/files", methods=["GET"])
+def get_admin_files():
+    """ファイル一覧取得"""
+    try:
+        # テキストファイルを検索
+        txt_files = glob.glob("*.txt")
+        files = []
+        
+        for txt_file in txt_files:
+            try:
+                file_size = os.path.getsize(txt_file)
+                # ファイルサイズを読みやすい形式に変換
+                if file_size < 1024:
+                    size_str = f"{file_size}B"
+                elif file_size < 1024 * 1024:
+                    size_str = f"{file_size / 1024:.1f}KB"
+                else:
+                    size_str = f"{file_size / (1024 * 1024):.1f}MB"
+                
+                files.append({
+                    "name": txt_file,
+                    "size": size_str
+                })
+            except Exception as e:
+                print(f"⚠️ ファイル情報取得エラー ({txt_file}): {e}")
+        
+        return jsonify({
+            "files": files,
+            "count": len(files)
+        })
+    except Exception as e:
+        print(f"❌ ファイル一覧取得エラー: {e}")
+        return jsonify({
+            "files": [],
+            "count": 0,
+            "error": str(e)
+        }), 500
+
+# === フェーズ4-4: AI工賃推定 ===
+@app.route("/api/v1/cost-estimation", methods=["POST"])
+def estimate_repair_cost():
+    """
+    AI工賃推定（フェーズ4-4）
+    
+    Request Body:
+    {
+        "symptoms": "エアコンが効かない",
+        "category": "エアコン",
+        "vehicle_info": "トヨタ ハイエース 2020年式"
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "estimation": {
+            "estimated_work_hours": 2.5,
+            "difficulty": "中級",
+            "labor_cost_min": 15000,
+            "labor_cost_max": 25000,
+            "parts_cost_min": 5000,
+            "parts_cost_max": 15000,
+            "diagnosis_fee": 4000,
+            "total_cost_min": 20000,
+            "total_cost_max": 40000,
+            "reasoning": "推定理由の説明",
+            "similar_cases_count": 3
+        }
+    }
+    """
+    try:
+        from data_access.cost_estimation import CostEstimationEngine
+        
+        data = request.get_json()
+        symptoms = data.get("symptoms", "")
+        category = data.get("category")
+        vehicle_info = data.get("vehicle_info")
+        
+        if not symptoms:
+            return jsonify({
+                "success": False,
+                "error": "symptoms（症状）が必要です"
+            }), 400
+        
+        estimation_engine = CostEstimationEngine()
+        estimation = estimation_engine.estimate_cost(
+            symptoms=symptoms,
+            category=category,
+            vehicle_info=vehicle_info
+        )
+        
+        return jsonify({
+            "success": True,
+            "estimation": estimation
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ 工賃推定エラー: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/api/admin/system-info", methods=["GET"])
+def get_system_info():
+    """システム情報取得"""
+    try:
+        # データベース状態を確認
+        db_status = "正常" if db else "未初期化"
+        
+        # ドキュメント数を取得（RAGシステムから）
+        doc_count = 0
+        if db:
+            try:
+                # ChromaDBの場合、コレクションから取得
+                if hasattr(db, 'get') and hasattr(db, '_collection'):
+                    # コレクションの件数を取得
+                    try:
+                        collection = db._collection
+                        if hasattr(collection, 'count'):
+                            doc_count = collection.count()
+                    except:
+                        pass
+            except Exception as e:
+                print(f"⚠️ ドキュメント数取得エラー: {e}")
+        
+        # テキストファイル数も追加
+        txt_files = glob.glob("*.txt")
+        doc_count += len(txt_files)
+        
+        return jsonify({
+            "dbStatus": db_status,
+            "docCount": doc_count
+        })
+    except Exception as e:
+        print(f"❌ システム情報取得エラー: {e}")
+        return jsonify({
+            "dbStatus": "エラー",
+            "docCount": 0,
+            "error": str(e)
+        }), 500
+
 # === アプリケーション起動 ===
 # Railway環境でも初期化処理を実行
 print("🚀 統合バックエンドAPIを起動中...")
@@ -3772,7 +6034,8 @@ try:
     if initialize_services():
         print("✅ 全サービスが正常に初期化されました")
         print("🌐 アクセスURL: http://localhost:5002")
-        print("📚 API ドキュメント: http://localhost:5002/api/unified/health")
+        print("📚 API ドキュメント (Swagger UI): http://localhost:5002/api/docs")
+        print("📋 OpenAPI仕様書 (JSON): http://localhost:5002/api/docs/openapi.json")
         print("🔧 修理アドバイスセンター: http://localhost:5002/repair_advice_center.html")
         print("🔍 テストエンドポイント: http://localhost:5002/api/test")
     else:
@@ -3791,7 +6054,8 @@ if __name__ == "__main__":
     if initialize_services():
         print("✅ 全サービスが正常に初期化されました")
         print("🌐 アクセスURL: http://localhost:5002")
-        print("📚 API ドキュメント: http://localhost:5002/api/unified/health")
+        print("📚 API ドキュメント (Swagger UI): http://localhost:5002/api/docs")
+        print("📋 OpenAPI仕様書 (JSON): http://localhost:5002/api/docs/openapi.json")
         print("🔧 修理アドバイスセンター: http://localhost:5002/repair_advice_center.html")
         print("🔍 テストエンドポイント: http://localhost:5002/api/test")
         print("🔍 診断フローAPI: http://localhost:5002/chat/diagnose/start")

@@ -1,0 +1,1168 @@
+openapi: 3.0.3
+info:
+  title: Camper Repair System API
+  description: |
+    キャンピングカー修理支援システムのRESTful API
+    
+    このAPIは、お客様からの問い合わせから修理完了までをサポートする包括的なシステムです。
+    
+    ## 主な機能
+    - チャットボットによる問い合わせ対応
+    - AI工賃推定
+    - 工場マッチング
+    - パートナー修理店管理
+    - 商談管理
+    - 工場・ビルダー管理
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@camper-repair.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:5002
+    description: ローカル開発環境
+  - url: https://api.camper-repair.com
+    description: 本番環境
+
+tags:
+  - name: Chat
+    description: チャットボット機能
+  - name: Factories
+    description: 工場管理
+  - name: Builders
+    description: ビルダー（販売店）管理
+  - name: Partner Shops
+    description: パートナー修理店管理
+  - name: Deals
+    description: 商談管理
+  - name: Cost Estimation
+    description: AI工賃推定
+  - name: Factory Matching
+    description: 工場マッチング
+  - name: System
+    description: システム情報
+
+paths:
+  /api/unified/health:
+    get:
+      tags:
+        - System
+      summary: ヘルスチェック
+      description: システムの稼働状況を確認します
+      responses:
+        '200':
+          description: システムは正常に稼働しています
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/unified/chat:
+    post:
+      tags:
+        - Chat
+      summary: チャット送信
+      description: ユーザーからのメッセージを受け取り、AIが回答を生成します
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: ユーザーのメッセージ
+                  example: "エアコンが効かない"
+                mode:
+                  type: string
+                  enum: [chat, diagnostic, repair_search, cost_estimate]
+                  default: chat
+                  description: チャットモード
+                include_serp:
+                  type: boolean
+                  default: true
+                  description: SERP検索を含めるか
+                session_id:
+                  type: string
+                  description: セッションID（省略可）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                    description: AIの回答
+                  rag_results:
+                    type: object
+                    description: RAG検索結果
+                  notion_results:
+                    type: object
+                    description: Notion検索結果
+                  serp_results:
+                    type: object
+                    description: SERP検索結果
+        '400':
+          description: リクエストエラー
+        '500':
+          description: サーバーエラー
+
+  /api/v1/cost-estimation:
+    post:
+      tags:
+        - Cost Estimation
+      summary: AI工賃推定
+      description: 症状に基づいて修理工賃を推定します
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - symptoms
+              properties:
+                symptoms:
+                  type: string
+                  description: 症状の詳細
+                  example: "エアコンが効かない"
+                category:
+                  type: string
+                  description: カテゴリ
+                  example: "エアコン"
+                vehicle_info:
+                  type: string
+                  description: 車両情報
+                  example: "トヨタ ハイエース 2020年式"
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  estimation:
+                    $ref: '#/components/schemas/CostEstimation'
+        '400':
+          description: リクエストエラー
+        '500':
+          description: サーバーエラー
+
+  /api/v1/factories:
+    get:
+      tags:
+        - Factories
+      summary: 工場一覧取得
+      description: 工場の一覧を取得します
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: ステータスでフィルタ
+        - name: prefecture
+          in: query
+          schema:
+            type: string
+          description: 都道府県でフィルタ
+        - name: specialty
+          in: query
+          schema:
+            type: string
+          description: 専門分野でフィルタ
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+          description: 取得件数
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  factories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Factory'
+                  count:
+                    type: integer
+        '500':
+          description: サーバーエラー
+    post:
+      tags:
+        - Factories
+      summary: 工場登録
+      description: 新しい工場を登録します
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FactoryCreate'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Factory'
+        '400':
+          description: リクエストエラー
+        '500':
+          description: サーバーエラー
+
+  /api/v1/factories/{factory_id}:
+    get:
+      tags:
+        - Factories
+      summary: 工場詳細取得
+      description: 指定された工場の詳細情報を取得します
+      parameters:
+        - name: factory_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 工場ID
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Factory'
+        '404':
+          description: 工場が見つかりません
+        '500':
+          description: サーバーエラー
+    patch:
+      tags:
+        - Factories
+      summary: 工場更新
+      description: 工場情報を更新します
+      parameters:
+        - name: factory_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 工場ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FactoryUpdate'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Factory'
+        '404':
+          description: 工場が見つかりません
+        '500':
+          description: サーバーエラー
+
+  /api/v1/factories/{factory_id}/cases:
+    get:
+      tags:
+        - Factories
+      summary: 工場の案件一覧取得
+      description: 指定された工場に割り当てられた案件の一覧を取得します
+      parameters:
+        - name: factory_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 工場ID
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: ステータスでフィルタ
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cases:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RepairCase'
+                  count:
+                    type: integer
+        '500':
+          description: サーバーエラー
+
+  /api/v1/factories/match:
+    post:
+      tags:
+        - Factory Matching
+      summary: 工場マッチング
+      description: 案件に最適な工場をマッチングします
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - case
+              properties:
+                case:
+                  type: object
+                  properties:
+                    category:
+                      type: string
+                      example: "エアコン"
+                    user_message:
+                      type: string
+                      example: "エアコンが効かない"
+                    customer_location:
+                      type: string
+                      example: "東京都"
+                max_results:
+                  type: integer
+                  default: 5
+                  description: 最大結果数
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  matched_factories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MatchedFactory'
+                  count:
+                    type: integer
+        '400':
+          description: リクエストエラー
+        '500':
+          description: サーバーエラー
+
+  /api/v1/builders:
+    get:
+      tags:
+        - Builders
+      summary: ビルダー一覧取得
+      description: ビルダー（販売店）の一覧を取得します
+      parameters:
+        - name: prefecture
+          in: query
+          schema:
+            type: string
+          description: 都道府県でフィルタ
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+          description: 取得件数
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  builders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Builder'
+                  count:
+                    type: integer
+        '500':
+          description: サーバーエラー
+    post:
+      tags:
+        - Builders
+      summary: ビルダー登録
+      description: 新しいビルダーを登録します
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuilderCreate'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Builder'
+        '400':
+          description: リクエストエラー
+        '500':
+          description: サーバーエラー
+
+  /api/v1/builders/{builder_id}:
+    get:
+      tags:
+        - Builders
+      summary: ビルダー詳細取得
+      description: 指定されたビルダーの詳細情報を取得します
+      parameters:
+        - name: builder_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ビルダーID
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Builder'
+        '404':
+          description: ビルダーが見つかりません
+        '500':
+          description: サーバーエラー
+    patch:
+      tags:
+        - Builders
+      summary: ビルダー更新
+      description: ビルダー情報を更新します
+      parameters:
+        - name: builder_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ビルダーID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuilderUpdate'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Builder'
+        '404':
+          description: ビルダーが見つかりません
+        '500':
+          description: サーバーエラー
+
+  /api/v1/partner-shops:
+    get:
+      tags:
+        - Partner Shops
+      summary: パートナー修理店一覧取得
+      description: パートナー修理店の一覧を取得します
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: ステータスでフィルタ（アクティブ、休止中、退会）
+        - name: prefecture
+          in: query
+          schema:
+            type: string
+          description: 都道府県でフィルタ
+        - name: specialty
+          in: query
+          schema:
+            type: string
+          description: 専門分野でフィルタ
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+          description: 取得件数
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  shops:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PartnerShop'
+                  count:
+                    type: integer
+        '500':
+          description: サーバーエラー
+
+  /api/v1/partner-shops/{shop_id}:
+    get:
+      tags:
+        - Partner Shops
+      summary: パートナー修理店詳細取得
+      description: 指定されたパートナー修理店の詳細情報を取得します
+      parameters:
+        - name: shop_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: パートナー修理店ID
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerShop'
+        '404':
+          description: パートナー修理店が見つかりません
+        '500':
+          description: サーバーエラー
+
+  /api/v1/deals:
+    get:
+      tags:
+        - Deals
+      summary: 商談一覧取得
+      description: 商談の一覧を取得します
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: ステータスでフィルタ（pending、contacted、completed、cancelled）
+        - name: partner_page_id
+          in: query
+          schema:
+            type: string
+          description: パートナー修理店IDでフィルタ
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+          description: 取得件数
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deals:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Deal'
+                  count:
+                    type: integer
+        '500':
+          description: サーバーエラー
+    post:
+      tags:
+        - Deals
+      summary: 商談作成
+      description: 新しい商談（問い合わせ）を作成します
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DealCreate'
+      responses:
+        '200':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  deal:
+                    $ref: '#/components/schemas/Deal'
+                  message:
+                    type: string
+        '400':
+          description: リクエストエラー
+        '500':
+          description: サーバーエラー
+
+  /api/v1/deals/{deal_id}/status:
+    patch:
+      tags:
+        - Deals
+      summary: 商談ステータス更新
+      description: 商談のステータスを更新します
+      parameters:
+        - name: deal_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 商談ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [pending, contacted, completed, cancelled]
+                  description: 新しいステータス
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  deal:
+                    $ref: '#/components/schemas/Deal'
+        '400':
+          description: リクエストエラー
+        '404':
+          description: 商談が見つかりません
+        '500':
+          description: サーバーエラー
+
+  /api/v1/deals/{deal_id}/amount:
+    patch:
+      tags:
+        - Deals
+      summary: 成約金額更新
+      description: 商談の成約金額を更新します
+      parameters:
+        - name: deal_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 商談ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - deal_amount
+              properties:
+                deal_amount:
+                  type: number
+                  description: 成約金額（円）
+                commission_rate:
+                  type: number
+                  default: 15
+                  description: 手数料率（%）
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  deal:
+                    $ref: '#/components/schemas/Deal'
+        '400':
+          description: リクエストエラー
+        '404':
+          description: 商談が見つかりません
+        '500':
+          description: サーバーエラー
+
+components:
+  schemas:
+    CostEstimation:
+      type: object
+      properties:
+        estimated_work_hours:
+          type: number
+          description: 推定作業時間（時間）
+          example: 2.5
+        difficulty:
+          type: string
+          description: 難易度
+          enum: [初級, 中級, 上級]
+          example: "中級"
+        labor_cost_min:
+          type: number
+          description: 工賃（最小値、円）
+          example: 15000
+        labor_cost_max:
+          type: number
+          description: 工賃（最大値、円）
+          example: 25000
+        parts_cost_min:
+          type: number
+          description: 部品代（最小値、円）
+          example: 5000
+        parts_cost_max:
+          type: number
+          description: 部品代（最大値、円）
+          example: 15000
+        diagnosis_fee:
+          type: number
+          description: 診断料（円）
+          example: 4000
+        total_cost_min:
+          type: number
+          description: 合計金額（最小値、円）
+          example: 20000
+        total_cost_max:
+          type: number
+          description: 合計金額（最大値、円）
+          example: 40000
+        reasoning:
+          type: string
+          description: 推定理由
+          example: "過去の類似事例から、エアコンフィルターの清掃または交換が必要と推定されます。"
+        similar_cases_count:
+          type: integer
+          description: 類似事例数
+          example: 3
+        similar_cases_avg_cost:
+          type: number
+          description: 類似事例の平均金額
+          example: 25000
+
+    Factory:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 工場ID
+        name:
+          type: string
+          description: 工場名
+        prefecture:
+          type: string
+          description: 都道府県
+        address:
+          type: string
+          description: 住所
+        phone:
+          type: string
+          description: 電話番号
+        email:
+          type: string
+          format: email
+          description: メールアドレス
+        specialties:
+          type: array
+          items:
+            type: string
+          description: 専門分野
+        business_hours:
+          type: string
+          description: 営業時間
+        service_areas:
+          type: array
+          items:
+            type: string
+          description: 対応エリア
+        status:
+          type: string
+          enum: [アクティブ, 休止中, 退会]
+          description: ステータス
+        total_cases:
+          type: integer
+          description: 総案件数
+        completed_cases:
+          type: integer
+          description: 完了案件数
+        avg_response_time:
+          type: number
+          description: 平均応答時間（時間）
+        rating:
+          type: number
+          description: 評価（0-5）
+        notes:
+          type: string
+          description: 備考
+
+    FactoryCreate:
+      type: object
+      required:
+        - name
+        - prefecture
+        - address
+        - phone
+        - email
+        - specialties
+        - business_hours
+        - service_areas
+      properties:
+        name:
+          type: string
+        prefecture:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        specialties:
+          type: array
+          items:
+            type: string
+        business_hours:
+          type: string
+        service_areas:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          default: "アクティブ"
+        total_cases:
+          type: integer
+          default: 0
+        completed_cases:
+          type: integer
+          default: 0
+        avg_response_time:
+          type: number
+          default: 0
+        rating:
+          type: number
+          default: 0
+        notes:
+          type: string
+
+    FactoryUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        prefecture:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        specialties:
+          type: array
+          items:
+            type: string
+        business_hours:
+          type: string
+        service_areas:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        total_cases:
+          type: integer
+        completed_cases:
+          type: integer
+        avg_response_time:
+          type: number
+        rating:
+          type: number
+        notes:
+          type: string
+
+    MatchedFactory:
+      type: object
+      properties:
+        factory_id:
+          type: string
+          description: 工場ID
+        name:
+          type: string
+          description: 工場名
+        matching_score:
+          type: number
+          description: マッチングスコア（0-1）
+        score_details:
+          type: object
+          description: スコア詳細
+          properties:
+            category_match:
+              type: number
+            location_match:
+              type: number
+            capacity_match:
+              type: number
+            rating_score:
+              type: number
+
+    Builder:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ビルダーID
+        name:
+          type: string
+          description: ビルダー名
+        prefecture:
+          type: string
+          description: 都道府県
+        address:
+          type: string
+          description: 住所
+        phone:
+          type: string
+          description: 電話番号
+        email:
+          type: string
+          format: email
+          description: メールアドレス
+        status:
+          type: string
+          enum: [アクティブ, 休止中, 退会]
+          description: ステータス
+
+    BuilderCreate:
+      type: object
+      required:
+        - name
+        - prefecture
+        - address
+        - phone
+        - email
+      properties:
+        name:
+          type: string
+        prefecture:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          default: "アクティブ"
+
+    BuilderUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        prefecture:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+
+    PartnerShop:
+      type: object
+      properties:
+        id:
+          type: string
+          description: パートナー修理店ID
+        name:
+          type: string
+          description: 店舗名
+        phone:
+          type: string
+          description: 電話番号
+        email:
+          type: string
+          format: email
+          description: メールアドレス
+        prefecture:
+          type: string
+          description: 都道府県
+        address:
+          type: string
+          description: 住所
+        specialties:
+          type: array
+          items:
+            type: string
+          description: 専門分野
+        business_hours:
+          type: string
+          description: 営業時間
+        diagnosis_fee:
+          type: number
+          description: 初診断料（円）
+        success_rate:
+          type: number
+          description: 成約率（%）
+        total_referrals:
+          type: integer
+          description: 総紹介数
+        completed_deals:
+          type: integer
+          description: 成約数
+        status:
+          type: string
+          enum: [アクティブ, 休止中, 退会]
+          description: ステータス
+
+    Deal:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 商談ID
+        customer_name:
+          type: string
+          description: 顧客名
+        phone:
+          type: string
+          description: 電話番号
+        email:
+          type: string
+          format: email
+          description: メールアドレス
+        prefecture:
+          type: string
+          description: 都道府県
+        symptom_category:
+          type: string
+          description: 症状カテゴリ
+        symptom_detail:
+          type: string
+          description: 症状詳細
+        partner_page_id:
+          type: string
+          description: パートナー修理店ID
+        inquiry_date:
+          type: string
+          format: date-time
+          description: 問い合わせ日時
+        status:
+          type: string
+          enum: [pending, contacted, completed, cancelled]
+          description: ステータス
+        deal_amount:
+          type: number
+          description: 成約金額（円）
+        commission_rate:
+          type: number
+          description: 手数料率（%）
+        commission_amount:
+          type: number
+          description: 手数料金額（円）
+        payment_status:
+          type: string
+          enum: [未払い, 支払済み]
+          description: 支払いステータス
+        notes:
+          type: string
+          description: 備考
+
+    DealCreate:
+      type: object
+      required:
+        - customer_name
+        - phone
+        - prefecture
+        - symptom_category
+        - symptom_detail
+        - partner_page_id
+      properties:
+        customer_name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        prefecture:
+          type: string
+        symptom_category:
+          type: string
+        symptom_detail:
+          type: string
+        partner_page_id:
+          type: string
+
+    RepairCase:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 案件ID
+        category:
+          type: string
+          description: カテゴリ
+        user_message:
+          type: string
+          description: ユーザーメッセージ
+        status:
+          type: string
+          enum: [pending, in_progress, completed, cancelled]
+          description: ステータス
+        assigned_factory_id:
+          type: string
+          description: 割り当てられた工場ID
+        created_at:
+          type: string
+          format: date-time
+          description: 作成日時
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: APIキー認証（将来実装予定）
+

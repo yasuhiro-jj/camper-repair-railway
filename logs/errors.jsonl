@@ -1,0 +1,6 @@
+{"timestamp": "2025-11-16T22:43:45.832840", "session_id": "test-session-001", "error_type": "Test_Error", "error_message": "これはテストエラーです", "context": {"test": true}}
+{"timestamp": "2025-11-16T22:43:45.834839", "session_id": "unknown", "error_type": "OpenAI_429", "error_message": "429 Rate limit exceeded", "context": {"attempt": 1, "max_retries": 3, "error_details": ""}}
+{"timestamp": "2025-11-16T22:43:45.836829", "session_id": "unknown", "error_type": "OpenAI_401", "error_message": "401 Unauthorized", "context": {"attempt": 1}}
+{"timestamp": "2025-11-16T22:43:45.838825", "session_id": "unknown", "error_type": "Notion_DatabaseNotFound", "error_message": "Could not find database with ID: test-id", "context": {"operation": "Notion検索", "traceback": "NoneType: None\n"}}
+{"timestamp": "2025-11-16T22:43:45.840819", "session_id": "unknown", "error_type": "RAG_SearchError", "error_message": "ChromaDB connection failed", "context": {"query": "エアコン", "traceback": "NoneType: None\n"}}
+{"timestamp": "2025-11-16T22:43:45.842814", "session_id": "unknown", "error_type": "SERP_Unauthorized", "error_message": "SERP API key invalid", "context": {"query": "エアコン", "traceback": "NoneType: None\n"}}

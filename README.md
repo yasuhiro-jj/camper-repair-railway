@@ -25,6 +25,34 @@ Notion統合型の最強キャンピングカー修理サポートシステム
 - 24カテゴリの修理情報
 - リアルタイム検索
 
+### 5. 📱 LINE通知機能
+- **ブラウザ版チャットボット**でやり取り
+- **LINE Login**でユーザー認証・ユーザーID取得
+- **LINE Messaging API**でプッシュ通知送信
+- Notionデータベースから自動通知（修理完了、ステータス更新など）
+- リッチなFlexメッセージ対応
+
+### 6. 🎯 修理工場マッチングLP（お客様用）
+- **キャンピングカー修理工場マッチングLP（お客様用）** (`/lp-camper-repair`)
+- キャンピングカー所有者（お客様）向けの修理工場マッチングLP
+- 修理工場・大工・公務店・自動車整備工場を探せるサービス
+- AI診断と自動マッチング機能の紹介
+- キャンピングカー修理の現状と課題の説明
+- 利用の流れの説明
+- 問い合わせフォーム（ユーザー向け）
+- SEO最適化済み（メタタグ、構造化データ）
+
+### 7. 🏭 パートナー募集LP（修理工場向け）
+- **キャンピングカー修理パートナー募集LP** (`/lp-partner-recruit`)
+- 修理工場・大工・公務店・自動車整備工場・個人職人向けの募集LP
+- 専門業者でなくても参画できることを強調
+- パートナーになるメリットの説明
+- 修理依頼の流れの説明
+- 料金モデル（登録無料、手数料10〜20%）の説明
+- 事例紹介とFAQ
+- パートナー登録フォーム
+- SEO最適化済み（メタタグ、構造化データ）
+
 ## 🏗️ システム構成
 
 ### バックエンド
@@ -65,6 +93,18 @@ gunicorn>=21.2.0
 
 ## 🚀 ローカルセットアップ
 
+### クイックスタート（概要）
+
+1. **環境変数を設定**（`.env`ファイルを作成）
+2. **依存関係をインストール**（バックエンド・フロントエンド）
+3. **バックエンドを起動**（Anaconda Prompt）
+4. **フロントエンドを起動**（別ターミナル）
+5. **ブラウザでアクセス**（http://localhost:3000）
+
+詳細な手順は以下を参照してください。
+
+---
+
 ### 1. リポジトリをクローン
 
 ```bash
@@ -74,7 +114,9 @@ cd camper-repair-clean
 
 ### 2. 環境変数を設定
 
-`env.example`を参考に環境変数を設定：
+#### バックエンドの環境変数
+
+プロジェクトルートに`.env`ファイルを作成（`env.example`を参考）：
 
 ```bash
 # .envファイルを作成
@@ -84,25 +126,445 @@ NODE_DB_ID=your_diagnostic_flow_db_id
 CASE_DB_ID=your_repair_case_db_id
 ITEM_DB_ID=your_parts_tools_db_id
 KNOWLEDGE_BASE_DB_ID=2d099e34964341d4ba39b291f24d6b6b
+
+# LINE通知機能（オプション）
+LINE_CHANNEL_ID=your_line_channel_id
+LINE_CHANNEL_SECRET=your_line_channel_secret
+LINE_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token
+LINE_LOGIN_CALLBACK_URL=https://your-domain.com/api/line/login/callback
 ```
+
+**重要**: `.env`ファイルが存在しないとバックエンドが起動できません。
+
+#### フロントエンドの環境変数
+
+`frontend/.env.local`ファイルを作成（オプション、デフォルト値で動作します）：
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5002
+```
+
+**注意**: `.env.local`ファイルが存在しない場合、フロントエンドはデフォルトで`http://localhost:5002`を使用します。
 
 ### 3. 依存関係をインストール
 
+#### バックエンドの依存関係
+
+Anaconda Promptで実行：
+
 ```bash
-pip install -r requirements.txt
+# conda環境をアクティベート（環境が存在する場合）
+conda activate campingrepare
+
+# 依存関係をインストール
+python -m pip install -r requirements.txt
 ```
+
+**注意**: 
+- `pip install`がエラーになる場合は、`python -m pip install`を使用してください
+- `campingrepare`環境が存在しない場合は、先に環境を作成してください：
+```bash
+conda create -n campingrepare python=3.9 -y
+conda activate campingrepare
+python -m pip install -r requirements.txt
+```
+
+**トラブルシューティング**:
+- `pip install`でエラーが発生する場合：
+  ```bash
+  # Pythonを直接使ってpipを実行
+  python -m pip install -r requirements.txt
+  ```
+- それでも解決しない場合：
+  ```bash
+  # condaで主要パッケージをインストール
+  conda install flask flask-cors python-dotenv requests pyyaml -y
+  # 残りをpipでインストール
+  python -m pip install langchain langchain-openai langchain-community langchain-chroma notion-client aiohttp chromadb sentence-transformers openai gunicorn streamlit "numpy<2.0.0"
+  ```
+
+#### フロントエンドの依存関係
+
+コマンドプロンプトまたはPowerShellで実行：
+
+```bash
+cd frontend
+npm install
+```
+
+## 🚀 クイックスタート
+
+### 起動手順の概要
+
+1. **バックエンドを起動**（Anaconda Prompt）
+2. **フロントエンドを起動**（別ターミナル：コマンドプロンプトまたはPowerShell）
+3. **ブラウザでアクセス**（http://localhost:3000）
+
+**重要**: バックエンドとフロントエンドは**別々のターミナル**で起動してください。
+
+---
 
 ### 4. バックエンドを起動
 
+**Anaconda Promptで実行：**
+
 ```bash
+# プロジェクトディレクトリに移動
+cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean"
+
+# conda環境をアクティベート
+conda activate campingrepare
+
+# .envファイルの存在確認（重要）
+# .envファイルが存在しない場合は、ステップ2に戻って作成してください
+
+# バックエンドを起動
 python unified_backend_api.py
 ```
 
-### 5. ブラウザでアクセス
+**起動確認:**
+- 以下のメッセージが表示されれば成功：
+  ```
+  ✅ 全サービスが正常に初期化されました
+  🌐 アクセスURL: http://localhost:5002
+  ```
+- サーバーが起動すると、以下のようなメッセージが表示されます：
+  ```
+  * Running on http://127.0.0.1:5002
+  * Running on http://192.168.150.69:5002
+  ```
 
+**バックエンドの役割:**
+- APIサーバーとして動作（フロントエンドからのリクエストを処理）
+- データベース（Notion、ChromaDB）との連携
+- AI処理（GPT-4、RAG検索など）
+- APIドキュメント（Swagger UI）の提供
+
+**エラーが発生した場合:**
+- `.env`ファイルが存在するか確認
+- 必要な環境変数がすべて設定されているか確認
+- ポート5002が使用中でないか確認
+- 依存関係がインストールされているか確認（`python -m pip install -r requirements.txt`）
+
+**注意**: バックエンドは起動したままにしてください。別のターミナルでフロントエンドを起動します。
+
+---
+
+### 5. フロントエンドを起動（別ターミナル）
+
+**重要**: バックエンドを起動したターミナルとは**別のターミナル**を開いてください。
+
+**Anaconda Promptで実行：**
+
+```bash
+# Anaconda環境をアクティベート（必要に応じて）
+conda activate campingrepare
+
+# フロントエンドディレクトリに移動
+cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend"
+
+# 初回のみ：依存関係をインストール（まだの場合）
+npm install
+
+# 開発サーバーを起動
+npm run dev
+```
+
+**起動確認:**
+- 以下のメッセージが表示されれば成功：
+  ```
+  ▲ Next.js 16.0.3
+  - Local:        http://localhost:3000
+  ✓ Ready in X.XXs
+  ```
+
+**フロントエンドの役割:**
+- ユーザー向けのUIを提供（チャットボット、修理店検索など）
+- バックエンドAPIと通信
+- レスポンシブデザイン（PC・スマホ対応）
+
+**環境変数（オプション）**: `frontend/.env.local`ファイルを作成すると、バックエンドAPIのURLをカスタマイズできます：
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5002
+```
+
+**注意**: `.env.local`ファイルが存在しない場合でも、フロントエンドはデフォルトで`http://localhost:5002`を使用するため、正常に動作します。
+
+---
+
+### 6. ブラウザでアクセス
+
+両方が起動したら、ブラウザで以下にアクセス：
+
+#### 通常の使用（推奨）
+
+**フロントエンド（ユーザー向けUI）:**
+```
+http://localhost:3000
+```
+- チャットボット
+- 修理店検索
+- 問い合わせフォーム
+- LPページ
+
+**LPページ:**
+- お客様向け: http://localhost:3000/lp-camper-repair
+- 業者向け: http://localhost:3000/lp-partner-recruit
+
+#### 開発・デバッグ用
+
+**バックエンドAPI（直接アクセス）:**
 ```
 http://localhost:5002
 ```
+
+**APIドキュメント（Swagger UI）:**
+```
+http://localhost:5002/api/docs
+```
+- APIエンドポイントの一覧
+- リクエスト/レスポンスの仕様確認
+- APIのテスト実行
+
+**テストエンドポイント:**
+```
+http://localhost:5002/api/test
+```
+
+---
+
+### 7. 停止方法
+
+**バックエンドを停止:**
+- バックエンドが起動しているターミナルで `Ctrl + C` を押す
+
+**フロントエンドを停止:**
+- フロントエンドが起動しているターミナルで `Ctrl + C` を押す
+
+**注意**: 両方を停止する場合は、それぞれのターミナルで `Ctrl + C` を実行してください。
+
+---
+
+## 💾 バックアップと復旧
+
+### バックアップの実行
+
+プロジェクト全体をバックアップするには、Anaconda Promptで以下を実行：
+
+```bash
+# プロジェクトディレクトリに移動
+cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean"
+
+# バックアップスクリプトを実行
+python create_backup.py
+```
+
+または、バッチファイルを実行：
+
+```bash
+create_backup.bat
+```
+
+**バックアップ先:**
+```
+C:\Users\PC user\Desktop\camper-repair-backups\backup_YYYYMMDD_HHMMSS\
+```
+
+**バックアップされる内容:**
+- ✅ バックエンドのPythonファイル
+- ✅ `data_access/`フォルダ
+- ✅ `frontend/`フォルダ（Next.jsアプリ）
+- ✅ `templates/`フォルダ
+- ✅ `static/`フォルダ
+- ✅ 設定ファイル（`requirements.txt`など）
+- ✅ ドキュメント（`README.md`など）
+
+**除外される内容:**
+- ❌ `.env`ファイル（セキュリティ上の理由）
+- ❌ `node_modules/`（再インストール可能）
+- ❌ `chroma_db/`（再生成可能）
+- ❌ `__pycache__/`（自動生成）
+
+**重要**: `.env`ファイルは別途安全な場所に手動でバックアップしてください。
+
+---
+
+### バックアップからの復旧
+
+プロジェクトが消失したり、ファイルが破損した場合の復旧手順：
+
+#### ステップ1: バックアップフォルダを確認
+
+```bash
+# バックアップフォルダを確認
+dir "C:\Users\PC user\Desktop\camper-repair-backups"
+```
+
+利用可能なバックアップフォルダが表示されます（例: `backup_20251205_163817`）。
+
+#### ステップ2: 新しいプロジェクトディレクトリを作成（必要に応じて）
+
+プロジェクトが完全に消失している場合：
+
+```bash
+# 新しいプロジェクトディレクトリを作成（OneDrive外を推奨）
+mkdir "C:\Projects\camper-repair-clean"
+cd "C:\Projects\camper-repair-clean"
+```
+
+#### ステップ3: バックアップからファイルをコピー
+
+**方法1: 手動でコピー（推奨）**
+
+1. バックアップフォルダを開く：
+   ```
+   C:\Users\PC user\Desktop\camper-repair-backups\backup_YYYYMMDD_HHMMSS\
+   ```
+
+2. バックアップフォルダ内のすべてのファイルとフォルダを、プロジェクトディレクトリにコピー
+
+3. 以下のフォルダが含まれているか確認：
+   - `frontend/`
+   - `data_access/`
+   - `templates/`
+   - `static/`
+   - `unified_backend_api.py`
+   - `requirements.txt`
+   - その他のPythonファイル
+
+**方法2: コマンドでコピー**
+
+```bash
+# バックアップフォルダを指定（実際のフォルダ名に置き換えてください）
+set BACKUP_DIR=C:\Users\PC user\Desktop\camper-repair-backups\backup_20251205_163817
+
+# プロジェクトディレクトリに移動
+cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean"
+
+# バックアップからすべてのファイルをコピー
+xcopy /E /I /H /Y "%BACKUP_DIR%\*" .
+```
+
+#### ステップ4: 環境変数ファイルを復元
+
+`.env`ファイルを安全な場所から復元：
+
+```bash
+# .envファイルをコピー（安全な場所から）
+copy "C:\Backups\camper-repair-env-backup.txt" .env
+```
+
+または、`env.example`をコピーして手動で設定：
+
+```bash
+copy env.example .env
+# .envファイルを編集してAPIキーなどを設定
+```
+
+#### ステップ5: 依存関係をインストール
+
+**バックエンドの依存関係:**
+
+```bash
+# Anaconda Promptで実行
+conda activate campingrepare
+python -m pip install -r requirements.txt
+```
+
+**フロントエンドの依存関係:**
+
+```bash
+# コマンドプロンプトまたはPowerShellで実行
+cd frontend
+npm install
+```
+
+#### ステップ6: システムの起動確認
+
+**バックエンドを起動:**
+
+```bash
+# Anaconda Promptで実行
+conda activate campingrepare
+python unified_backend_api.py
+```
+
+**フロントエンドを起動（別ターミナル）:**
+
+```bash
+cd frontend
+npm run dev
+```
+
+#### ステップ7: 動作確認
+
+ブラウザで以下にアクセスして動作確認：
+
+- フロントエンド: http://localhost:3000
+- バックエンドAPI: http://localhost:5002
+- APIドキュメント: http://localhost:5002/api/docs
+
+---
+
+### 復旧時の注意点
+
+1. **`.env`ファイルの復元**
+   - `.env`ファイルはバックアップに含まれていません
+   - 別途安全な場所にバックアップした`.env`ファイルを復元してください
+   - または、`env.example`をコピーして手動で設定してください
+
+2. **`node_modules`の再インストール**
+   - フロントエンドの`node_modules`はバックアップに含まれていません
+   - `npm install`で再インストールしてください
+
+3. **`chroma_db`の再生成**
+   - ChromaDBはバックアップに含まれていません
+   - バックエンド起動時に自動的に再生成されます
+
+4. **conda環境の再作成**
+   - conda環境が消失している場合は、再作成してください：
+   ```bash
+   conda create -n campingrepare python=3.9 -y
+   conda activate campingrepare
+   python -m pip install -r requirements.txt
+   ```
+
+5. **OneDriveの問題を避ける**
+   - 復旧後は、プロジェクトをOneDrive外の場所に移動することを推奨します
+   - 例: `C:\Projects\camper-repair-clean`
+
+---
+
+### 定期的なバックアップの推奨
+
+- **週1回以上**のバックアップを推奨
+- **重要な変更前後**にバックアップを実行
+- **`.env`ファイル**は別途安全な場所にバックアップ
+- **複数のバックアップ**を保持（最新の3〜5個）
+
+---
+
+## 📚 ドキュメント
+
+### 技術ドキュメント
+- [APIドキュメント](API_DOCUMENTATION.md) - APIの使用方法とクイックスタート
+- [システムアーキテクチャ](ARCHITECTURE.md) - システム構成図とデータフロー図
+- [コード整備ガイド](CODE_DOCUMENTATION.md) - コーディング規約と整備方針
+- [OpenAPI仕様書](openapi.yaml) - OpenAPI 3.0形式のAPI仕様書
+
+### 売却準備資料
+- [Pitch Deck](PITCH_DECK.md) - プロジェクトの価値提案と機能紹介
+- [デモ動画スクリプト](DEMO_VIDEO_SCRIPT.md) - デモ動画の撮影スクリプト
+- [価値算定資料](VALUATION_REPORT.md) - 技術的価値とビジネス価値の算定
+- [売却ロードマップ](売却_ROADMAP.md) - プロジェクトの全体ロードマップ
+
+### テストガイド
+- [チャットボット全体フローテスト](TEST_CHATBOT_FLOW.md) - チャットボットの主要機能をテスト
+- [工賃推定機能テスト](TEST_COST_ESTIMATION.md) - AI工賃推定機能をテスト
+
+### その他
+- [CHANGELOG](CHANGELOG.md) - 変更履歴
+- [SUMMARY](SUMMARY.md) - 売却準備完了サマリー
 
 ## 🌐 Railwayデプロイ
 
@@ -122,14 +584,31 @@ camper-repair-clean/
 ├── unified_backend_api.py      # メインFlaskアプリ
 ├── enhanced_rag_system.py      # RAGシステム
 ├── data_access/
-│   └── notion_client.py        # Notion統合
+│   ├── notion_client.py        # Notion統合
+│   ├── cost_estimation.py       # AI工賃推定エンジン
+│   ├── factory_matching.py      # 工場マッチングエンジン
+│   └── ...                      # その他のデータアクセス層
+├── frontend/                    # Next.jsフロントエンド
+│   ├── app/                     # Next.js App Router
+│   │   ├── lp-camper-repair/   # キャンピングカー修理工場マッチングLP（お客様用）
+│   │   ├── lp-partner-recruit/ # キャンピングカー修理パートナー募集LP（修理工場向け）
+│   │   ├── chat/               # チャットボットページ
+│   │   ├── partner/            # パートナー修理店紹介ページ
+│   │   └── ...                 # その他のページ
+│   ├── components/              # Reactコンポーネント
+│   └── lib/                     # ユーティリティ関数
 ├── templates/
-│   ├── unified_chatbot.html    # メインUI
+│   ├── unified_chatbot.html     # メインUI
 │   └── repair_advice_center.html # 検索UI
-├── category_definitions.json   # カテゴリ定義
-├── requirements_railway.txt    # 本番依存関係
-├── Procfile                    # Railway設定
-├── railway.json                # Railway設定
+├── openapi.yaml                 # OpenAPI仕様書
+├── ARCHITECTURE.md              # システムアーキテクチャ図
+├── API_DOCUMENTATION.md         # APIドキュメント
+├── CODE_DOCUMENTATION.md        # コード整備ガイド
+├── category_definitions.json    # カテゴリ定義
+├── requirements.txt             # 依存関係
+├── requirements_railway.txt     # 本番依存関係
+├── Procfile                     # Railway設定
+├── railway.json                 # Railway設定
 └── RAILWAY_DEPLOY_GUIDE.md     # デプロイガイド
 ```
 
@@ -249,13 +728,382 @@ python unified_backend_api.py
 
 問題が発生した場合は、Issueを作成してください。
 
+## 🎉 最新の改善（フェーズ2-3）
+
+### ✅ 診断フロー改善機能（2025-11-17実装）
+
+1. **質問文の自然化** (`improve_question_text.py`)
+   - AIで質問を親しみやすい表現に変換
+   - 専門用語を平易な言葉に置き換え
+   
+2. **フィードバックメッセージ生成** (`generate_feedback_messages.py`)
+   - ユーザーの回答に共感的なフィードバック
+   - 緊急度に応じた適切な応答
+   
+3. **AI症状分類** (`ai_symptom_classifier.py`)
+   - 自由記述から症状カテゴリを自動判定
+   - 確信度スコアと複数候補の提示
+   
+4. **診断フロー分析** (`analyze_diagnostic_flow.py`)
+   - ボトルネック特定と改善提案
+   - 統計情報の可視化
+
+詳細は [フェーズ2-3_実装完了レポート.md](./フェーズ2-3_実装完了レポート.md) を参照
+
+## 📄 LPページ詳細
+
+### キャンピングカー修理工場マッチングLP（お客様用） (`/lp-camper-repair`)
+
+キャンピングカー所有者（お客様）向けの修理工場マッチングランディングページです。修理工場・大工・公務店・自動車整備工場を簡単に探せるサービスを提供します。
+
+#### 構成セクション（お客様用）
+
+1. **ヒーローセクション**
+   - キャッチコピー：「全国どこでも修理可能。キャンピングカーの "困った" を最短で解決。」
+   - CTAボタン：無料診断
+
+2. **課題セクション**
+   - キャンピングカー修理の現状と課題を提示
+   - 修理工場不足、ビルダー間の関係、西日本の工場不足など
+
+3. **特徴セクション**
+   - AI一次診断による故障内容の可視化
+   - 全国の修理工場・大工・公務店との連携
+   - AIによる自動マッチング
+
+4. **利用の流れ**
+   - 5ステップのフローチャート
+   - チャットボット診断から修理完了まで
+
+5. **問い合わせフォーム**
+   - ユーザー（修理依頼）向けのフォーム
+   - APIエンドポイント：`/api/inquiry`
+
+6. **フッター**
+   - 会社情報、リンク、連絡先
+
+#### 技術仕様
+
+- **フレームワーク**: Next.js 16 (App Router)
+- **スタイリング**: TailwindCSS v4
+- **デザイン**: 白 + ネイビー（slate-900）+ 黄色（yellow-400）
+- **レスポンシブ**: スマホファースト
+- **SEO**: メタタグ、Open Graph、構造化データ（LocalBusiness）
+
+#### ファイル構成
+
+```
+frontend/app/lp-camper-repair/
+├── layout.tsx              # SEOメタタグ設定
+├── page.tsx                # メインページ
+└── components/
+    ├── Hero.tsx            # ヒーローセクション
+    ├── Problem.tsx          # 課題セクション
+    ├── Features.tsx        # 特徴セクション
+    ├── ForPartners.tsx     # 修理工場向けメリット
+    ├── Flow.tsx            # 利用の流れ
+    ├── CTA.tsx             # 問い合わせフォーム
+    └── Footer.tsx          # フッター
+
+frontend/app/api/inquiry/
+└── route.ts                # 問い合わせAPI
+```
+
+#### アクセス方法
+
+開発環境：
+```
+http://localhost:3000/lp-camper-repair
+```
+
+本番環境：
+```
+https://your-domain.com/lp-camper-repair
+```
+
+**注意**: このLPは**お客様（キャンピングカー所有者）向け**のページです。修理工場向けの登録ページは別途 `/lp-partner-recruit` にあります。
+
+---
+
+### キャンピングカー修理パートナー募集LP (`/lp-partner-recruit`)
+
+修理工場・大工・公務店・自動車整備工場・個人職人向けのパートナー募集ランディングページです。専門業者でなくても参画できることを強調し、幅広い業種の方に参加を呼びかけます。
+
+#### 構成セクション（修理工場向け）
+
+1. **ヒーローセクション**
+   - キャッチコピー：「キャンピングカー修理ができる業者さん募集！専門業者でなくてもOKです。」
+   - CTAボタン：無料でパートナー登録する、まずは話を聞いてみる
+   - 統計情報：月間修理依頼数、平均単価、対応エリア
+
+2. **なぜ "非キャンピングカー修理業者" でもできるのか**
+   - キャンピングカー修理の多くは住宅設備に似ている
+   - 特殊技術が必要なのは全体の20%程度
+   - AI診断が一次切り分けしてくれる
+   - 施工マニュアルは当社が提供
+
+3. **パートナーになるメリット**
+   - 全国から修理依頼が自動で届く
+   - 高単価（1件3〜20万円）
+   - 原価がほぼかからず利益率が高い
+   - キャンピングカー業界は職人不足のブルーオーシャン
+   - AIが一次診断→案件化するので現場が楽
+   - 面倒なクレーム受付・事務局業務は当社が代行
+
+4. **修理依頼の流れ**
+   - 5ステップのフローチャート
+   - ユーザー→AI診断→案件通知→見積もり＆修理→売上支払い
+
+5. **パートナー条件**
+   - キャンピングカー専門でなくてOK
+   - 普通の工具があればOK
+   - 個人事業主可
+   - 作業スピードより「誠実対応」を重視
+
+6. **料金モデル**
+   - 登録費：無料
+   - 手数料：売上の10〜20%（修理完了後に支払い）
+
+7. **事例紹介**
+   - 大工さんでもできた
+   - 車屋さんで年商300万円アップ
+   - 公務店が副業的に参入
+
+8. **よくある質問（FAQ）**
+   - 専門知識なくてもできますか？
+   - 作業できない案件はどうしたら？
+   - 自宅でもできますか？
+   - 遠方からの依頼は？
+   - 個人事業主でも登録できますか？
+   - 手数料はいつ支払われますか？
+
+9. **パートナー登録フォーム**
+   - 名前、会社名、電話番号、メールアドレス
+   - 対応エリア、できる作業、設備・経験の有無
+   - APIエンドポイント：後で接続予定
+
+#### 技術仕様
+
+- **フレームワーク**: Next.js 14 (App Router)
+- **スタイリング**: TailwindCSS v4
+- **デザイン**: 緑系（green-600, green-700, emerald-800）+ 黄色アクセント
+- **レスポンシブ**: スマホファースト
+- **SEO**: メタタグ、Open Graph、構造化データ（LocalBusiness）
+
+#### ファイル構成
+
+```
+frontend/app/lp-partner-recruit/
+├── layout.tsx              # SEOメタタグ設定
+├── page.tsx                # メインページ
+└── components/
+    ├── Hero.tsx            # ヒーローセクション
+    ├── WhyUs.tsx           # なぜ非キャンピングカー修理業者でもできるのか
+    ├── Merits.tsx          # パートナーになるメリット
+    ├── Flow.tsx            # 修理依頼の流れ
+    ├── Conditions.tsx      # パートナー条件
+    ├── Pricing.tsx         # 料金モデル
+    ├── Cases.tsx           # 事例紹介
+    ├── FAQ.tsx             # よくある質問
+    └── PartnerForm.tsx     # パートナー登録フォーム
+```
+
+#### アクセス方法
+
+開発環境：
+```
+http://localhost:3000/lp-partner-recruit
+```
+
+本番環境：
+```
+https://your-domain.com/lp-partner-recruit
+```
+
+**注意**: このLPは**修理工場・大工・公務店・自動車整備工場・個人職人向け**のページです。お客様（キャンピングカー所有者）向けのページは `/lp-camper-repair` にあります。
+
+## 📱 LINE通知機能の実装方法
+
+### 概要
+
+ブラウザ版チャットボットでやり取りし、LINEで通知を送る仕組みです。
+
+**動作フロー：**
+1. ユーザーがブラウザ版チャットボットで会話
+2. LINE Loginでユーザー認証（LINEユーザーIDを取得）
+3. ユーザーIDをNotionデータベースに保存
+4. イベント発生時（修理完了、ステータス更新など）にLINEで通知送信
+
+### 前提条件
+
+- LINE Developersアカウントが必要
+- Messaging APIチャネルを作成（統合チャネル）
+- LINE Loginを有効化
+
+### セットアップ手順
+
+#### 1. LINE Developersでチャネル作成
+
+1. [LINE Developers Console](https://developers.line.biz/ja/)にアクセス
+2. プロバイダーを作成
+3. 「Messaging API」チャネルを作成
+4. 以下を取得：
+   - Channel ID
+   - Channel Secret
+   - Channel Access Token
+
+#### 2. LINE Loginを有効化
+
+1. 作成したMessaging APIチャネルの設定画面で「LINE Login」タブを開く
+2. 「LINE Loginを利用する」をONにする
+3. Callback URLを設定（例: `https://your-domain.com/api/line/login/callback`）
+
+#### 3. 環境変数を設定
+
+`.env`ファイルに以下を追加：
+
+```bash
+# LINE通知機能設定
+LINE_CHANNEL_ID=your_channel_id
+LINE_CHANNEL_SECRET=your_channel_secret
+LINE_CHANNEL_ACCESS_TOKEN=your_access_token
+LINE_LOGIN_CALLBACK_URL=https://your-domain.com/api/line/login/callback
+```
+
+#### 4. NotionデータベースにLINEユーザーIDフィールドを追加
+
+商談管理DBに以下のフィールドを追加：
+
+- **LINEユーザーID** (Text) - オプション
+- **LINE通知許可** (Checkbox) - LINE通知を送るかどうか
+
+### 実装ファイル
+
+#### 1. LINE通知モジュール
+
+`notification/line_notifier.py` - LINE Messaging APIでプッシュメッセージを送信
+
+```python
+from notification.line_notifier import LineNotifier
+
+line_notifier = LineNotifier()
+line_notifier.send_to_customer(
+    line_user_id="U1234567890abcdef...",
+    message="修理が完了しました！"
+)
+```
+
+#### 2. LINE Login実装
+
+`unified_backend_api.py`に以下のエンドポイントを追加：
+
+- `/api/line/login` - LINE認証を開始
+- `/api/line/login/callback` - 認証後のコールバック
+- `/api/line/status` - ログイン状態を確認
+
+#### 3. Notionから通知を送るエンドポイント
+
+`/api/v1/notify/line` - Notionデータベースから情報を取得してLINE通知を送信
+
+```python
+POST /api/v1/notify/line
+{
+    "deal_id": "DEAL-20241103-001",
+    "type": "repair_complete"  # repair_complete, status_update, reminder
+}
+```
+
+### 使用方法
+
+#### ステップ1: ユーザーがLINE Loginでログイン
+
+1. ブラウザ版チャットボットで「LINEでログイン」ボタンをクリック
+2. LINE認証画面でログイン
+3. ユーザーIDが自動的にセッションに保存される
+
+#### ステップ2: Botと友だちになる
+
+LINE通知を受け取るには、ユーザーがBotと友だちになる必要があります。
+
+```html
+<!-- 友だち追加ボタンを表示 -->
+<a href="https://line.me/R/ti/p/@your-bot-id" target="_blank">
+    <img src="https://scdn.line-apps.com/n/line_add_friends/btn/ja.png" alt="友だち追加">
+</a>
+```
+
+#### ステップ3: 商談作成時にLINEユーザーIDを保存
+
+ブラウザ版で問い合わせフォームを送信すると、自動的にLINEユーザーIDがNotionに保存されます。
+
+#### ステップ4: 通知を送信
+
+修理完了やステータス更新時に、NotionデータベースからLINEユーザーIDを取得して通知を送信：
+
+```python
+# 修理完了通知の例
+deal_manager.update_deal_status(deal_id, "completed")
+
+# LINE通知を送信
+requests.post("/api/v1/notify/line", json={
+    "deal_id": deal_id,
+    "type": "repair_complete"
+})
+```
+
+### 通知タイプ
+
+以下の通知タイプが利用可能です：
+
+- **repair_complete** - 修理完了通知
+- **status_update** - ステータス更新通知
+- **reminder** - リマインダー通知
+- **custom** - カスタムメッセージ
+
+### 重要な注意点
+
+1. **Botと友だちになっている必要がある**
+   - LINE Messaging APIでプッシュメッセージを送るには、ユーザーがBotと友だちになっている必要があります
+   - 友だちでない場合、エラーメッセージが返されます
+
+2. **LINE LoginとLINE Messaging APIは別物**
+   - LINE Login: ユーザー認証のみ（メッセージ送信不可）
+   - LINE Messaging API: メッセージ送信可能（統合チャネルを使用）
+
+3. **メッセージ送信の制限**
+   - プッシュメッセージ: ユーザーがBotと友だちになっている必要がある
+   - リプライメッセージ: Webhook経由でユーザーがメッセージを送った場合のみ送信可能
+
+### トラブルシューティング
+
+#### エラー: "not a friend"
+
+ユーザーがBotと友だちになっていない場合に発生します。ユーザーにBotと友だちになってもらう必要があります。
+
+#### エラー: "Invalid channel access token"
+
+環境変数`LINE_CHANNEL_ACCESS_TOKEN`が正しく設定されているか確認してください。
+
+#### エラー: "Invalid callback URL"
+
+LINE LoginのCallback URLが正しく設定されているか確認してください。
+
+### 参考資料
+
+- [LINE Developers ドキュメント](https://developers.line.biz/ja/docs/)
+- [LINE Messaging API リファレンス](https://developers.line.biz/ja/reference/messaging-api/)
+- [LINE Login API リファレンス](https://developers.line.biz/ja/reference/line-login/)
+
 ## 🎉 今後の予定
 
+- [ ] フェーズ2-3機能の統合テスト
+- [x] LINE通知機能の実装
 - [ ] ユーザー認証機能
 - [ ] 修理履歴の保存
 - [ ] モバイルアプリ対応
 - [ ] 画像アップロード機能
 - [ ] 多言語対応
+- [ ] LPページの問い合わせAPI連携（Notion/SendGrid）
 
 ---
 

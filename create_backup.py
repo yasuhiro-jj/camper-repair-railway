@@ -48,10 +48,13 @@ BACKUP_TARGETS = [
     "railway_env_example.txt",
     "category_definitions.json",
     
-    # フロントエンド
+    # フロントエンド（旧HTML）
     "templates/",
     "static/",
     "repair_advice_center.html",
+    
+    # フロントエンド（Next.js）
+    "frontend/",
     
     # 知識ベース（テキストファイル）
     "*.txt",

@@ -4,7 +4,7 @@ import json
 import requests
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Optional, List, Union
 from dotenv import load_dotenv
 
 # ロギング設定
@@ -17,7 +17,7 @@ load_dotenv()
 NOTION_API_KEY = os.getenv("NOTION_API_KEY")
 NOTION_LOG_DB_ID = os.getenv("NOTION_LOG_DB_ID")
 
-def _sanitize_db_id(db_id: str | None) -> str | None:
+def _sanitize_db_id(db_id: Optional[str]) -> Optional[str]:
     if not db_id:
         return None
     try:
@@ -34,25 +34,25 @@ NOTION_PAGES_URL = "https://api.notion.com/v1/pages"
 NOTION_DATABASE_URL = "https://api.notion.com/v1/databases"
 NOTION_LOG_TITLE_PROP = os.getenv("NOTION_LOG_TITLE_PROP")
 
-_LOG_DB_SCHEMA: Dict[str, str] | None = None
-_LOG_DB_TITLE_PROP: str | None = None
+_LOG_DB_SCHEMA: Optional[Dict[str, str]] = None
+_LOG_DB_TITLE_PROP: Optional[str] = None
 
 
 MAX_RICH_TEXT_LENGTH = 1900
 
 
-def _chunk_text(text: str, chunk_size: int = MAX_RICH_TEXT_LENGTH) -> list[str]:
+def _chunk_text(text: str, chunk_size: int = MAX_RICH_TEXT_LENGTH) -> List[str]:
     safe_text = text or ""
     if not safe_text:
         return [""]
     return [safe_text[i : i + chunk_size] for i in range(0, len(safe_text), chunk_size)]
 
 
-def _rt(text: str) -> list[dict[str, Any]]:
+def _rt(text: str) -> List[Dict[str, Any]]:
     return [{"type": "text", "text": {"content": chunk}} for chunk in _chunk_text(text)]
 
 
-def _ensure_log_db_schema(headers: Dict[str, str]) -> Tuple[Dict[str, str], str | None]:
+def _ensure_log_db_schema(headers: Dict[str, str]) -> Tuple[Dict[str, str], Optional[str]]:
     """NotionログDBのスキーマとタイトルプロパティ名をキャッシュ付きで取得"""
     global _LOG_DB_SCHEMA, _LOG_DB_TITLE_PROP
 
@@ -107,7 +107,7 @@ def _assign_text_property(
     props: Dict[str, Any],
     schema: Dict[str, str],
     name: str,
-    value: str | None,
+    value: Optional[str],
 ) -> None:
     if value is None:
         return
@@ -131,7 +131,7 @@ def _assign_text_property(
 
 
 def _build_title_value(user_msg: str, bot_msg: str, session_id: str) -> str:
-    parts: list[str] = []
+    parts: List[str] = []
     if session_id:
         parts.append(session_id)
     if user_msg:
@@ -149,16 +149,16 @@ def save_chat_log_to_notion(
     user_msg: str,
     bot_msg: str,
     session_id: str = "default",
-    category: str | None = None,
-    subcategory: str | None = None,
-    urgency: float | None = None,
-    keywords: list[str] | None = None,
-    tool_used: str | None = None,
-    rag_score: float | None = None,
-    confidence: str | None = None,
-    confidence_score: float | None = None,
-    sources_summary: str | None = None,
-) -> tuple[bool, str]:
+    category: Optional[str] = None,
+    subcategory: Optional[str] = None,
+    urgency: Optional[float] = None,
+    keywords: Optional[List[str]] = None,
+    tool_used: Optional[str] = None,
+    rag_score: Optional[float] = None,
+    confidence: Optional[str] = None,
+    confidence_score: Optional[float] = None,
+    sources_summary: Optional[str] = None,
+) -> Tuple[bool, str]:
     """会話ログを Notion の Chat Logs DB に1件保存する。
 
     失敗時は例外を投げず (False, エラーメッセージ) を返す（アプリ動作は継続）。

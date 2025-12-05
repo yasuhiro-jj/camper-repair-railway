@@ -1,0 +1,135 @@
+{"timestamp": "2025-11-16T22:43:45.827489", "operation": "RAG検索", "duration": 0.5, "success": true, "details": {}}
+{"timestamp": "2025-11-16T22:43:45.828795", "operation": "SERP検索", "duration": 0.8, "success": true, "details": {}}
+{"timestamp": "2025-11-16T22:43:45.829780", "operation": "Notion検索", "duration": 0.3, "success": true, "details": {}}
+{"timestamp": "2025-11-16T22:43:45.831849", "operation": "AI生成", "duration": 1.2, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:04:50.914751", "operation": "RAG検索", "duration": 0.9750986099243164, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:05:00.921892", "operation": "SERP検索", "duration": 10.981190204620361, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:05:16.673944", "operation": "Notion検索", "duration": 26.73024845123291, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:05:29.259628", "operation": "AI生成", "duration": 12.579056978225708, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:05:35.257300", "operation": "Notion検索", "duration": 0.001041412353515625, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:05:36.124852", "operation": "RAG検索", "duration": 0.8740344047546387, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:05:44.613848", "operation": "AI生成", "duration": 8.481698036193848, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:05:49.297077", "operation": "Notion検索", "duration": 0.002987384796142578, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:05:50.801510", "operation": "RAG検索", "duration": 1.51279616355896, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:06:00.182766", "operation": "AI生成", "duration": 9.376264333724976, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:06:05.730160", "operation": "Notion検索", "duration": 0.0010094642639160156, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:06:06.653522", "operation": "RAG検索", "duration": 0.9295680522918701, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:06:14.470660", "operation": "AI生成", "duration": 7.806880235671997, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:11:27.329482", "operation": "RAG検索", "duration": 1.1090528964996338, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:11:30.424314", "operation": "SERP検索", "duration": 4.199407339096069, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:11:53.931731", "operation": "Notion検索", "duration": 27.70482873916626, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:12:03.669916", "operation": "AI生成", "duration": 9.733708620071411, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:12:08.546675", "operation": "Notion検索", "duration": 0.0020558834075927734, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:12:09.974141", "operation": "RAG検索", "duration": 1.4368114471435547, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:12:16.737111", "operation": "AI生成", "duration": 6.75502347946167, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:12:21.188021", "operation": "Notion検索", "duration": 0.0010082721710205078, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:12:21.570959", "operation": "RAG検索", "duration": 0.3892514705657959, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:12:33.663288", "operation": "AI生成", "duration": 12.087796211242676, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:12:38.372653", "operation": "Notion検索", "duration": 0.0, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:12:38.750976", "operation": "RAG検索", "duration": 0.382523775100708, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:12:44.119741", "operation": "AI生成", "duration": 5.3607566356658936, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:18:51.932094", "operation": "RAG検索", "duration": 0.2877507209777832, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:19:04.167982", "operation": "SERP検索", "duration": 12.521325826644897, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:19:12.872683", "operation": "Notion検索", "duration": 21.224889039993286, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:19:23.222440", "operation": "AI生成", "duration": 10.346753358840942, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:26:13.899406", "operation": "RAG検索", "duration": 0.513477087020874, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:26:16.989937", "operation": "SERP検索", "duration": 3.599022150039673, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:26:39.129601", "operation": "Notion検索", "duration": 25.73415470123291, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:26:52.701687", "operation": "AI生成", "duration": 13.564543724060059, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:39:46.138450", "operation": "RAG検索", "duration": 0.5735478401184082, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:39:49.415548", "operation": "SERP検索", "duration": 3.846287965774536, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:40:17.462195", "operation": "Notion検索", "duration": 31.891926050186157, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:40:30.772339", "operation": "AI生成", "duration": 13.306142330169678, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:41:24.901580", "operation": "Notion検索", "duration": 0.003373384475708008, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:41:25.475794", "operation": "RAG検索", "duration": 0.586289644241333, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:41:28.252962", "operation": "SERP検索", "duration": 3.3572843074798584, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:41:36.512072", "operation": "AI生成", "duration": 8.242643594741821, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:42:03.007763", "operation": "Notion検索", "duration": 0.0029904842376708984, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:42:03.345353", "operation": "RAG検索", "duration": 0.3458118438720703, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:42:06.380365", "operation": "SERP検索", "duration": 3.3788020610809326, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:42:14.836193", "operation": "AI生成", "duration": 8.451353788375854, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:47:37.764940", "operation": "RAG検索", "duration": 0.41524672508239746, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:47:40.756036", "operation": "SERP検索", "duration": 3.404249429702759, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:48:05.810811", "operation": "Notion検索", "duration": 28.458019733428955, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:48:15.988511", "operation": "AI生成", "duration": 10.172602653503418, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:50:38.116643", "operation": "Notion検索", "duration": 0.0056912899017333984, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:50:38.580579", "operation": "RAG検索", "duration": 0.4766099452972412, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:50:42.407053", "operation": "SERP検索", "duration": 4.299093961715698, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:50:52.713350", "operation": "AI生成", "duration": 10.302137851715088, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:50:58.934537", "operation": "Notion検索", "duration": 0.0019969940185546875, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:51:00.430661", "operation": "RAG検索", "duration": 1.5033180713653564, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:51:10.368983", "operation": "AI生成", "duration": 9.928914308547974, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:51:15.758476", "operation": "Notion検索", "duration": 0.005990028381347656, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:51:16.132758", "operation": "RAG検索", "duration": 0.3842644691467285, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:51:27.101481", "operation": "AI生成", "duration": 10.935811758041382, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:51:32.131533", "operation": "Notion検索", "duration": 0.005983114242553711, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:51:33.488470", "operation": "RAG検索", "duration": 1.374889612197876, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:51:44.577741", "operation": "AI生成", "duration": 11.086273670196533, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:53:36.573716", "operation": "RAG検索", "duration": 0.8166992664337158, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:53:39.282779", "operation": "SERP検索", "duration": 3.5227110385894775, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:53:57.227906", "operation": "Notion検索", "duration": 21.46570611000061, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:54:04.379431", "operation": "AI生成", "duration": 7.14746356010437, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:54:09.135328", "operation": "Notion検索", "duration": 0.001119375228881836, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:54:09.474663", "operation": "RAG検索", "duration": 0.3446836471557617, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:54:18.645366", "operation": "AI生成", "duration": 9.167320966720581, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:54:23.184580", "operation": "Notion検索", "duration": 0.0029900074005126953, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:54:24.585330", "operation": "RAG検索", "duration": 1.4097278118133545, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:54:31.474345", "operation": "AI生成", "duration": 6.884726285934448, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:54:35.907918", "operation": "Notion検索", "duration": 0.0009992122650146484, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:54:36.317170", "operation": "RAG検索", "duration": 0.41455769538879395, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:54:44.495868", "operation": "AI生成", "duration": 8.167259931564331, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:59:09.704357", "operation": "RAG検索(強化版)", "duration": 1.9055066108703613, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-17T00:59:17.676602", "operation": "SERP検索(強化版)", "duration": 9.877751350402832, "success": true, "details": {"optimized_query": "キャンピングカー エアコンの修理費用はいくらですか 価格 費用 相場", "intent": ["price", "repair"], "filtered_count": 0}}
+{"timestamp": "2025-11-17T00:59:30.417025", "operation": "Notion検索(強化版)", "duration": 22.616734504699707, "success": true, "details": {"total_results": 0, "keywords": ["エアコン修理費用いくらすか", "エアコン", "修理"], "databases": 3}}
+{"timestamp": "2025-11-17T00:59:41.505797", "operation": "AI生成", "duration": 10.2341787815094, "success": true, "details": {}}
+{"timestamp": "2025-11-17T00:59:49.854277", "operation": "RAG検索(強化版)", "duration": 2.829718589782715, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-17T01:00:03.102774", "operation": "Notion検索(強化版)", "duration": 16.07820224761963, "success": true, "details": {"total_results": 0, "keywords": ["エアコン", "修理", "エアコン修理方法教えてください"], "databases": 3}}
+{"timestamp": "2025-11-17T01:00:15.163978", "operation": "AI生成", "duration": 12.053103685379028, "success": true, "details": {}}
+{"timestamp": "2025-11-17T01:00:22.229457", "operation": "RAG検索(強化版)", "duration": 2.2506282329559326, "success": true, "details": {"total_found": 30, "returned": 5, "queries_used": 3}}
+{"timestamp": "2025-11-17T01:00:29.246466", "operation": "Notion検索(強化版)", "duration": 9.265918493270874, "success": true, "details": {"total_results": 0, "keywords": ["修理業者探しています", "修理"], "databases": 3}}
+{"timestamp": "2025-11-17T01:00:30.244152", "operation": "SERP検索(強化版)", "duration": 10.264713287353516, "success": true, "details": {"optimized_query": "キャンピングカー 修理業者を探しています 修理店 工場 業者", "intent": ["shop", "repair"], "filtered_count": 0}}
+{"timestamp": "2025-11-17T01:00:42.048730", "operation": "AI生成", "duration": 11.800567865371704, "success": true, "details": {}}
+{"timestamp": "2025-11-17T01:00:49.250779", "operation": "RAG検索(強化版)", "duration": 1.6544106006622314, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-17T01:00:56.469217", "operation": "Notion検索(強化版)", "duration": 8.863812923431396, "success": true, "details": {"total_results": 0, "keywords": ["バッテリー", "バッテリー上った"], "databases": 3}}
+{"timestamp": "2025-11-17T01:01:10.492299", "operation": "AI生成", "duration": 14.01548147201538, "success": true, "details": {}}
+{"timestamp": "2025-11-17T01:03:24.248885", "operation": "RAG検索(強化版)", "duration": 1.9659807682037354, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-17T01:03:26.033964", "operation": "SERP検索(強化版)", "duration": 3.7499279975891113, "success": true, "details": {"optimized_query": "キャンピングカー エアコンの修理費用はいくらですか 価格 費用 相場", "intent": ["price", "repair"], "filtered_count": 0}}
+{"timestamp": "2025-11-17T01:03:35.609362", "operation": "Notion検索(強化版)", "duration": 13.325325727462769, "success": true, "details": {"total_results": 0, "keywords": ["エアコン修理費用いくらすか", "修理", "エアコン"], "databases": 3}}
+{"timestamp": "2025-11-17T01:03:46.867112", "operation": "AI生成", "duration": 10.448199033737183, "success": true, "details": {}}
+{"timestamp": "2025-11-17T01:03:55.175089", "operation": "RAG検索(強化版)", "duration": 2.3877859115600586, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-17T01:04:10.378874", "operation": "Notion検索(強化版)", "duration": 17.58420753479004, "success": true, "details": {"total_results": 0, "keywords": ["修理", "エアコン修理方法教えてください", "エアコン"], "databases": 3}}
+{"timestamp": "2025-11-17T01:04:21.656625", "operation": "AI生成", "duration": 11.264035701751709, "success": true, "details": {}}
+{"timestamp": "2025-11-17T01:04:30.475521", "operation": "RAG検索(強化版)", "duration": 1.0739130973815918, "success": true, "details": {"total_found": 30, "returned": 5, "queries_used": 3}}
+{"timestamp": "2025-11-17T01:04:34.079598", "operation": "SERP検索(強化版)", "duration": 4.676994800567627, "success": true, "details": {"optimized_query": "キャンピングカー 修理業者を探しています 修理店 工場 業者", "intent": ["shop", "repair"], "filtered_count": 0}}
+{"timestamp": "2025-11-17T01:04:39.621877", "operation": "Notion検索(強化版)", "duration": 10.219273567199707, "success": true, "details": {"total_results": 0, "keywords": ["修理", "修理業者探しています"], "databases": 3}}
+{"timestamp": "2025-11-17T01:04:51.230444", "operation": "AI生成", "duration": 11.033307790756226, "success": true, "details": {}}
+{"timestamp": "2025-11-17T01:04:57.889863", "operation": "RAG検索(強化版)", "duration": 1.2538325786590576, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-17T01:05:11.193290", "operation": "Notion検索(強化版)", "duration": 14.555224418640137, "success": true, "details": {"total_results": 0, "keywords": ["バッテリー", "バッテリー上った"], "databases": 3}}
+{"timestamp": "2025-11-17T01:05:23.288578", "operation": "AI生成", "duration": 12.082183599472046, "success": true, "details": {}}
+{"timestamp": "2025-11-18T09:14:38.288861", "operation": "RAG検索(強化版)", "duration": 2.7381997108459473, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-18T09:14:50.066048", "operation": "Notion検索(強化版)", "duration": 14.498175382614136, "success": true, "details": {"total_results": 0, "keywords": ["エアコン冷えない", "エアコン"], "databases": 3}}
+{"timestamp": "2025-11-18T09:14:59.051705", "operation": "AI生成", "duration": 8.94783091545105, "success": true, "details": {}}
+{"timestamp": "2025-11-19T23:57:06.045632", "operation": "RAG検索(強化版)", "duration": 2.0271310806274414, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-19T23:57:17.416527", "operation": "Notion検索(強化版)", "duration": 13.398026466369629, "success": true, "details": {"total_results": 0, "keywords": ["エアコン", "効かない", "エアコン効かない"], "databases": 3}}
+{"timestamp": "2025-11-19T23:57:29.992829", "operation": "AI生成", "duration": 12.574557781219482, "success": true, "details": {}}
+{"timestamp": "2025-11-20T00:00:39.045722", "operation": "RAG検索(強化版)", "duration": 2.5637319087982178, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-20T00:01:00.767338", "operation": "Notion検索(強化版)", "duration": 24.281325817108154, "success": true, "details": {"total_results": 0, "keywords": ["エアコン", "効かない", "エアコン効かない"], "databases": 3}}
+{"timestamp": "2025-11-20T00:01:10.946864", "operation": "RAG検索(強化版)", "duration": 2.681743860244751, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-20T00:01:14.359959", "operation": "AI生成", "duration": 13.590609312057495, "success": true, "details": {}}
+{"timestamp": "2025-11-20T00:01:25.555381", "operation": "Notion検索(強化版)", "duration": 17.288251399993896, "success": true, "details": {"total_results": 0, "keywords": ["エアコン", "効かない", "エアコン効かない"], "databases": 3}}
+{"timestamp": "2025-11-20T00:01:35.709624", "operation": "AI生成", "duration": 10.148484945297241, "success": true, "details": {}}
+{"timestamp": "2025-11-20T00:03:30.642662", "operation": "RAG検索(強化版)", "duration": 1.215050458908081, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-20T00:03:43.058826", "operation": "Notion検索(強化版)", "duration": 13.631214141845703, "success": true, "details": {"total_results": 0, "keywords": ["エアコン", "効かない", "エアコン効かない"], "databases": 3}}
+{"timestamp": "2025-11-20T00:04:01.459213", "operation": "AI生成", "duration": 18.391302824020386, "success": true, "details": {}}
+{"timestamp": "2025-11-20T00:04:04.304477", "operation": "RAG検索(強化版)", "duration": 2.326369285583496, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-20T00:04:20.120628", "operation": "Notion検索(強化版)", "duration": 18.14251971244812, "success": true, "details": {"total_results": 0, "keywords": ["エアコン", "効かない", "エアコン効かない"], "databases": 3}}
+{"timestamp": "2025-11-20T00:04:33.701659", "operation": "AI生成", "duration": 13.57684063911438, "success": true, "details": {}}
+{"timestamp": "2025-11-20T00:13:21.783055", "operation": "RAG検索(強化版)", "duration": 1.3627049922943115, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-20T00:13:35.742580", "operation": "Notion検索(強化版)", "duration": 15.322230100631714, "success": true, "details": {"total_results": 0, "keywords": ["効かない", "エアコン", "エアコン効かない"], "databases": 3}}
+{"timestamp": "2025-11-20T00:13:47.824205", "operation": "AI生成", "duration": 12.034525871276855, "success": true, "details": {}}
+{"timestamp": "2025-11-20T00:13:53.688629", "operation": "RAG検索(強化版)", "duration": 1.246791124343872, "success": true, "details": {"total_found": 40, "returned": 5, "queries_used": 4}}
+{"timestamp": "2025-11-20T00:14:18.143717", "operation": "Notion検索(強化版)", "duration": 25.693400144577026, "success": true, "details": {"total_results": 0, "keywords": ["効かない", "エアコン", "エアコン効かない"], "databases": 3}}
+{"timestamp": "2025-11-20T00:14:31.569388", "operation": "AI生成", "duration": 13.382285833358765, "success": true, "details": {}}
+{"timestamp": "2025-12-04T16:00:15.560261", "operation": "Notion検索(強化版)", "duration": 0.04236936569213867, "success": true, "details": {"total_results": 0, "keywords": ["エアサス冷えない"], "databases": 3}}
+{"timestamp": "2025-12-04T16:00:16.881757", "operation": "RAG検索(強化版)", "duration": 1.3709015846252441, "success": true, "details": {"total_found": 10, "returned": 5, "queries_used": 1}}
+{"timestamp": "2025-12-04T16:00:29.962337", "operation": "AI生成", "duration": 12.990243911743164, "success": true, "details": {}}

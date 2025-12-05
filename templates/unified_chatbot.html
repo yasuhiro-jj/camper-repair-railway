@@ -1574,10 +1574,80 @@
             
             addMessage(responseText, 'ai');
             
+            // 修理店紹介の提案を表示
+            if (data.suggest_partner || data.partner_suggestion) {
+                const suggestion = data.partner_suggestion || {};
+                const category = suggestion.category || '';
+                const symptom = suggestion.symptom || '';
+                
+                // 修理店紹介の提案ボタンを追加
+                const partnerSuggestionHTML = `
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 15px; margin: 15px 0; text-align: center; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">
+                        <h3 style="margin: 0 0 15px 0; font-size: 1.3rem;">🔧 ${suggestion.message || '修理店を紹介しますか？'}</h3>
+                        <p style="margin: 0 0 20px 0; font-size: 1rem; opacity: 0.9;">お近くの修理店を検索して、専門業者に相談できます。</p>
+                        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                            <button onclick="navigateToPartnerSearch('${category}', '${symptom}')" style="
+                                background: white; 
+                                color: #667eea; 
+                                border: none; 
+                                padding: 12px 24px; 
+                                border-radius: 25px; 
+                                font-weight: bold; 
+                                font-size: 1rem; 
+                                cursor: pointer; 
+                                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.2)'">
+                                ✅ はい、修理店を探す
+                            </button>
+                            <button onclick="dismissPartnerSuggestion()" style="
+                                background: rgba(255, 255, 255, 0.2); 
+                                color: white; 
+                                border: 2px solid white; 
+                                padding: 12px 24px; 
+                                border-radius: 25px; 
+                                font-weight: bold; 
+                                font-size: 1rem; 
+                                cursor: pointer; 
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">
+                                いいえ、大丈夫です
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // 提案をメッセージとして追加
+                const messagesContainer = document.getElementById('chatMessages');
+                const suggestionDiv = document.createElement('div');
+                suggestionDiv.className = 'message message-ai';
+                suggestionDiv.innerHTML = partnerSuggestionHTML;
+                messagesContainer.appendChild(suggestionDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
             // デバッグ情報の表示（非表示）
             // if (debugMode) {
             //     showDebugInfo(data);
             // }
+        }
+        
+        // 修理工場検索ページへ遷移
+        function navigateToPartnerSearch(category, symptom) {
+            // URLパラメータを構築
+            const params = new URLSearchParams();
+            if (category) params.append('category', category);
+            if (symptom) params.append('symptom', symptom);
+            
+            // 修理工場検索ページへ遷移
+            const partnerUrl = `/partner${params.toString() ? '?' + params.toString() : ''}`;
+            window.location.href = partnerUrl;
+        }
+        
+        // 修理店紹介の提案を閉じる
+        function dismissPartnerSuggestion() {
+            // 提案メッセージを非表示にする（必要に応じて実装）
+            console.log('修理店紹介の提案を閉じました');
         }
 
         // 診断レスポンスのフォーマット
