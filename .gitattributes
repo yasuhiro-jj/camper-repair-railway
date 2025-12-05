@@ -1,0 +1,6 @@
+# すべてのPythonファイルをUTF-8として扱う
+*.py text eol=lf charset=utf-8
+
+# すべてのテキストファイルをUTF-8として扱う
+* text=auto eol=lf
+
