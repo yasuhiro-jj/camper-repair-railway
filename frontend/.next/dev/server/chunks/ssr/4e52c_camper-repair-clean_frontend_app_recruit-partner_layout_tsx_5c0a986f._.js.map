@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/user/Desktop/udemy-langchain/camper-repair-clean/frontend/app/recruit-partner/layout.tsx"],"sourcesContent":["import type { Metadata } from \"next\";\r\n\r\nexport const metadata: Metadata = {\r\n  title: \"協力会社募集 | キャンピングカー修理プラットフォーム\",\r\n  description: \"キャンピングカー修理の協力会社を募集しています。AIを活用した修理プラットフォームで、新しい顧客獲得のチャンスを。登録費用無料、成功報酬型の手数料システム。\",\r\n  keywords: [\r\n    \"キャンピングカー修理\",\r\n    \"協力会社募集\",\r\n    \"修理店登録\",\r\n    \"パートナー募集\",\r\n    \"RV修理\",\r\n  ],\r\n  openGraph: {\r\n    title: \"協力会社募集 | キャンピングカー修理プラットフォーム\",\r\n    description: \"キャンピングカー修理の協力会社を募集しています。AIを活用した修理プラットフォームで、新しい顧客獲得のチャンスを。\",\r\n    type: \"website\",\r\n  },\r\n};\r\n\r\nexport default function RecruitPartnerLayout({\r\n  children,\r\n}: {\r\n  children: React.ReactNode;\r\n}) {\r\n  return children;\r\n}\r\n"],"names":[],"mappings":";;;;;;AAEO,MAAM,WAAqB;IAChC,OAAO;IACP,aAAa;IACb,UAAU;QACR;QACA;QACA;QACA;QACA;KACD;IACD,WAAW;QACT,OAAO;QACP,aAAa;QACb,MAAM;IACR;AACF;AAEe,SAAS,qBAAqB,EAC3C,QAAQ,EAGT;IACC,OAAO;AACT"}}]
+}
