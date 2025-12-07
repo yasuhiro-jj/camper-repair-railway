@@ -18,7 +18,6 @@ chroma_db/
 cache.db
 
 # 不要なフロントエンド
-frontend/
 frontend-new/
 frontend-simple/
 new_frontend/
