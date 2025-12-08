@@ -82,7 +82,20 @@ except ImportError:
 
 # === Flask アプリケーションの設定 ===
 app = Flask(__name__)
-CORS(app, origins=['http://localhost:8501', 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:5002'])
+# CORS設定
+# - ローカル開発用: localhost 系
+# - 本番フロントエンド: Vercel のドメイン
+CORS(
+    app,
+    origins=[
+        "http://localhost:8501",
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:5002",
+        "https://camper-repair-railway-upoj.vercel.app",
+    ],
+    supports_credentials=True,
+)
 
 # Swagger UI用のエンドポイント
 @app.route("/api/docs")
