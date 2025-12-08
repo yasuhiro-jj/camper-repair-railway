@@ -38,23 +38,52 @@ export interface ChatResponse {
 export const chatApi = {
   /**
    * チャットメッセージを送信
+   * クライアントからはNext.jsのAPIルート(`/api/chat`)を経由してバックエンドに接続する
    */
-  sendMessage: async (message: string, sessionId?: string): Promise<ChatResponse> => {
-    const response = await apiClient.post<ChatResponse>('/api/unified/chat', {
-      message,
-      session_id: sessionId,
+  sendMessage: async (
+    message: string,
+    sessionId?: string,
+  ): Promise<ChatResponse> => {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message,
+        session_id: sessionId,
+      }),
     });
-    return response.data;
+
+    if (!res.ok) {
+      throw new Error(`チャットAPIエラー: ${res.status}`);
+    }
+
+    const data = (await res.json()) as ChatResponse;
+    return data;
   },
 
   /**
    * 会話を開始
+   * クライアントからはNext.jsのAPIルート(`/api/start-conversation`)を経由してバックエンドに接続する
    */
   startConversation: async (sessionId?: string): Promise<ChatResponse> => {
-    const response = await apiClient.post<ChatResponse>('/start_conversation', {
-      session_id: sessionId,
+    const res = await fetch("/api/start-conversation", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        session_id: sessionId,
+      }),
     });
-    return response.data;
+
+    if (!res.ok) {
+      throw new Error(`会話開始APIエラー: ${res.status}`);
+    }
+
+    const data = (await res.json()) as ChatResponse;
+    return data;
   },
 };
 
