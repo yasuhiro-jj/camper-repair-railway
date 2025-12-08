@@ -6,7 +6,7 @@ Flask + RAG + SERP + Notion + AI の全機能を統合
 """
 
 from flask import Flask, request, jsonify, g, send_from_directory
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 import asyncio
 import aiohttp
 import json
@@ -82,18 +82,19 @@ except ImportError:
 
 # === Flask アプリケーションの設定 ===
 app = Flask(__name__)
+
+ALLOWED_ORIGINS = [
+    "http://localhost:8501",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:5002",
+    "https://camper-repair-railway-upoj.vercel.app",
+]
+
 # CORS設定
-# - ローカル開発用: localhost 系
-# - 本番フロントエンド: Vercel のドメイン
 CORS(
     app,
-    origins=[
-        "http://localhost:8501",
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:5002",
-        "https://camper-repair-railway-upoj.vercel.app",
-    ],
+    resources={r"/*": {"origins": ALLOWED_ORIGINS}},
     supports_credentials=True,
 )
 
@@ -361,6 +362,7 @@ def unified_chatbot():
         }), 500
 
 @app.route("/start_conversation", methods=["POST"])
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def start_conversation():
     """新しい会話を開始"""
     try:
@@ -379,6 +381,7 @@ def start_conversation():
         return jsonify({"error": f"会話開始エラー: {str(e)}"}), 500
 
 @app.route("/ask", methods=["POST"])
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def ask():
     """質問に回答するエンドポイント（フロントエンド互換用）"""
     try:
@@ -1850,6 +1853,7 @@ def test_notion_save_endpoint():
         }), 500
 
 @app.route("/api/unified/chat", methods=["POST"])
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def unified_chat():
     """
     統合チャットAPI（タイムアウト対応）
