@@ -6,7 +6,16 @@
 import axios from 'axios';
 import { FactoryCase } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
+// バックエンドAPIのベースURL
+// 優先順位:
+// 1. NEXT_PUBLIC_API_URL（Vercelや.env.localで設定）
+// 2. 本番環境: RailwayのURL
+// 3. 開発環境: ローカルのFlaskサーバー
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === 'development'
+    ? 'http://localhost:5002'
+    : 'https://web-development-8c2f.up.railway.app');
 
 const apiClient = axios.create({
   baseURL: API_URL,
