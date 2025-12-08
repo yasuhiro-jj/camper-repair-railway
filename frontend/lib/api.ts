@@ -322,12 +322,17 @@ export interface InquiryFormData {
 
 // お客様からの備考追加API
 export const customerNoteApi = {
-  async addNote(dealId: string, note: string): Promise<{ success: boolean; message?: string; error?: string }> {
-    const response = await axios.post(`${API_BASE_URL}/v1/deals/${dealId}/customer-notes`, {
-      note: note
-    });
+  async addNote(
+    dealId: string,
+    note: string
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    // 共通のAPIクライアント(apiClient)を利用してバックエンドにリクエストを送信
+    const response = await apiClient.post(
+      `/v1/deals/${dealId}/customer-notes`,
+      { note }
+    );
     return response.data;
-  }
+  },
 };
 
 export const partnerShopApi = {
