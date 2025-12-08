@@ -22,7 +22,7 @@ async function generatePDF() {
     });
 
     // ページが完全に読み込まれるまで少し待つ
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // PDF出力ディレクトリを作成
     const outputDir = path.join(__dirname, '..', 'output');
