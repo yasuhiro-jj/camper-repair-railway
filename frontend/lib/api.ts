@@ -7,15 +7,12 @@ import axios from 'axios';
 import { FactoryCase } from '@/types';
 
 // バックエンドAPIのベースURL
-// 優先順位:
-// 1. NEXT_PUBLIC_API_URL（Vercelや.env.localで設定）
-// 2. 本番環境: RailwayのURL
-// 3. 開発環境: ローカルのFlaskサーバー
+// 開発環境: env があればそれを使い、なければローカル
+// 本番環境(Vercel): 常にRailwayのURLを使用（localhost には飛ばさない）
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (process.env.NODE_ENV === 'development'
-    ? 'http://localhost:5002'
-    : 'https://web-development-8c2f.up.railway.app');
+  process.env.NODE_ENV === 'development'
+    ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002'
+    : 'https://web-development-8c2f.up.railway.app';
 
 const apiClient = axios.create({
   baseURL: API_URL,
