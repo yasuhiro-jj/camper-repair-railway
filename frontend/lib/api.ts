@@ -4,6 +4,7 @@
  */
 
 import axios from 'axios';
+import { FactoryCase } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002';
 
@@ -52,14 +53,6 @@ export const chatApi = {
 };
 
 // 工場ダッシュボードAPI
-export interface FactoryCase {
-  id: string;
-  title: string;
-  status: string;
-  created_at: string;
-  [key: string]: any;
-}
-
 export const factoryApi = {
   /**
    * 案件一覧を取得
