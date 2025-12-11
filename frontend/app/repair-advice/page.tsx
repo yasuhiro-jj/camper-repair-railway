@@ -4,6 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === 'development'
+    ? 'http://localhost:5002'
+    : 'https://web-development-8c2f.up.railway.app');
+
 export default function RepairAdvicePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -25,8 +31,7 @@ export default function RepairAdvicePage() {
     setSearchQuery(query);
     
     try {
-      // API呼び出し（後で実装）
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002'}/api/unified/repair_advice`, {
+      const response = await fetch(`${API_BASE_URL}/api/repair_advice/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -185,6 +190,12 @@ export default function RepairAdvicePage() {
     </div>
   );
 }
+
+
+
+
+
+
 
 
 

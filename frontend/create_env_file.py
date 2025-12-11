@@ -17,7 +17,7 @@ def create_env_file():
     
     # ファイルの内容
     content = """# API URL設定
-NEXT_PUBLIC_API_URL=http://localhost:5002
+NEXT_PUBLIC_API_URL=https://web-development-8c2f.up.railway.app
 """
     
     # ファイルが既に存在するか確認

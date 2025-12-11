@@ -30,16 +30,16 @@ npm install
 
 **内容**:
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5002
+NEXT_PUBLIC_API_URL=https://web-development-8c2f.up.railway.app
 ```
 
 **Windowsで作成する場合**:
 ```bash
 # コマンドプロンプト
-echo NEXT_PUBLIC_API_URL=http://localhost:5002 > .env.local
+echo NEXT_PUBLIC_API_URL=https://web-development-8c2f.up.railway.app > .env.local
 
 # PowerShell
-Set-Content -Path .env.local -Value "NEXT_PUBLIC_API_URL=http://localhost:5002"
+Set-Content -Path .env.local -Value "NEXT_PUBLIC_API_URL=https://web-development-8c2f.up.railway.app"
 ```
 
 ### 4. 開発サーバーの起動

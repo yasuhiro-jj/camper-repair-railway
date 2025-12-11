@@ -173,18 +173,23 @@ export default function ChatWindow() {
           </>
         )}
         {activeTab === 'diagnostic' && (
-          <div className="text-center py-8 text-gray-600">
-            <p className="text-lg mb-4">🔍 症状診断機能</p>
-            <p>症状を詳しく教えてください。AIが原因を特定します。</p>
-            <MessageList 
-              messages={messages} 
-              onSend={messages.length === 0 ? handleSend : undefined}
-              disabled={isLoading}
-            />
-            <div ref={messagesEndRef} />
-            {/* メッセージがある時は下部にメッセージ入力欄を表示 */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="text-center py-4 text-gray-600">
+              <p className="text-lg mb-2">🔍 症状診断機能</p>
+              <p className="text-sm text-gray-500">
+                症状を詳しく教えてください。AIが原因を特定します。
+              </p>
+            </div>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <MessageList
+                messages={messages}
+                onSend={messages.length === 0 ? handleSend : undefined}
+                disabled={isLoading}
+              />
+              <div ref={messagesEndRef} className="h-0" />
+            </div>
             {messages.length > 0 && (
-              <div className="mt-4">
+              <div className="mt-2 flex-shrink-0">
                 <MessageInput onSend={handleSend} disabled={isLoading} />
               </div>
             )}

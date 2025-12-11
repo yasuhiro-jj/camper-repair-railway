@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const API_URL =
-  process.env.NODE_ENV === "development"
-    ? process.env.NEXT_PUBLIC_API_URL || "http://localhost:5002"
-    : "https://web-development-8c2f.up.railway.app";
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "development"
+    ? "http://localhost:5002"
+    : "https://web-development-8c2f.up.railway.app");
 
 export async function POST(req: NextRequest) {
   try {

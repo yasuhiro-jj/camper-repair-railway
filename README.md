@@ -141,7 +141,7 @@ LINE_LOGIN_CALLBACK_URL=https://your-domain.com/api/line/login/callback
 `frontend/.env.local`ファイルを作成（オプション、デフォルト値で動作します）：
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5002
+NEXT_PUBLIC_API_URL=https://web-development-8c2f.up.railway.app
 ```
 
 **注意**: `.env.local`ファイルが存在しない場合、フロントエンドはデフォルトで`http://localhost:5002`を使用します。
@@ -285,7 +285,7 @@ npm run dev
 
 **環境変数（オプション）**: `frontend/.env.local`ファイルを作成すると、バックエンドAPIのURLをカスタマイズできます：
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5002
+NEXT_PUBLIC_API_URL=https://web-development-8c2f.up.railway.app
 ```
 
 **注意**: `.env.local`ファイルが存在しない場合でも、フロントエンドはデフォルトで`http://localhost:5002`を使用するため、正常に動作します。
