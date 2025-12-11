@@ -4,11 +4,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 
+// デフォルトはRailwayのURL（Vercel本番環境用）
+// 開発環境では環境変数 NEXT_PUBLIC_API_URL=http://localhost:5002 を設定
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (process.env.NODE_ENV === 'production'
-    ? 'https://web-development-8c2f.up.railway.app'
-    : 'http://localhost:5002');
+  process.env.NEXT_PUBLIC_API_URL || 'https://web-development-8c2f.up.railway.app';
 
 export default function RepairAdvicePage() {
   const [searchQuery, setSearchQuery] = useState('');
