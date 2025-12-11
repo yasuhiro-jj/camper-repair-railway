@@ -6,9 +6,9 @@ import Navigation from '@/components/Navigation';
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
-  (process.env.NODE_ENV === 'development'
-    ? 'http://localhost:5002'
-    : 'https://web-development-8c2f.up.railway.app');
+  (process.env.NODE_ENV === 'production'
+    ? 'https://web-development-8c2f.up.railway.app'
+    : 'http://localhost:5002');
 
 export default function RepairAdvicePage() {
   const [searchQuery, setSearchQuery] = useState('');
