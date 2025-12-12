@@ -6002,6 +6002,94 @@ def estimate_repair_cost():
             "error": str(e)
         }), 500
 
+# ============================================
+# パートナー修理店API
+# ============================================
+
+try:
+    from data_access.partner_manager import partner_manager
+    PARTNER_MANAGER_AVAILABLE = True
+    print("✅ パートナー管理機能が利用可能です")
+except ImportError as e:
+    print(f"⚠️ パートナー管理機能が利用できません: {e}")
+    PARTNER_MANAGER_AVAILABLE = False
+
+@app.route("/api/partners", methods=["GET"])
+@cross_origin()
+def get_partners():
+    """
+    パートナー修理店一覧を取得
+    クエリパラメータ:
+        - prefecture: 都道府県フィルタ（オプション）
+        - specialty: 専門分野フィルタ（オプション）
+    """
+    if not PARTNER_MANAGER_AVAILABLE:
+        return jsonify({
+            "success": False,
+            "error": "パートナー管理機能が利用できません"
+        }), 503
+    
+    try:
+        # クエリパラメータ取得
+        prefecture = request.args.get("prefecture")
+        specialty = request.args.get("specialty")
+        
+        # パートナー修理店を取得
+        partners = partner_manager.get_all_partners(
+            prefecture=prefecture,
+            specialty=specialty
+        )
+        
+        return jsonify({
+            "success": True,
+            "partners": partners,
+            "count": len(partners)
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ パートナー修理店取得エラー: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/api/partners/<shop_id>", methods=["GET"])
+@cross_origin()
+def get_partner_detail(shop_id: str):
+    """
+    指定されたIDのパートナー修理店詳細を取得
+    """
+    if not PARTNER_MANAGER_AVAILABLE:
+        return jsonify({
+            "success": False,
+            "error": "パートナー管理機能が利用できません"
+        }), 503
+    
+    try:
+        partner = partner_manager.get_partner_by_id(shop_id)
+        
+        if not partner:
+            return jsonify({
+                "success": False,
+                "error": "指定された修理店が見つかりません"
+            }), 404
+        
+        return jsonify({
+            "success": True,
+            "partner": partner
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ パートナー修理店詳細取得エラー: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 @app.route("/api/admin/system-info", methods=["GET"])
 def get_system_info():
     """システム情報取得"""
