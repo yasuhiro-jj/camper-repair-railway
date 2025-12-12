@@ -36,8 +36,10 @@ export default function RepairAdvicePage() {
       
       if (response.ok) {
         const data = await response.json();
+        console.log('検索結果:', data); // デバッグ用
         setResults(data);
       } else {
+        console.error('検索失敗:', response.status); // デバッグ用
         setResults({ error: '検索に失敗しました' });
       }
     } catch (error) {
@@ -140,6 +142,11 @@ export default function RepairAdvicePage() {
             <h2 className="text-2xl font-bold text-gray-800 mb-6">📋 検索結果</h2>
             {results.error ? (
               <div className="text-red-600">{results.error}</div>
+            ) : !results.repair_cases && !results.parts && !results.answer ? (
+              <div className="text-gray-600 text-center py-8">
+                <p className="text-lg mb-2">🔍 検索結果が見つかりませんでした</p>
+                <p className="text-sm">別のキーワードで検索してみてください</p>
+              </div>
             ) : (
               <div className="space-y-4">
                 {results.repair_cases && results.repair_cases.length > 0 && (
