@@ -97,7 +97,7 @@ export default function RepairAdvicePage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="例: バッテリー、雨漏り、エアコン、トイレ、ガスコンロ..."
-                className="flex-1 px-6 py-4 border-2 border-red-300 rounded-lg focus:outline-none focus:border-red-500 text-lg"
+                className="flex-1 px-6 py-4 border-2 border-red-300 rounded-lg focus:outline-none focus:border-red-500 text-lg text-gray-900"
               />
               <button
                 type="submit"
