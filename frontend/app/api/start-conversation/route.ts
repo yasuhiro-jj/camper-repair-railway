@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// API RouteではNEXT_PUBLIC_プレフィックスなしの環境変数を使用
-// Vercelの環境変数: API_URL=https://web-development-8c2f.up.railway.app
-const API_URL =
-  process.env.API_URL || 
-  process.env.NEXT_PUBLIC_API_URL || 
-  "https://web-development-8c2f.up.railway.app";
+// 本番環境では常にRailway URLを使用（環境変数なしで動作）
+const API_URL = "https://web-development-8c2f.up.railway.app";
 
 export async function POST(req: NextRequest) {
   try {
