@@ -10,7 +10,7 @@ interface TabNavigationProps {
 export default function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
   const tabs = [
     { id: 'chat' as TabMode, label: '🤖 統合チャット', icon: '🤖' },
-    { id: 'diagnostic' as TabMode, label: '🔍 症状診断', icon: '🔍' },
+    // { id: 'diagnostic' as TabMode, label: '🔍 症状診断', icon: '🔍' }, // 非表示: 統合チャットと機能が重複
     { id: 'repair_advice' as TabMode, label: '🔧 修理アドバイスセンター', icon: '🔧' },
   ];
 
@@ -32,6 +32,13 @@ export default function TabNavigation({ activeTab, onTabChange }: TabNavigationP
     </div>
   );
 }
+
+
+
+
+
+
+
 
 
 
