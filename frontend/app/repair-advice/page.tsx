@@ -4,11 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 
-// デフォルトはRailwayのURL（Vercel本番環境用）
-// 開発環境では環境変数 NEXT_PUBLIC_API_URL=http://localhost:5002 を設定
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'https://web-development-8c2f.up.railway.app';
-
 export default function RepairAdvicePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +25,8 @@ export default function RepairAdvicePage() {
     setSearchQuery(query);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/repair_advice/search`, {
+      // Next.jsのAPI Route経由でバックエンドにアクセス（CORS回避）
+      const response = await fetch(`/api/repair-advice`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
