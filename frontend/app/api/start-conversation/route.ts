@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// デフォルトはRailwayのURL（Vercel本番環境用）
-// 開発環境では環境変数 NEXT_PUBLIC_API_URL=http://localhost:5002 を設定
+// API RouteではNEXT_PUBLIC_プレフィックスなしの環境変数を使用
+// Vercelの環境変数: API_URL=https://web-development-8c2f.up.railway.app
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://web-development-8c2f.up.railway.app";
+  process.env.API_URL || 
+  process.env.NEXT_PUBLIC_API_URL || 
+  "https://web-development-8c2f.up.railway.app";
 
 export async function POST(req: NextRequest) {
   try {
