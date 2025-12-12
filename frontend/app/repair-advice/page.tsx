@@ -142,48 +142,52 @@ export default function RepairAdvicePage() {
             <h2 className="text-2xl font-bold text-gray-800 mb-6">📋 検索結果</h2>
             {results.error ? (
               <div className="text-red-600">{results.error}</div>
-            ) : !results.repair_cases && !results.parts && !results.answer ? (
+            ) : !results.results || results.results.length === 0 ? (
               <div className="text-gray-600 text-center py-8">
                 <p className="text-lg mb-2">🔍 検索結果が見つかりませんでした</p>
                 <p className="text-sm">別のキーワードで検索してみてください</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {results.repair_cases && results.repair_cases.length > 0 && (
-                  <div>
-                    <h3 className="text-xl font-semibold mb-4">🔧 関連修理ケース</h3>
-                    <div className="space-y-3">
-                      {results.repair_cases.map((case_: any, index: number) => (
-                        <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                          <h4 className="font-semibold text-lg mb-2">{case_.title || case_.name}</h4>
-                          {case_.description && <p className="text-gray-600 mb-2">{case_.description}</p>}
-                          {case_.cost_estimate && (
-                            <p className="text-red-600 font-semibold">💰 費用目安: {case_.cost_estimate}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                <p className="text-gray-600 mb-4">
+                  検索結果: {results.total || results.results.length}件
+                </p>
+                {results.results.map((item: any, index: number) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <h4 className="font-semibold text-lg mb-2 text-red-600">
+                      {item.case_id || item.id || `ケース ${index + 1}`}
+                    </h4>
+                    {item.title && <h5 className="font-medium text-md mb-2">{item.title}</h5>}
+                    {item.symptom && (
+                      <p className="text-gray-700 mb-2">
+                        <span className="font-semibold">症状:</span> {item.symptom}
+                      </p>
+                    )}
+                    {item.description && (
+                      <p className="text-gray-600 mb-2">{item.description}</p>
+                    )}
+                    {item.solution && (
+                      <p className="text-gray-700 mb-2">
+                        <span className="font-semibold">解決方法:</span> {item.solution}
+                      </p>
+                    )}
+                    {item.cost_estimate && (
+                      <p className="text-red-600 font-semibold">
+                        💰 費用目安: {item.cost_estimate}
+                      </p>
+                    )}
+                    {item.difficulty && (
+                      <p className="text-gray-600 text-sm mt-2">
+                        ⚙️ 難易度: {item.difficulty}
+                      </p>
+                    )}
+                    {item.estimated_time && (
+                      <p className="text-gray-600 text-sm">
+                        ⏱️ 推定時間: {item.estimated_time}
+                      </p>
+                    )}
                   </div>
-                )}
-                {results.parts && results.parts.length > 0 && (
-                  <div>
-                    <h3 className="text-xl font-semibold mb-4">🛠️ 必要な部品・工具</h3>
-                    <div className="space-y-2">
-                      {results.parts.map((part: any, index: number) => (
-                        <div key={index} className="border border-gray-200 rounded-lg p-3">
-                          <p className="font-medium">{part.name}</p>
-                          {part.price && <p className="text-gray-600 text-sm">価格: {part.price}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {results.answer && (
-                  <div className="border-l-4 border-red-500 pl-4">
-                    <h3 className="text-xl font-semibold mb-2">💡 アドバイス</h3>
-                    <p className="text-gray-700 whitespace-pre-wrap">{results.answer}</p>
-                  </div>
-                )}
+                ))}
               </div>
             )}
           </div>
