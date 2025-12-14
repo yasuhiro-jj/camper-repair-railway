@@ -803,6 +803,3 @@ export const reviewApi = {
 };
 
 export default apiClient;
-
-
-これであっているのですよね。　Commit changesする？必要ある？
