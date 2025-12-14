@@ -468,7 +468,11 @@ class NotionClient:
             # databases.queryのフォールバック処理を追加
             if not hasattr(self.client.databases, 'query'):
                 print("⚠️ databases.queryメソッドが存在しないため、フォールバックを追加します")
-                self.client.databases.query = lambda database_id, **kwargs: self._query_database_direct(database_id, **kwargs)
+                # lambdaではなく、明示的な関数を使用
+                def query_fallback(database_id, **kwargs):
+                    return self._query_database_direct(database_id, **kwargs)
+                self.client.databases.query = query_fallback
+                print("✅ フォールバック関数を追加しました")
             
             # 接続テスト
             try:
