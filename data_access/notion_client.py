@@ -97,6 +97,14 @@ class NotionClient:
         """データベースを直接HTTPリクエストでクエリ（queryメソッドが存在しない場合の代替）"""
         import requests
         
+        # #region agent log
+        import json, time
+        try:
+            with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"location":"notion_client.py:96","message":"_query_database_direct called","data":{"database_id":database_id,"kwargs_keys":list(kwargs.keys())},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"}, ensure_ascii=False)+"\n")
+        except: pass
+        # #endregion
+        
         url = f"https://api.notion.com/v1/databases/{database_id}/query"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -110,11 +118,36 @@ class NotionClient:
         if "page_size" not in data:
             data["page_size"] = 100
         
+        # #region agent log
+        import json, time
+        try:
+            with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"location":"notion_client.py:114","message":"Before HTTP POST","data":{"url":url,"data_keys":list(data.keys()),"has_filter":("filter" in data),"has_sorts":("sorts" in data)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"}, ensure_ascii=False)+"\n")
+        except: pass
+        # #endregion
+        
         try:
             response = requests.post(url, headers=headers, json=data, timeout=10)
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            
+            # #region agent log
+            import json, time
+            try:
+                with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"location":"notion_client.py:117","message":"HTTP POST success","data":{"status_code":response.status_code,"results_count":len(result.get("results",[]))},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"}, ensure_ascii=False)+"\n")
+            except: pass
+            # #endregion
+            
+            return result
         except Exception as e:
+            # #region agent log
+            import json, time
+            try:
+                with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"location":"notion_client.py:118","message":"HTTP POST error","data":{"error":str(e),"error_type":type(e).__name__},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"}, ensure_ascii=False)+"\n")
+            except: pass
+            # #endregion
             raise Exception(f"Database query failed: {str(e)}")
     
     async def _make_request(self, method: str, url: str, data: Optional[Dict] = None) -> Dict:
