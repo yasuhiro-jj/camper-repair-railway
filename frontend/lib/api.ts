@@ -374,32 +374,37 @@ export const partnerShopApi = {
   /**
    * パートナー修理店一覧を取得
    */
-  getShops: async (
+   getShops: async (
     status?: string,
     prefecture?: string,
     specialty?: string
   ): Promise<PartnerShop[]> => {
     try {
-      const params: any = {};
-      if (status) params.status = status;
-      if (prefecture) params.prefecture = prefecture;
-      if (specialty) params.specialty = specialty;
+      // Next.jsのAPIルート経由でリクエスト（CORS問題を回避）
+      const params = new URLSearchParams();
+      if (status) params.append('status', status);
+      if (prefecture) params.append('prefecture', prefecture);
+      if (specialty) params.append('specialty', specialty);
 
-      const response = await apiClient.get<{
-        shops: PartnerShop[];
-        count: number;
-      }>('/api/v1/partner-shops', { params });
+      const queryString = params.toString();
+      const url = `/api/partner-shops${queryString ? `?${queryString}` : ''}`;
 
-      return response.data.shops || [];
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.shops || [];
     } catch (error: any) {
       console.error('パートナー修理店一覧取得エラー:', error);
-      // 接続エラーの場合はより詳細な情報を提供
-      if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error')) {
-        const connectionError = new Error('バックエンドサーバーに接続できません。サーバーが起動しているか確認してください。');
-        (connectionError as any).code = error.code;
-        throw connectionError;
-      }
-      throw error;
+      throw new Error('パートナー修理店の取得に失敗しました: ' + error.message);
     }
   },
 
