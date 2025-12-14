@@ -3,6 +3,9 @@
 .env.local
 .env.production
 
+# Streamlit設定ファイル（機密情報を含む）
+.streamlit/secrets.toml
+
 # API設定ファイル（機密情報を含む）
 *API設定.txt
 
@@ -21,6 +24,10 @@ cache.db
 frontend-new/
 frontend-simple/
 new_frontend/
+
+# Node.js
+node_modules/
+.next/
 
 # データファイル（必要なものは除外）
 *.csv

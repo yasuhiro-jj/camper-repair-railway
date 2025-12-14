@@ -93,7 +93,7 @@ class NotionClient:
             await self.session.close()
             self.session = None
     
-    def _query_database_direct(self, database_id: str, page_size: int = 100) -> Dict:
+    def _query_database_direct(self, database_id: str, **kwargs) -> Dict:
         """データベースを直接HTTPリクエストでクエリ（queryメソッドが存在しない場合の代替）"""
         import requests
         
@@ -104,7 +104,11 @@ class NotionClient:
             "Content-Type": "application/json"
         }
         
-        data = {"page_size": page_size}
+        # kwargsからNotionがサポートするパラメータを抽出
+        allowed_keys = {"filter", "sorts", "start_cursor", "page_size"}
+        data = {k: v for k, v in kwargs.items() if k in allowed_keys and v is not None}
+        if "page_size" not in data:
+            data["page_size"] = 100
         
         try:
             response = requests.post(url, headers=headers, json=data, timeout=10)
@@ -427,6 +431,11 @@ class NotionClient:
             from notion_client import Client
             print(f"🔧 Notionクライアント作成中... (APIキー: {self.api_key[:10]}...)")
             self.client = Client(auth=self.api_key)
+            
+            # databases.queryのフォールバック処理を追加
+            if not hasattr(self.client.databases, 'query'):
+                print("⚠️ databases.queryメソッドが存在しないため、フォールバックを追加します")
+                self.client.databases.query = lambda database_id, **kwargs: self._query_database_direct(database_id, **kwargs)
             
             # 接続テスト
             try:

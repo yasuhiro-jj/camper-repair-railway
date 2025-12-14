@@ -128,15 +128,15 @@ class PartnerShopManager:
                     },
                     {
                         "property": "修理金額の合計",
-                        "direction": "desc"
+                        "direction": "descending"
                     },
                     {
                         "property": "平均星評価",
-                        "direction": "desc"
+                        "direction": "descending"
                     },
                     {
                         "property": "評価件数",
-                        "direction": "desc"
+                        "direction": "descending"
                     }
                 ]
             }
