@@ -103,6 +103,7 @@ class NotionClient:
             with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
                 f.write(json.dumps({"location":"notion_client.py:96","message":"_query_database_direct called","data":{"database_id":database_id,"kwargs_keys":list(kwargs.keys())},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"}, ensure_ascii=False)+"\n")
         except: pass
+        print("[AgentLog][E] _query_database_direct called:", {"database_id": database_id, "kwargs_keys": list(kwargs.keys())})
         # #endregion
         
         url = f"https://api.notion.com/v1/databases/{database_id}/query"
@@ -124,6 +125,7 @@ class NotionClient:
             with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
                 f.write(json.dumps({"location":"notion_client.py:114","message":"Before HTTP POST","data":{"url":url,"data_keys":list(data.keys()),"has_filter":("filter" in data),"has_sorts":("sorts" in data)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"}, ensure_ascii=False)+"\n")
         except: pass
+        print("[AgentLog][E] Before HTTP POST:", {"has_filter": ("filter" in data), "has_sorts": ("sorts" in data)})
         # #endregion
         
         try:
@@ -137,6 +139,7 @@ class NotionClient:
                 with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
                     f.write(json.dumps({"location":"notion_client.py:117","message":"HTTP POST success","data":{"status_code":response.status_code,"results_count":len(result.get("results",[]))},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"}, ensure_ascii=False)+"\n")
             except: pass
+            print("[AgentLog][E] HTTP POST success:", {"status_code": response.status_code, "results_count": len(result.get("results", []))})
             # #endregion
             
             return result
@@ -147,6 +150,7 @@ class NotionClient:
                 with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
                     f.write(json.dumps({"location":"notion_client.py:118","message":"HTTP POST error","data":{"error":str(e),"error_type":type(e).__name__},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"}, ensure_ascii=False)+"\n")
             except: pass
+            print("[AgentLog][E] HTTP POST error:", {"error": str(e)})
             # #endregion
             raise Exception(f"Database query failed: {str(e)}")
     

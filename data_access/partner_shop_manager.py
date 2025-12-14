@@ -96,10 +96,19 @@ class PartnerShopManager:
         """
         # #region agent log
         import json, time
+        log_payload = {
+            "location":"partner_shop_manager.py:95",
+            "message":"list_shops called",
+            "data":{"status":status,"prefecture":prefecture,"specialty":specialty,"limit":limit,"partner_db_id":self.partner_db_id},
+            "timestamp":int(time.time()*1000),
+            "sessionId":"debug-session",
+            "hypothesisId":"A"
+        }
         try:
             with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"location":"partner_shop_manager.py:95","message":"list_shops called","data":{"status":status,"prefecture":prefecture,"specialty":specialty,"limit":limit,"partner_db_id":self.partner_db_id},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"A"}, ensure_ascii=False)+"\n")
+                f.write(json.dumps(log_payload, ensure_ascii=False)+"\n")
         except: pass
+        print("[AgentLog][A] list_shops called:", log_payload["data"])
         # #endregion
         try:
             filters = []
@@ -157,6 +166,7 @@ class PartnerShopManager:
                 with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
                     f.write(json.dumps({"location":"partner_shop_manager.py:147","message":"Before Notion query","data":{"query":query,"has_filter":bool(filters)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"B"}, ensure_ascii=False)+"\n")
             except: pass
+            print("[AgentLog][B] Before Notion query:", {"has_filter": bool(filters), "query_keys": list(query.keys())})
             # #endregion
             
             response = self.notion.databases.query(**query)
@@ -167,6 +177,7 @@ class PartnerShopManager:
                 with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
                     f.write(json.dumps({"location":"partner_shop_manager.py:150","message":"After Notion query","data":{"results_count":len(response.get("results",[])),"has_more":response.get("has_more",False)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"B"}, ensure_ascii=False)+"\n")
             except: pass
+            print("[AgentLog][B] After Notion query:", {"results_count": len(response.get("results", [])), "has_more": response.get("has_more", False)})
             # #endregion
             
             shops = []
@@ -179,6 +190,7 @@ class PartnerShopManager:
                 with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
                     f.write(json.dumps({"location":"partner_shop_manager.py:153","message":"list_shops success","data":{"shops_count":len(shops)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"A"}, ensure_ascii=False)+"\n")
             except: pass
+            print("[AgentLog][A] list_shops success:", {"shops_count": len(shops)})
             # #endregion
             
             return shops
@@ -190,6 +202,7 @@ class PartnerShopManager:
                 with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
                     f.write(json.dumps({"location":"partner_shop_manager.py:156","message":"list_shops error","data":{"error":str(e),"error_type":type(e).__name__},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"C"}, ensure_ascii=False)+"\n")
             except: pass
+            print("[AgentLog][C] list_shops error:", {"error": str(e)})
             # #endregion
             print(f"❌ パートナー修理店一覧取得エラー: {e}")
             return []
