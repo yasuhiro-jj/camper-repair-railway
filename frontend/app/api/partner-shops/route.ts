@@ -5,6 +5,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const BACKEND_URL =
   process.env.NODE_ENV === 'development'
     ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002'
@@ -33,6 +36,8 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       signal: AbortSignal.timeout(60000),
+      cache: 'no-store',
+      next: { revalidate: 0 },
     });
 
     if (!response.ok) {
@@ -46,7 +51,11 @@ export async function GET(request: NextRequest) {
     const data = await response.json();
     console.log('[Partner Shops API] Success, shops count:', data.shops?.length || 0);
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'no-store, max-age=0',
+      },
+    });
   } catch (error: any) {
     console.error('[Partner Shops API] Error:', error);
     return NextResponse.json(
