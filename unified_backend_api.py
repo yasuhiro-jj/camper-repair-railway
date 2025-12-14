@@ -6014,12 +6014,13 @@ except ImportError as e:
     print(f"⚠️ パートナー管理機能が利用できません: {e}")
     PARTNER_MANAGER_AVAILABLE = False
 
-@app.route("/api/partners", methods=["GET"])
+@app.route("/api/v1/partner-shops", methods=["GET"])
 @cross_origin()
 def get_partners():
     """
     パートナー修理店一覧を取得
     クエリパラメータ:
+        - status: ステータスフィルタ（オプション、デフォルト: アクティブ）
         - prefecture: 都道府県フィルタ（オプション）
         - specialty: 専門分野フィルタ（オプション）
     """
@@ -6031,6 +6032,7 @@ def get_partners():
     
     try:
         # クエリパラメータ取得
+        status = request.args.get("status", "アクティブ")
         prefecture = request.args.get("prefecture")
         specialty = request.args.get("specialty")
         
@@ -6040,9 +6042,13 @@ def get_partners():
             specialty=specialty
         )
         
+        # ステータスフィルタ（Notion側で既にフィルタリングされているが、念のため）
+        if status:
+            partners = [p for p in partners if p.get("status") == status]
+        
         return jsonify({
             "success": True,
-            "partners": partners,
+            "shops": partners,
             "count": len(partners)
         })
         
@@ -6055,7 +6061,7 @@ def get_partners():
             "error": str(e)
         }), 500
 
-@app.route("/api/partners/<shop_id>", methods=["GET"])
+@app.route("/api/v1/partner-shops/<shop_id>", methods=["GET"])
 @cross_origin()
 def get_partner_detail(shop_id: str):
     """
@@ -6078,7 +6084,7 @@ def get_partner_detail(shop_id: str):
         
         return jsonify({
             "success": True,
-            "partner": partner
+            "shop": partner
         })
         
     except Exception as e:
