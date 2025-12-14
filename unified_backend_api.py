@@ -6037,14 +6037,11 @@ def get_partners():
         specialty = request.args.get("specialty")
         
         # パートナー修理店を取得
-        partners = partner_manager.get_all_partners(
+        partners = partner_manager.list_shops(
+            status=status,
             prefecture=prefecture,
             specialty=specialty
         )
-        
-        # ステータスフィルタ（Notion側で既にフィルタリングされているが、念のため）
-        if status:
-            partners = [p for p in partners if p.get("status") == status]
         
         return jsonify({
             "success": True,
