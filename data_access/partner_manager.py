@@ -93,17 +93,29 @@ class PartnerManager:
             sys.stderr.write(f"[AgentLog] Querying Notion database with filter: {filter_condition}\n")
             sys.stderr.flush()
             
-            # Notionからデータ取得
-            response = notion_client.databases.query(
-                database_id=self.db_id,
-                filter=filter_condition if filter_condition else None,
-                sorts=[
+            # Notionからデータ取得（直接HTTPリクエスト）
+            import requests
+            url = f"https://api.notion.com/v1/databases/{self.db_id}/query"
+            headers = {
+                "Authorization": f"Bearer {notion_client.api_key}",
+                "Notion-Version": "2022-06-28",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "sorts": [
                     {
                         "property": "name",
                         "direction": "ascending"
                     }
                 ]
-            )
+            }
+            if filter_condition:
+                payload["filter"] = filter_condition
+            
+            sys.stderr.write(f"[AgentLog] Making HTTP request to Notion API...\n")
+            sys.stderr.flush()
+            
+            response = requests.post(url, headers=headers, json=payload).json()
             
             sys.stderr.write(f"[AgentLog] Notion response received: {len(response.get('results', []))} results\n")
             sys.stderr.flush()
@@ -157,15 +169,24 @@ class PartnerManager:
             return None
         
         try:
-            response = notion_client.databases.query(
-                database_id=self.db_id,
-                filter={
+            # Notionからデータ取得（直接HTTPリクエスト）
+            import requests
+            url = f"https://api.notion.com/v1/databases/{self.db_id}/query"
+            headers = {
+                "Authorization": f"Bearer {notion_client.api_key}",
+                "Notion-Version": "2022-06-28",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "filter": {
                     "property": "shop_id",
                     "rich_text": {
                         "equals": shop_id
                     }
                 }
-            )
+            }
+            
+            response = requests.post(url, headers=headers, json=payload).json()
             
             results = response.get("results", [])
             if results:
