@@ -20,31 +20,47 @@ class PartnerManager:
         if not self.db_id:
             print("⚠️ NOTION_PARTNER_DB_ID が設定されていません")
     
-    def get_all_partners(self, prefecture: Optional[str] = None, specialty: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_shops(self, status: Optional[str] = None, prefecture: Optional[str] = None, specialty: Optional[str] = None) -> List[Dict[str, Any]]:
         """
-        パートナー修理店一覧を取得
+        パートナー修理店一覧を取得（APIエンドポイント用）
         
         Args:
+            status: ステータスフィルタ（オプション、デフォルト: アクティブ）
             prefecture: 都道府県フィルタ（オプション）
             specialty: 専門分野フィルタ（オプション）
         
         Returns:
             パートナー修理店のリスト
         """
+        import sys
+        sys.stderr.write(f"[AgentLog] list_shops called with status={status}, prefecture={prefecture}, specialty={specialty}\n")
+        sys.stderr.flush()
+        
         if not self.db_id:
+            sys.stderr.write(f"[AgentLog] ERROR: db_id is not set. NOTION_PARTNER_DB_ID={PARTNER_DB_ID}\n")
+            sys.stderr.flush()
             return []
         
         try:
             # フィルタ条件を構築
             filters = []
             
-            # ステータスが「アクティブ」のみ取得
-            filters.append({
-                "property": "status",
-                "select": {
-                    "equals": "アクティブ"
-                }
-            })
+            # ステータスフィルタ（デフォルトは「アクティブ」）
+            if status:
+                filters.append({
+                    "property": "status",
+                    "select": {
+                        "equals": status
+                    }
+                })
+            else:
+                # デフォルトでアクティブのみ
+                filters.append({
+                    "property": "status",
+                    "select": {
+                        "equals": "アクティブ"
+                    }
+                })
             
             # 都道府県フィルタ
             if prefecture:
@@ -74,6 +90,9 @@ class PartnerManager:
                         "and": filters
                     }
             
+            sys.stderr.write(f"[AgentLog] Querying Notion database with filter: {filter_condition}\n")
+            sys.stderr.flush()
+            
             # Notionからデータ取得
             response = notion_client.databases.query(
                 database_id=self.db_id,
@@ -86,18 +105,43 @@ class PartnerManager:
                 ]
             )
             
+            sys.stderr.write(f"[AgentLog] Notion response received: {len(response.get('results', []))} results\n")
+            sys.stderr.flush()
+            
             partners = []
             for page in response.get("results", []):
                 partner = self._parse_partner_page(page)
                 if partner:
                     partners.append(partner)
             
+            sys.stderr.write(f"[AgentLog] ✅ パートナー修理店を{len(partners)}件取得しました\n")
+            sys.stderr.flush()
             print(f"✅ パートナー修理店を{len(partners)}件取得しました")
             return partners
             
         except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            sys.stderr.write(f"[AgentLog] ❌ パートナー修理店取得エラー: {e}\n")
+            sys.stderr.write(f"[AgentLog] Traceback: {error_trace}\n")
+            sys.stderr.flush()
             print(f"❌ パートナー修理店取得エラー: {e}")
+            print(error_trace)
             return []
+    
+    def get_all_partners(self, prefecture: Optional[str] = None, specialty: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        パートナー修理店一覧を取得
+        
+        Args:
+            prefecture: 都道府県フィルタ（オプション）
+            specialty: 専門分野フィルタ（オプション）
+        
+        Returns:
+            パートナー修理店のリスト
+        """
+        # list_shopsに委譲
+        return self.list_shops(status="アクティブ", prefecture=prefecture, specialty=specialty)
     
     def get_partner_by_id(self, shop_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -266,4 +310,6 @@ class PartnerManager:
 
 # シングルトンインスタンス
 partner_manager = PartnerManager()
+
+
 

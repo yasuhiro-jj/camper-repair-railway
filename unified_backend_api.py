@@ -6008,9 +6008,16 @@ def estimate_repair_cost():
 
 try:
     from data_access.partner_manager import partner_manager
+    import sys
     PARTNER_MANAGER_AVAILABLE = True
+    sys.stderr.write(f"[AgentLog] ✅ パートナー管理機能が利用可能です\n")
+    sys.stderr.write(f"[AgentLog] NOTION_PARTNER_DB_ID={'SET' if os.getenv('NOTION_PARTNER_DB_ID') else 'NOT SET'}\n")
+    sys.stderr.flush()
     print("✅ パートナー管理機能が利用可能です")
 except ImportError as e:
+    import sys
+    sys.stderr.write(f"[AgentLog] ⚠️ パートナー管理機能のインポートエラー: {e}\n")
+    sys.stderr.flush()
     print(f"⚠️ パートナー管理機能が利用できません: {e}")
     PARTNER_MANAGER_AVAILABLE = False
 
@@ -6024,10 +6031,36 @@ def get_partners():
         - prefecture: 都道府県フィルタ（オプション）
         - specialty: 専門分野フィルタ（オプション）
     """
+    # #region agent log
+    import json as _json, time as _time
+    try:
+        with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as _f:
+            _f.write(_json.dumps({
+                "sessionId": "debug-session",
+                "runId": "initial",
+                "hypothesisId": "A",
+                "location": "unified_backend_api.py:6030",
+                "message": "get_partners called",
+                "data": {
+                    "PARTNER_MANAGER_AVAILABLE": PARTNER_MANAGER_AVAILABLE,
+                    "args": request.args.to_dict()
+                },
+                "timestamp": int(_time.time() * 1000)
+            }, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+    # #endregion
+
     if not PARTNER_MANAGER_AVAILABLE:
+        import sys
+        sys.stderr.write(f"[AgentLog] ERROR: PARTNER_MANAGER_AVAILABLE is False\n")
+        sys.stderr.flush()
         return jsonify({
             "success": False,
-            "error": "パートナー管理機能が利用できません"
+            "error": "パートナー管理機能が利用できません",
+            "_debug": {
+                "PARTNER_MANAGER_AVAILABLE": False
+            }
         }), 503
     
     try:
@@ -6037,25 +6070,52 @@ def get_partners():
         specialty = request.args.get("specialty")
         
         # パートナー修理店を取得
+        import sys
+        sys.stderr.write(f"[DEBUG] Calling list_shops with status={status}, prefecture={prefecture}, specialty={specialty}\n")
+        sys.stderr.flush()
+        
         partners = partner_manager.list_shops(
             status=status,
             prefecture=prefecture,
             specialty=specialty
         )
         
+        sys.stderr.write(f"[DEBUG] list_shops returned {len(partners)} partners\n")
+        sys.stderr.flush()
+        
         return jsonify({
             "success": True,
             "shops": partners,
-            "count": len(partners)
+            "count": len(partners),
+            "_debug": {
+                "status": status,
+                "prefecture": prefecture,
+                "specialty": specialty,
+                "partners_count": len(partners),
+                "PARTNER_MANAGER_AVAILABLE": PARTNER_MANAGER_AVAILABLE,
+                "partner_db_id_set": bool(os.getenv("NOTION_PARTNER_DB_ID")),
+                "list_shops_called": True
+            }
         })
         
     except Exception as e:
         import traceback
+        error_trace = traceback.format_exc()
+        
+        # stderrにも出力
+        sys.stderr.write(f"[AgentLog] ❌ get_partners Exception: {e}\n")
+        sys.stderr.write(f"[AgentLog] Traceback: {error_trace}\n")
+        sys.stderr.flush()
+        
         print(f"❌ パートナー修理店取得エラー: {e}")
-        print(traceback.format_exc())
+        print(error_trace)
         return jsonify({
             "success": False,
-            "error": str(e)
+            "error": str(e),
+            "_debug": {
+                "error_type": type(e).__name__,
+                "error_message": str(e)
+            }
         }), 500
 
 @app.route("/api/v1/partner-shops/<shop_id>", methods=["GET"])
