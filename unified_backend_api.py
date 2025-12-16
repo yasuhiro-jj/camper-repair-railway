@@ -5250,46 +5250,84 @@ def auto_assign_case_to_factory(case_id):
 @app.route("/api/v1/partner-shops", methods=["GET"])
 def get_partner_shops():
     """パートナー修理店一覧取得"""
+    import sys
     try:
-        from data_access.partner_shop_manager import PartnerShopManager
+        sys.stderr.write(f"[AgentLog] get_partner_shops endpoint called\n")
+        sys.stderr.flush()
         
-        manager = PartnerShopManager()
+        from data_access.partner_manager import partner_manager
         
-        status = request.args.get("status")
+        status = request.args.get("status", "アクティブ")
         prefecture = request.args.get("prefecture")
         specialty = request.args.get("specialty")
-        limit = int(request.args.get("limit", 100))
         
-        shops = manager.list_shops(
+        sys.stderr.write(f"[AgentLog] Parameters: status={status}, prefecture={prefecture}, specialty={specialty}\n")
+        sys.stderr.flush()
+        
+        shops = partner_manager.list_shops(
             status=status,
             prefecture=prefecture,
-            specialty=specialty,
-            limit=limit
+            specialty=specialty
         )
+        
+        sys.stderr.write(f"[AgentLog] Returning {len(shops)} shops\n")
+        sys.stderr.flush()
         
         return jsonify({
             "shops": shops,
-            "count": len(shops)
+            "count": len(shops),
+            "_debug": {
+                "status": status,
+                "prefecture": prefecture,
+                "specialty": specialty,
+                "shop_count": len(shops)
+            }
         })
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        sys.stderr.write(f"[AgentLog] ❌ get_partner_shops Exception: {e}\n")
+        sys.stderr.write(f"[AgentLog] Traceback: {error_trace}\n")
+        sys.stderr.flush()
         print(f"❌ パートナー修理店一覧取得エラー: {e}")
-        return jsonify({"error": str(e)}), 500
+        print(error_trace)
+        return jsonify({
+            "error": str(e),
+            "_debug": {
+                "error_type": type(e).__name__,
+                "error_message": str(e)
+            }
+        }), 500
 
 @app.route("/api/v1/partner-shops/<shop_id>", methods=["GET"])
 def get_partner_shop_detail(shop_id):
     """パートナー修理店詳細取得"""
+    import sys
     try:
-        from data_access.partner_shop_manager import PartnerShopManager
+        sys.stderr.write(f"[AgentLog] get_partner_shop_detail called with shop_id={shop_id}\n")
+        sys.stderr.flush()
         
-        manager = PartnerShopManager()
-        shop = manager.get_shop(shop_id)
+        from data_access.partner_manager import partner_manager
+        
+        shop = partner_manager.get_partner_by_id(shop_id)
         
         if not shop:
+            sys.stderr.write(f"[AgentLog] Shop not found: shop_id={shop_id}\n")
+            sys.stderr.flush()
             return jsonify({"error": "パートナー修理店が見つかりません"}), 404
+        
+        sys.stderr.write(f"[AgentLog] Shop found: {shop.get('name', 'N/A')}\n")
+        sys.stderr.flush()
         
         return jsonify(shop)
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        sys.stderr.write(f"[AgentLog] ❌ get_partner_shop_detail Exception: {e}\n")
+        sys.stderr.write(f"[AgentLog] Traceback: {error_trace}\n")
+        sys.stderr.flush()
         print(f"❌ パートナー修理店取得エラー: {e}")
+        print(error_trace)
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/v1/deals", methods=["POST"])
