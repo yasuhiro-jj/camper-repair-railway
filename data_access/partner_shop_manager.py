@@ -24,10 +24,24 @@ class PartnerShopManager:
     
     def _get_database_id(self) -> Optional[str]:
         """データベースIDを取得"""
+        # #region agent log
+        try:
+            import sys as _sys
+            _sys.stderr.write(
+                "[AgentLog] PartnerShopManager._get_database_id env presence "
+                f"NOTION_PARTNER_DB_ID={bool(os.getenv('NOTION_PARTNER_DB_ID'))}, "
+                f"PARTNER_SHOP_DB_ID={bool(os.getenv('PARTNER_SHOP_DB_ID'))}, "
+                f"PARTNER_DB_ID={bool(os.getenv('PARTNER_DB_ID'))}\n"
+            )
+            _sys.stderr.flush()
+        except Exception:
+            pass
+        # #endregion
+
         db_id = (
-            os.getenv("NOTION_PARTNER_DB_ID") or
-            os.getenv("PARTNER_SHOP_DB_ID") or
-            os.getenv("PARTNER_DB_ID")
+            os.getenv("NOTION_PARTNER_DB_ID")
+            or os.getenv("PARTNER_SHOP_DB_ID")
+            or os.getenv("PARTNER_DB_ID")
         )
         if db_id:
             # ハイフンを削除して正規化
@@ -95,6 +109,18 @@ class PartnerShopManager:
             パートナー修理店リスト
         """
         try:
+            # #region agent log
+            try:
+                import sys as _sys
+                _sys.stderr.write(
+                    "[AgentLog] PartnerShopManager.list_shops called "
+                    f"db_id={self.partner_db_id}, status={status}, prefecture={prefecture}, specialty={specialty}, limit={limit}\n"
+                )
+                _sys.stderr.flush()
+            except Exception:
+                pass
+            # #endregion
+
             filters = []
             
             # ステータスフィルタ
@@ -143,8 +169,40 @@ class PartnerShopManager:
             
             if filters:
                 query["filter"] = {"and": filters} if len(filters) > 1 else filters[0]
-            
+
+            # #region agent log
+            try:
+                import sys as _sys, json as _json
+                _sys.stderr.write(f"[AgentLog] PartnerShopManager.query payload: {_json.dumps(query, ensure_ascii=False)}\n")
+                _sys.stderr.flush()
+            except Exception:
+                pass
+            # #endregion
+
+            # #region agent log
+            # まずフィルタ無しで1件取れるか確認（DBアクセス/権限/IDの切り分け）
+            try:
+                import sys as _sys
+                probe = self.notion.databases.query(database_id=self.partner_db_id, page_size=1)
+                _sys.stderr.write(f"[AgentLog] PartnerShopManager.probe(no-filter) results_count={len(probe.get('results', []))}\n")
+                _sys.stderr.flush()
+            except Exception as e:
+                import sys as _sys, traceback as _tb
+                _sys.stderr.write(f"[AgentLog] PartnerShopManager.probe(no-filter) ERROR: {type(e).__name__}: {e}\n")
+                _sys.stderr.write(f"[AgentLog] PartnerShopManager.probe(no-filter) Traceback: {_tb.format_exc()}\n")
+                _sys.stderr.flush()
+            # #endregion
+
             response = self.notion.databases.query(**query)
+
+            # #region agent log
+            try:
+                import sys as _sys
+                _sys.stderr.write(f"[AgentLog] PartnerShopManager.query results_count={len(response.get('results', []))}\n")
+                _sys.stderr.flush()
+            except Exception:
+                pass
+            # #endregion
             
             shops = []
             for page in response.get("results", []):
@@ -153,6 +211,15 @@ class PartnerShopManager:
             return shops
             
         except Exception as e:
+            # #region agent log
+            try:
+                import sys as _sys, traceback as _tb
+                _sys.stderr.write(f"[AgentLog] PartnerShopManager.list_shops ERROR: {type(e).__name__}: {e}\n")
+                _sys.stderr.write(f"[AgentLog] PartnerShopManager.list_shops Traceback: {_tb.format_exc()}\n")
+                _sys.stderr.flush()
+            except Exception:
+                pass
+            # #endregion
             print(f"❌ パートナー修理店一覧取得エラー: {e}")
             return []
     
