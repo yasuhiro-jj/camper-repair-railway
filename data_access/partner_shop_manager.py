@@ -155,15 +155,15 @@ class PartnerShopManager:
                     },
                     {
                         "property": "修理金額の合計",
-                        "direction": "desc"
+                        "direction": "descending"
                     },
                     {
                         "property": "平均星評価",
-                        "direction": "desc"
+                        "direction": "descending"
                     },
                     {
                         "property": "評価件数",
-                        "direction": "desc"
+                        "direction": "descending"
                     }
                 ]
             }
@@ -187,8 +187,33 @@ class PartnerShopManager:
                     "Notion-Version": "2022-06-28",
                     "Content-Type": "application/json",
                 }
-                resp = requests.post(url, headers=headers, json=payload, timeout=20)
-                resp.raise_for_status()
+                # Notion APIの /databases/{id}/query は body に database_id を含めない
+                body = dict(payload or {})
+                body.pop("database_id", None)
+                # direction の正規化（desc/asc などを API 仕様に合わせる）
+                sorts = body.get("sorts")
+                if isinstance(sorts, list):
+                    for s in sorts:
+                        if isinstance(s, dict) and "direction" in s:
+                            d = str(s.get("direction", "")).lower()
+                            if d in ("desc", "descending"):
+                                s["direction"] = "descending"
+                            elif d in ("asc", "ascending"):
+                                s["direction"] = "ascending"
+                resp = requests.post(url, headers=headers, json=body, timeout=20)
+                try:
+                    resp.raise_for_status()
+                except Exception as e:
+                    # #region agent log
+                    try:
+                        import sys as _sys
+                        _sys.stderr.write(f"[AgentLog] PartnerShopManager.http_error status={resp.status_code}\n")
+                        _sys.stderr.write(f"[AgentLog] PartnerShopManager.http_error body={resp.text[:500]}\n")
+                        _sys.stderr.flush()
+                    except Exception:
+                        pass
+                    # #endregion
+                    raise e
                 return resp.json()
 
             # #region agent log
