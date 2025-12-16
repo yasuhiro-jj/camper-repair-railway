@@ -9,6 +9,7 @@ import os
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 from data_access.notion_client import notion_client
+import requests
 
 
 class PartnerShopManager:
@@ -179,12 +180,25 @@ class PartnerShopManager:
                 pass
             # #endregion
 
+            def _post_database_query(payload: Dict[str, Any]) -> Dict[str, Any]:
+                url = f"https://api.notion.com/v1/databases/{self.partner_db_id}/query"
+                headers = {
+                    "Authorization": f"Bearer {notion_client.api_key}",
+                    "Notion-Version": "2022-06-28",
+                    "Content-Type": "application/json",
+                }
+                resp = requests.post(url, headers=headers, json=payload, timeout=20)
+                resp.raise_for_status()
+                return resp.json()
+
             # #region agent log
             # まずフィルタ無しで1件取れるか確認（DBアクセス/権限/IDの切り分け）
             try:
                 import sys as _sys
-                probe = self.notion.databases.query(database_id=self.partner_db_id, page_size=1)
-                _sys.stderr.write(f"[AgentLog] PartnerShopManager.probe(no-filter) results_count={len(probe.get('results', []))}\n")
+                probe = _post_database_query({"page_size": 1})
+                _sys.stderr.write(
+                    f"[AgentLog] PartnerShopManager.probe(no-filter) results_count={len(probe.get('results', []))}\n"
+                )
                 _sys.stderr.flush()
             except Exception as e:
                 import sys as _sys, traceback as _tb
@@ -193,7 +207,7 @@ class PartnerShopManager:
                 _sys.stderr.flush()
             # #endregion
 
-            response = self.notion.databases.query(**query)
+            response = _post_database_query(query)
 
             # #region agent log
             try:
