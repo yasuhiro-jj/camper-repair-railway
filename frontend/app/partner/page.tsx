@@ -93,8 +93,8 @@ function PartnerPageContent() {
                   type="text"
                   value={filterPrefecture}
                   onChange={(e) => setFilterPrefecture(e.target.value)}
-                  placeholder="例: 東京都、大阪府"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="例: 東京、大阪"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder:text-gray-500"
                 />
               </div>
               <div>
@@ -106,7 +106,7 @@ function PartnerPageContent() {
                   value={filterSpecialty}
                   onChange={(e) => setFilterSpecialty(e.target.value)}
                   placeholder="例: エアコン、バッテリー"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder:text-gray-500"
                 />
               </div>
             </div>
