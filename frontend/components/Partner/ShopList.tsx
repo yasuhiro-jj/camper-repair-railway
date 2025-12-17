@@ -32,10 +32,19 @@ export default function ShopList({
     try {
       const shopList = await partnerShopApi.getShops(
         'アクティブ', // アクティブな店舗のみ
-        prefecture,
+        undefined, // 都道府県はフロント側で部分一致フィルタ
         specialty
       );
-      setShops(shopList);
+
+      let filteredShops = shopList;
+      if (prefecture && prefecture.trim()) {
+        const prefectureLower = prefecture.toLowerCase().trim();
+        filteredShops = shopList.filter((shop) =>
+          (shop.prefecture || '').toLowerCase().includes(prefectureLower)
+        );
+      }
+
+      setShops(filteredShops);
     } catch (err: any) {
       console.error('パートナー修理店一覧取得エラー:', err);
       
