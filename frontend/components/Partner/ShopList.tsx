@@ -34,20 +34,18 @@ export default function ShopList({
       // バックエンドには空で送信（全件取得）
       const shopList = await partnerShopApi.getShops(
         'アクティブ', // アクティブな店舗のみ
-        undefined, // 都道府県はフロントエンドでフィルタリング
+        undefined, // 都道府県はフロント側で部分一致フィルタ
         specialty
       );
-      
-      // フロントエンド側で都道府県の部分一致フィルタリング
+
       let filteredShops = shopList;
       if (prefecture && prefecture.trim()) {
         const prefectureLower = prefecture.toLowerCase().trim();
-        filteredShops = shopList.filter(shop => {
-          const shopPrefecture = (shop.prefecture || '').toLowerCase();
-          return shopPrefecture.includes(prefectureLower);
-        });
+        filteredShops = shopList.filter((shop) =>
+          (shop.prefecture || '').toLowerCase().includes(prefectureLower)
+        );
       }
-      
+
       setShops(filteredShops);
     } catch (err: any) {
       console.error('パートナー修理店一覧取得エラー:', err);
