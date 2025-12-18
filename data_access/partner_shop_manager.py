@@ -34,6 +34,86 @@ class PartnerShopManager:
             return db_id.replace("-", "").lower()
         return None
     
+    def _normalize_prefecture(self, prefecture: str) -> Optional[str]:
+        """
+        都道府県名を正規化（部分一致対応）
+        
+        Args:
+            prefecture: 入力された都道府県名（例: "東京", "東京都"）
+        
+        Returns:
+            正規化された都道府県名（例: "東京都"）、見つからない場合はNone
+        """
+        if not prefecture:
+            return None
+        
+        prefecture = prefecture.strip()
+        
+        # 都道府県名のマッピング（部分一致対応）
+        prefecture_mapping = {
+            "北海道": "北海道",
+            "青森": "青森県", "青森県": "青森県",
+            "岩手": "岩手県", "岩手県": "岩手県",
+            "宮城": "宮城県", "宮城県": "宮城県",
+            "秋田": "秋田県", "秋田県": "秋田県",
+            "山形": "山形県", "山形県": "山形県",
+            "福島": "福島県", "福島県": "福島県",
+            "茨城": "茨城県", "茨城県": "茨城県",
+            "栃木": "栃木県", "栃木県": "栃木県",
+            "群馬": "群馬県", "群馬県": "群馬県",
+            "埼玉": "埼玉県", "埼玉県": "埼玉県",
+            "千葉": "千葉県", "千葉県": "千葉県",
+            "東京": "東京都", "東京都": "東京都",
+            "神奈川": "神奈川県", "神奈川県": "神奈川県",
+            "新潟": "新潟県", "新潟県": "新潟県",
+            "富山": "富山県", "富山県": "富山県",
+            "石川": "石川県", "石川県": "石川県",
+            "福井": "福井県", "福井県": "福井県",
+            "山梨": "山梨県", "山梨県": "山梨県",
+            "長野": "長野県", "長野県": "長野県",
+            "岐阜": "岐阜県", "岐阜県": "岐阜県",
+            "静岡": "静岡県", "静岡県": "静岡県",
+            "愛知": "愛知県", "愛知県": "愛知県",
+            "三重": "三重県", "三重県": "三重県",
+            "滋賀": "滋賀県", "滋賀県": "滋賀県",
+            "京都": "京都府", "京都府": "京都府",
+            "大阪": "大阪府", "大阪府": "大阪府",
+            "兵庫": "兵庫県", "兵庫県": "兵庫県",
+            "奈良": "奈良県", "奈良県": "奈良県",
+            "和歌山": "和歌山県", "和歌山県": "和歌山県",
+            "鳥取": "鳥取県", "鳥取県": "鳥取県",
+            "島根": "島根県", "島根県": "島根県",
+            "岡山": "岡山県", "岡山県": "岡山県",
+            "広島": "広島県", "広島県": "広島県",
+            "山口": "山口県", "山口県": "山口県",
+            "徳島": "徳島県", "徳島県": "徳島県",
+            "香川": "香川県", "香川県": "香川県",
+            "愛媛": "愛媛県", "愛媛県": "愛媛県",
+            "高知": "高知県", "高知県": "高知県",
+            "福岡": "福岡県", "福岡県": "福岡県",
+            "佐賀": "佐賀県", "佐賀県": "佐賀県",
+            "長崎": "長崎県", "長崎県": "長崎県",
+            "熊本": "熊本県", "熊本県": "熊本県",
+            "大分": "大分県", "大分県": "大分県",
+            "宮崎": "宮崎県", "宮崎県": "宮崎県",
+            "鹿児島": "鹿児島県", "鹿児島県": "鹿児島県",
+            "沖縄": "沖縄県", "沖縄県": "沖縄県",
+        }
+        
+        # 完全一致で検索
+        if prefecture in prefecture_mapping:
+            return prefecture_mapping[prefecture]
+        
+        # 部分一致で検索（「県」「都」「府」を除いた部分で検索）
+        prefecture_without_suffix = prefecture.replace("県", "").replace("都", "").replace("府", "")
+        for key, value in prefecture_mapping.items():
+            key_without_suffix = key.replace("県", "").replace("都", "").replace("府", "")
+            if prefecture_without_suffix == key_without_suffix:
+                return value
+        
+        # 見つからない場合は元の値を返す（既に正規化されている可能性がある）
+        return prefecture
+    
     def _get_next_shop_id(self) -> str:
         """
         次の店舗IDを生成（SHOP-001形式）
@@ -112,6 +192,8 @@ class PartnerShopManager:
         # #endregion
         try:
             filters = []
+            normalized_prefecture = None
+            use_partial_match = False
             
             # ステータスフィルタ
             if status:
@@ -120,12 +202,20 @@ class PartnerShopManager:
                     "select": {"equals": status}
                 })
             
-            # 都道府県フィルタ
+            # 都道府県フィルタ（部分一致対応）
             if prefecture:
-                filters.append({
-                    "property": "所在地（都道府県）",
-                    "select": {"equals": prefecture}
-                })
+                # 都道府県名を正規化
+                normalized_prefecture = self._normalize_prefecture(prefecture)
+                
+                # 正規化された都道府県名で完全一致検索を試みる
+                if normalized_prefecture:
+                    filters.append({
+                        "property": "所在地（都道府県）",
+                        "select": {"equals": normalized_prefecture}
+                    })
+                else:
+                    # 正規化できない場合は部分一致検索を使用
+                    use_partial_match = True
             
             # 専門分野フィルタ
             if specialty:
@@ -136,7 +226,7 @@ class PartnerShopManager:
             
             query = {
                 "database_id": self.partner_db_id,
-                "page_size": limit,
+                "page_size": limit * 2 if use_partial_match else limit,  # 部分一致の場合は多めに取得
                 "sorts": [
                     {
                         "property": "修理回数",
@@ -164,9 +254,9 @@ class PartnerShopManager:
             import json, time
             try:
                 with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
-                    f.write(json.dumps({"location":"partner_shop_manager.py:147","message":"Before Notion query","data":{"query":query,"has_filter":bool(filters)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"B"}, ensure_ascii=False)+"\n")
+                    f.write(json.dumps({"location":"partner_shop_manager.py:147","message":"Before Notion query","data":{"query":query,"has_filter":bool(filters),"use_partial_match":use_partial_match,"normalized_prefecture":normalized_prefecture},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"B"}, ensure_ascii=False)+"\n")
             except: pass
-            print("[AgentLog][B] Before Notion query:", {"has_filter": bool(filters), "query_keys": list(query.keys())})
+            print("[AgentLog][B] Before Notion query:", {"has_filter": bool(filters), "use_partial_match": use_partial_match, "normalized_prefecture": normalized_prefecture})
             # #endregion
             
             response = self.notion.databases.query(**query)
@@ -182,7 +272,23 @@ class PartnerShopManager:
             
             shops = []
             for page in response.get("results", []):
-                shops.append(self._parse_shop_page(page))
+                shop = self._parse_shop_page(page)
+                
+                # 部分一致検索の場合、都道府県名でフィルタリング
+                if use_partial_match and prefecture:
+                    shop_prefecture = shop.get("prefecture", "")
+                    prefecture_lower = prefecture.lower().strip()
+                    shop_prefecture_lower = shop_prefecture.lower() if shop_prefecture else ""
+                    
+                    # 部分一致チェック
+                    if prefecture_lower in shop_prefecture_lower or shop_prefecture_lower in prefecture_lower:
+                        shops.append(shop)
+                else:
+                    shops.append(shop)
+            
+            # 部分一致検索の場合は結果を制限
+            if use_partial_match:
+                shops = shops[:limit]
             
             # #region agent log
             import json, time
