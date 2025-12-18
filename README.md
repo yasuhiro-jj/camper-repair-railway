@@ -204,8 +204,9 @@ python -m pip install -r requirements.txt
 # 1. Conda環境をアクティベート
 conda activate campingrepare
 
-# 2. フロントエンドディレクトリに移動
-cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend"
+# 2. フロントエンドディレクトリに移動（このREADMEと同じ階層にあるfrontend）
+# 例: cd "C:\path\to\camper-repair-clean\frontend"
+cd frontend
 
 # 3. 初回のみ：依存関係をインストール（まだの場合）
 npm install
@@ -262,8 +263,9 @@ npm run dev
 **Anaconda Promptで実行：**
 
 ```bash
-# プロジェクトディレクトリに移動
-cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean"
+# プロジェクトディレクトリに移動（このREADMEと同じフォルダ）
+# 例: cd "C:\path\to\camper-repair-clean"
+cd camper-repair-clean
 
 # conda環境をアクティベート
 conda activate campingrepare
