@@ -1,315 +1,198 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-パートナー修理店管理モジュール
-Notionデータベースからパートナー修理店情報を取得・管理
+PartnerShopManagerをラップし、API向けのログ出力を担うモジュール。
 """
 
 import os
+import sys
+import json
+import time
 from typing import List, Dict, Optional, Any
-from data_access.notion_client import notion_client
 
-# 環境変数からパートナーDB IDを取得
-PARTNER_DB_ID = os.getenv("NOTION_PARTNER_DB_ID", "")
+from data_access.partner_shop_manager import PartnerShopManager
+
+LOG_PATH_CANDIDATES = [
+    r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log",
+    os.path.join(os.getcwd(), ".cursor", "debug.log"),
+    "/app/.cursor/debug.log",
+]
+
+
+def _write_agent_log(*, hypothesis_id: str, location: str, message: str, data: Dict[str, Any]) -> None:
+    #region agent log
+    payload = {
+        "sessionId": "debug-session",
+        "runId": "initial",
+        "hypothesisId": hypothesis_id,
+        "location": location,
+        "message": message,
+        "data": data,
+        "timestamp": int(time.time() * 1000),
+    }
+    for path in LOG_PATH_CANDIDATES:
+        try:
+            directory = os.path.dirname(path)
+            if directory and not os.path.exists(directory):
+                os.makedirs(directory, exist_ok=True)
+            with open(path, "a", encoding="utf-8") as _f:
+                _f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+            break
+        except Exception:
+            continue
+    #endregion
+
 
 class PartnerManager:
-    """パートナー修理店管理クラス"""
-    
-    def __init__(self):
-        self.db_id = PARTNER_DB_ID
-        if not self.db_id:
-            print("⚠️ NOTION_PARTNER_DB_ID が設定されていません")
-    
-    def list_shops(self, status: Optional[str] = None, prefecture: Optional[str] = None, specialty: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        パートナー修理店一覧を取得（APIエンドポイント用）
-        
-        Args:
-            status: ステータスフィルタ（オプション、デフォルト: アクティブ）
-            prefecture: 都道府県フィルタ（オプション）
-            specialty: 専門分野フィルタ（オプション）
-        
-        Returns:
-            パートナー修理店のリスト
-        """
-        import sys
-        sys.stderr.write(f"[AgentLog] list_shops called with status={status}, prefecture={prefecture}, specialty={specialty}\n")
-        sys.stderr.flush()
-        
-        if not self.db_id:
-            sys.stderr.write(f"[AgentLog] ERROR: db_id is not set. NOTION_PARTNER_DB_ID={PARTNER_DB_ID}\n")
-            sys.stderr.flush()
-            return []
-        
+    """PartnerShopManagerラッパー"""
+
+    def __init__(self) -> None:
+        self.db_id = os.getenv("NOTION_PARTNER_DB_ID", "")
+        self._manager: Optional[PartnerShopManager] = None
+
         try:
-            # フィルタ条件を構築
-            filters = []
-            
-            # ステータスフィルタ（デフォルトは「アクティブ」）
-            if status:
-                filters.append({
-                    "property": "status",
-                    "select": {
-                        "equals": status
-                    }
-                })
-            else:
-                # デフォルトでアクティブのみ
-                filters.append({
-                    "property": "status",
-                    "select": {
-                        "equals": "アクティブ"
-                    }
-                })
-            
-            # 都道府県フィルタ
-            if prefecture:
-                filters.append({
-                    "property": "prefecture",
-                    "select": {
-                        "equals": prefecture
-                    }
-                })
-            
-            # 専門分野フィルタ
-            if specialty:
-                filters.append({
-                    "property": "specialties",
-                    "multi_select": {
-                        "contains": specialty
-                    }
-                })
-            
-            # フィルタをAND条件で結合
-            filter_condition = {}
-            if len(filters) > 0:
-                if len(filters) == 1:
-                    filter_condition = filters[0]
-                else:
-                    filter_condition = {
-                        "and": filters
-                    }
-            
-            sys.stderr.write(f"[AgentLog] Querying Notion database with filter: {filter_condition}\n")
+            self._manager = PartnerShopManager()
+            if getattr(self._manager, "partner_db_id", None):
+                self.db_id = self._manager.partner_db_id
+
+            sys.stderr.write("[AgentLog] ✅ PartnerShopManager initialized successfully\n")
+            sys.stderr.write(f"[AgentLog] NOTION_PARTNER_DB_ID={'SET' if self.db_id else 'NOT SET'}\n")
             sys.stderr.flush()
-            
-            # Notionからデータ取得
-            response = notion_client.databases.query(
-                database_id=self.db_id,
-                filter=filter_condition if filter_condition else None,
-                sorts=[
-                    {
-                        "property": "name",
-                        "direction": "ascending"
-                    }
-                ]
+            _write_agent_log(
+                hypothesis_id="A",
+                location="partner_manager.py:33",
+                message="PartnerShopManager initialized",
+                data={"db_id_present": bool(self.db_id)},
             )
-            
-            sys.stderr.write(f"[AgentLog] Notion response received: {len(response.get('results', []))} results\n")
+        except Exception as e:
+            sys.stderr.write(f"[AgentLog] ❌ Failed to initialize PartnerShopManager: {e}\n")
             sys.stderr.flush()
-            
-            partners = []
-            for page in response.get("results", []):
-                partner = self._parse_partner_page(page)
-                if partner:
-                    partners.append(partner)
-            
-            sys.stderr.write(f"[AgentLog] ✅ パートナー修理店を{len(partners)}件取得しました\n")
+            _write_agent_log(
+                hypothesis_id="A",
+                location="partner_manager.py:40",
+                message="PartnerShopManager initialization failed",
+                data={"error": str(e)},
+            )
+
+    def list_shops(
+        self,
+        status: Optional[str] = None,
+        prefecture: Optional[str] = None,
+        specialty: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        sys.stderr.write(
+            "[AgentLog] list_shops called with "
+            f"status={status}, prefecture={prefecture}, specialty={specialty}, limit={limit}\n"
+        )
+        sys.stderr.flush()
+        _write_agent_log(
+            hypothesis_id="B",
+            location="partner_manager.py:60",
+            message="list_shops called",
+            data={"status": status, "prefecture": prefecture, "specialty": specialty, "limit": limit},
+        )
+
+        if not self._manager:
+            sys.stderr.write("[AgentLog] ERROR: PartnerShopManager is not available\n")
             sys.stderr.flush()
-            print(f"✅ パートナー修理店を{len(partners)}件取得しました")
-            return partners
-            
+            _write_agent_log(
+                hypothesis_id="A",
+                location="partner_manager.py:70",
+                message="PartnerShopManager missing",
+                data={},
+            )
+            return []
+
+        try:
+            shops = self._manager.list_shops(
+                status=status,
+                prefecture=prefecture,
+                specialty=specialty,
+                limit=limit,
+            )
+            sys.stderr.write(f"[AgentLog] ✅ list_shops fetched {len(shops)} shops\n")
+            sys.stderr.flush()
+            preview = shops[0].get("shop_id") if shops else None
+            _write_agent_log(
+                hypothesis_id="B",
+                location="partner_manager.py:84",
+                message="list_shops result",
+                data={"count": len(shops), "first_shop_id": preview},
+            )
+            return shops
         except Exception as e:
             import traceback
+
             error_trace = traceback.format_exc()
-            sys.stderr.write(f"[AgentLog] ❌ パートナー修理店取得エラー: {e}\n")
+            sys.stderr.write(f"[AgentLog] ❌ list_shops exception: {e}\n")
             sys.stderr.write(f"[AgentLog] Traceback: {error_trace}\n")
             sys.stderr.flush()
-            print(f"❌ パートナー修理店取得エラー: {e}")
-            print(error_trace)
-            return []
-    
-    def get_all_partners(self, prefecture: Optional[str] = None, specialty: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        パートナー修理店一覧を取得
-        
-        Args:
-            prefecture: 都道府県フィルタ（オプション）
-            specialty: 専門分野フィルタ（オプション）
-        
-        Returns:
-            パートナー修理店のリスト
-        """
-        # list_shopsに委譲
-        return self.list_shops(status="アクティブ", prefecture=prefecture, specialty=specialty)
-    
-    def get_partner_by_id(self, shop_id: str) -> Optional[Dict[str, Any]]:
-        """
-        指定されたIDのパートナー修理店を取得
-        
-        Args:
-            shop_id: 修理店ID
-        
-        Returns:
-            パートナー修理店情報 or None
-        """
-        if not self.db_id:
-            return None
-        
-        try:
-            response = notion_client.databases.query(
-                database_id=self.db_id,
-                filter={
-                    "property": "shop_id",
-                    "rich_text": {
-                        "equals": shop_id
-                    }
-                }
+            _write_agent_log(
+                hypothesis_id="C",
+                location="partner_manager.py:95",
+                message="list_shops exception",
+                data={"error": str(e)},
             )
-            
-            results = response.get("results", [])
-            if results:
-                return self._parse_partner_page(results[0])
-            
-            return None
-            
-        except Exception as e:
-            print(f"❌ パートナー修理店取得エラー (ID: {shop_id}): {e}")
-            return None
-    
-    def _parse_partner_page(self, page: Dict) -> Optional[Dict[str, Any]]:
-        """
-        NotionページをPartnerShop形式にパース
-        
-        Args:
-            page: Notionページオブジェクト
-        
-        Returns:
-            パートナー修理店情報の辞書
-        """
-        try:
-            properties = page.get("properties", {})
-            
-            # 基本情報
-            shop_id = self._get_text_property(properties, "shop_id")
-            name = self._get_title_property(properties, "name")
-            phone = self._get_phone_property(properties, "phone")
-            email = self._get_email_property(properties, "email")
-            prefecture = self._get_select_property(properties, "prefecture")
-            address = self._get_text_property(properties, "address")
-            specialties = self._get_multi_select_property(properties, "specialties")
-            business_hours = self._get_text_property(properties, "business_hours")
-            status = self._get_select_property(properties, "status")
-            
-            # 数値情報
-            initial_diagnosis_fee = self._get_number_property(properties, "initial_diagnosis_fee", 0)
-            avg_rating = self._get_number_property(properties, "avg_rating", 0.0)
-            review_count = self._get_number_property(properties, "review_count", 0)
-            repair_count = self._get_number_property(properties, "repair_count", 0)
-            
-            # 必須フィールドのチェック
-            if not shop_id or not name:
-                print(f"⚠️ 必須フィールドが不足しています: shop_id={shop_id}, name={name}")
-                return None
-            
-            return {
-                "shop_id": shop_id,
-                "name": name,
-                "phone": phone or "",
-                "email": email or "",
-                "prefecture": prefecture or "",
-                "address": address or "",
-                "specialties": specialties,
-                "business_hours": business_hours or "要問合せ",
-                "initial_diagnosis_fee": initial_diagnosis_fee,
-                "status": status or "アクティブ",
-                "avg_rating": avg_rating,
-                "review_count": review_count,
-                "repair_count": repair_count,
-                "page_id": page["id"],
-                # フロントエンド互換用
-                "success_rate": 0,  # 今後実装
-                "total_referrals": 0,  # 今後実装
-                "total_deals": 0,  # 今後実装
-                "line_notification": False,  # 今後実装
-            }
-            
-        except Exception as e:
-            print(f"❌ パートナーページのパースエラー: {e}")
-            return None
-    
-    # プロパティ取得ヘルパーメソッド
-    def _get_title_property(self, properties: Dict, key: str) -> str:
-        """タイトルプロパティを取得"""
-        try:
-            title_list = properties.get(key, {}).get("title", [])
-            if title_list:
-                return title_list[0].get("text", {}).get("content", "")
-        except:
-            pass
-        return ""
-    
-    def _get_text_property(self, properties: Dict, key: str) -> str:
-        """テキストプロパティを取得"""
-        try:
-            text_list = properties.get(key, {}).get("rich_text", [])
-            if text_list:
-                return text_list[0].get("text", {}).get("content", "")
-        except:
-            pass
-        return ""
-    
-    def _get_select_property(self, properties: Dict, key: str) -> str:
-        """セレクトプロパティを取得"""
-        try:
-            select = properties.get(key, {}).get("select", {})
-            if select:
-                return select.get("name", "")
-        except:
-            pass
-        return ""
-    
-    def _get_multi_select_property(self, properties: Dict, key: str) -> List[str]:
-        """マルチセレクトプロパティを取得"""
-        try:
-            multi_select = properties.get(key, {}).get("multi_select", [])
-            return [item.get("name", "") for item in multi_select]
-        except:
-            pass
-        return []
-    
-    def _get_number_property(self, properties: Dict, key: str, default: float = 0) -> float:
-        """数値プロパティを取得"""
-        try:
-            number = properties.get(key, {}).get("number")
-            if number is not None:
-                return number
-        except:
-            pass
-        return default
-    
-    def _get_phone_property(self, properties: Dict, key: str) -> str:
-        """電話番号プロパティを取得"""
-        try:
-            phone = properties.get(key, {}).get("phone_number")
-            if phone:
-                return phone
-        except:
-            pass
-        return ""
-    
-    def _get_email_property(self, properties: Dict, key: str) -> str:
-        """メールプロパティを取得"""
-        try:
-            email = properties.get(key, {}).get("email")
-            if email:
-                return email
-        except:
-            pass
-        return ""
+            return []
 
-# シングルトンインスタンス
+    def get_all_partners(
+        self,
+        prefecture: Optional[str] = None,
+        specialty: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        return self.list_shops(status="アクティブ", prefecture=prefecture, specialty=specialty)
+
+    def get_partner_by_id(self, shop_id: str) -> Optional[Dict[str, Any]]:
+        sys.stderr.write(f"[AgentLog] get_partner_by_id called with shop_id={shop_id}\n")
+        sys.stderr.flush()
+        _write_agent_log(
+            hypothesis_id="B",
+            location="partner_manager.py:108",
+            message="get_partner_by_id called",
+            data={"shop_id": shop_id},
+        )
+
+        if not self._manager:
+            sys.stderr.write("[AgentLog] ERROR: PartnerShopManager is not available\n")
+            sys.stderr.flush()
+            _write_agent_log(
+                hypothesis_id="A",
+                location="partner_manager.py:116",
+                message="PartnerShopManager missing",
+                data={},
+            )
+            return None
+
+        try:
+            shop = self._manager.get_shop(shop_id)
+            if shop:
+                sys.stderr.write(f"[AgentLog] ✅ Found partner shop: {shop.get('name', 'N/A')}\n")
+            else:
+                sys.stderr.write("[AgentLog] ⚠️ Partner shop not found\n")
+            sys.stderr.flush()
+            _write_agent_log(
+                hypothesis_id="B",
+                location="partner_manager.py:129",
+                message="get_partner_by_id result",
+                data={"found": bool(shop)},
+            )
+            return shop
+        except Exception as e:
+            import traceback
+
+            error_trace = traceback.format_exc()
+            sys.stderr.write(f"[AgentLog] ❌ get_partner_by_id exception: {e}\n")
+            sys.stderr.write(f"[AgentLog] Traceback: {error_trace}\n")
+            sys.stderr.flush()
+            _write_agent_log(
+                hypothesis_id="C",
+                location="partner_manager.py:141",
+                message="get_partner_by_id exception",
+                data={"error": str(e)},
+            )
+            return None
+
+
 partner_manager = PartnerManager()
-
-
 
