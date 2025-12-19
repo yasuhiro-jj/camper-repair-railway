@@ -671,7 +671,9 @@ export interface DiagnosticRequest {
 }
 
 export interface DiagnosticResponse {
-  response: string;
+  response?: string;
+  message?: string;
+  diagnosis?: any;
   type?: string;
   rag_results?: any;
   notion_results?: any;

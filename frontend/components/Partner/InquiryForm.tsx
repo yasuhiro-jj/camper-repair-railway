@@ -48,6 +48,38 @@ export default function InquiryForm({
   const [customerNote, setCustomerNote] = useState('');
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
 
+  const formatDiagnosisFallback = (diag: any): string => {
+    if (!diag || typeof diag !== 'object') return '';
+    const lines: string[] = [];
+    const causes = Array.isArray(diag.possible_causes) ? diag.possible_causes : [];
+    const checks = Array.isArray(diag.quick_checks) ? diag.quick_checks : [];
+    const actions = Array.isArray(diag.recommended_actions) ? diag.recommended_actions : [];
+    const questions = Array.isArray(diag.questions_to_ask) ? diag.questions_to_ask : [];
+    const tellShop = Array.isArray(diag.what_to_tell_shop) ? diag.what_to_tell_shop : [];
+    if (causes.length) {
+      lines.push('【想定される原因】', ...causes.map((c: string) => `- ${c}`), '');
+    }
+    if (checks.length) {
+      lines.push('【まず確認すること（自分でできる）】', ...checks.map((c: string) => `- ${c}`), '');
+    }
+    if (actions.length) {
+      lines.push('【推奨される対処】', ...actions.map((a: string) => `- ${a}`), '');
+    }
+    if (questions.length) {
+      lines.push('【追加で確認したいこと】', ...questions.map((q: string) => `- ${q}`), '');
+    }
+    if (tellShop.length) {
+      lines.push('【修理店に伝えると良い情報】', ...tellShop.map((t: string) => `- ${t}`), '');
+    }
+    const meta: string[] = [];
+    if (diag.urgency) meta.push(`緊急度: ${diag.urgency}`);
+    if (typeof diag.confidence === 'number') meta.push(`確信度: ${diag.confidence}`);
+    if (meta.length) {
+      lines.push('【補足】', `- ${meta.join(' / ')}`);
+    }
+    return lines.join('\n').trim();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -413,12 +445,19 @@ export default function InquiryForm({
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
           <h3 className="text-lg font-bold text-purple-900 mb-3">🔍 AI診断結果</h3>
           <div className="bg-white p-4 rounded-lg mb-3">
-            <div 
-              className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap"
-              dangerouslySetInnerHTML={{ 
-                __html: diagnosticResult.response?.replace(/\n/g, '<br>') || '診断結果が取得できませんでした' 
-              }}
-            />
+            {(() => {
+              const text =
+                diagnosticResult.response ||
+                (diagnosticResult as any).message ||
+                formatDiagnosisFallback((diagnosticResult as any).diagnosis);
+              const html = (text || '診断結果が取得できませんでした').replace(/\n/g, '<br>');
+              return (
+                <div
+                  className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap"
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
+              );
+            })()}
           </div>
           {diagnosticResult.notion_results?.diagnostic_nodes && diagnosticResult.notion_results.diagnostic_nodes.length > 0 && (
             <div className="text-xs text-gray-500 mt-2">
