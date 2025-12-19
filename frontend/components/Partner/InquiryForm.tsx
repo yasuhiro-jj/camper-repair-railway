@@ -22,6 +22,9 @@ export default function InquiryForm({
   onSuccess,
   onCancel,
 }: InquiryFormProps) {
+  const inputBaseClass =
+    'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white';
+
   const [formData, setFormData] = useState<InquiryFormData>({
     customer_name: '',
     phone: '',
@@ -214,7 +217,7 @@ export default function InquiryForm({
           value={formData.customer_name}
           onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
           required
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className={inputBaseClass}
           placeholder="例: 山田太郎"
         />
       </div>
@@ -228,7 +231,7 @@ export default function InquiryForm({
           value={formData.phone}
           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
           required
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className={inputBaseClass}
           placeholder="例: 090-1234-5678"
         />
       </div>
@@ -241,7 +244,7 @@ export default function InquiryForm({
           type="email"
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className={inputBaseClass}
           placeholder="例: example@email.com"
         />
       </div>
@@ -320,7 +323,7 @@ export default function InquiryForm({
           value={formData.prefecture}
           onChange={(e) => setFormData({ ...formData, prefecture: e.target.value })}
           required
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className={inputBaseClass}
           placeholder="例: 東京都"
         />
       </div>
@@ -334,7 +337,7 @@ export default function InquiryForm({
           value={formData.symptom_category}
           onChange={(e) => setFormData({ ...formData, symptom_category: e.target.value })}
           required
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className={inputBaseClass}
           placeholder="例: エアコン、バッテリー"
         />
       </div>
@@ -352,7 +355,7 @@ export default function InquiryForm({
           }}
           required
           rows={4}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className={`${inputBaseClass}`}
           placeholder="例: エアコンが効かない、冷房が効かない"
         />
         {formData.symptom_detail && (
