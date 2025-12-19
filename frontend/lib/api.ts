@@ -430,17 +430,15 @@ export const dealApi = {
    */
   submitInquiry: async (formData: InquiryFormData): Promise<Deal> => {
     try {
-      const response = await apiClient.post<{
-        success: boolean;
-        deal: Deal;
-        message: string;
-      }>('/api/v1/deals', formData);
-
-      if (response.data.success && response.data.deal) {
-        return response.data.deal;
-      }
-
-      throw new Error(response.data.message || '問い合わせの送信に失敗しました');
+      // Vercel上では同一オリジンのNext.js APIルート経由にしてCORS/Network Errorを回避
+      const res = await fetch('/api/deals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const data = (await res.json()) as { success?: boolean; deal?: Deal; message?: string; error?: string };
+      if (res.ok && data?.success && data?.deal) return data.deal;
+      throw new Error(data?.message || data?.error || `問い合わせの送信に失敗しました (${res.status})`);
     } catch (error: any) {
       console.error('問い合わせ送信エラー:', error);
       throw error;
@@ -651,17 +649,14 @@ export const costEstimationApi = {
    */
   estimateCost: async (request: CostEstimationRequest): Promise<CostEstimation> => {
     try {
-      const response = await apiClient.post<{
-        success: boolean;
-        estimation: CostEstimation;
-        error?: string;
-      }>('/api/v1/cost-estimation', request);
-
-      if (response.data.success && response.data.estimation) {
-        return response.data.estimation;
-      }
-
-      throw new Error(response.data.error || '工賃推定に失敗しました');
+      const res = await fetch('/api/cost-estimation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+      const data = (await res.json()) as { success?: boolean; estimation?: CostEstimation; error?: string };
+      if (res.ok && data?.success && data?.estimation) return data.estimation;
+      throw new Error(data?.error || `工賃推定に失敗しました (${res.status})`);
     } catch (error: any) {
       console.error('工賃推定APIエラー:', error);
       throw error;
@@ -689,17 +684,20 @@ export const diagnosticApi = {
    */
   diagnose: async (request: DiagnosticRequest): Promise<DiagnosticResponse> => {
     try {
-      const response = await apiClient.post<DiagnosticResponse>('/api/unified/chat', {
+      const res = await fetch('/api/diagnostic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
         message: request.message,
         mode: 'diagnostic',
         include_serp: false,
+        }),
       });
 
-      if (response.data.error) {
-        throw new Error(response.data.error);
-      }
-
-      return response.data;
+      const data = (await res.json()) as DiagnosticResponse;
+      if (!res.ok) throw new Error(data?.error || `診断に失敗しました (${res.status})`);
+      if (data?.error) throw new Error(data.error);
+      return data;
     } catch (error: any) {
       console.error('診断APIエラー:', error);
       throw error;
