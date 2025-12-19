@@ -2027,6 +2027,66 @@ def unified_chat():
             import traceback
             traceback.print_exc()
 
+        # 診断モードのレスポンス整形（フロントが response を期待するため）
+        try:
+            if mode == "diagnostic" and isinstance(result, dict):
+                if not isinstance(result.get("response"), str) or not result.get("response"):
+                    # まず message を優先
+                    if isinstance(result.get("message"), str) and result.get("message"):
+                        result["response"] = result["message"]
+                    # AI診断フォールバック（process_diagnostic_mode の ai_diagnostic）
+                    elif isinstance(result.get("diagnosis"), dict):
+                        diag = result["diagnosis"]
+                        lines = []
+                        causes = diag.get("possible_causes") or []
+                        quick_checks = diag.get("quick_checks") or []
+                        actions = diag.get("recommended_actions") or []
+                        questions = diag.get("questions_to_ask") or []
+                        tell_shop = diag.get("what_to_tell_shop") or []
+                        urgency = diag.get("urgency")
+                        conf = diag.get("confidence")
+                        if causes:
+                            lines.append("【想定される原因】")
+                            for c in causes:
+                                lines.append(f"- {c}")
+                            lines.append("")
+                        if quick_checks:
+                            lines.append("【まず確認すること（自分でできる）】")
+                            for q in quick_checks:
+                                lines.append(f"- {q}")
+                            lines.append("")
+                        if actions:
+                            lines.append("【推奨される対処】")
+                            for a in actions:
+                                lines.append(f"- {a}")
+                            lines.append("")
+                        if questions:
+                            lines.append("【追加で確認したいこと】")
+                            for q in questions:
+                                lines.append(f"- {q}")
+                            lines.append("")
+                        if tell_shop:
+                            lines.append("【修理店に伝えると良い情報】")
+                            for t in tell_shop:
+                                lines.append(f"- {t}")
+                            lines.append("")
+                        meta = []
+                        if urgency is not None:
+                            meta.append(f"緊急度: {urgency}")
+                        if conf is not None:
+                            meta.append(f"確信度: {conf}")
+                        if meta:
+                            lines.append("【補足】")
+                            lines.append("- " + " / ".join(meta))
+                        result["response"] = "\n".join(lines).strip() or "診断結果が取得できませんでした"
+                    else:
+                        # 最後のフォールバック
+                        import json as _json
+                        result["response"] = _json.dumps(result, ensure_ascii=False)
+        except Exception:
+            # 整形失敗はAPI応答に影響させない
+            pass
+
         # 処理時間のログ
         total_elapsed = time.time() - endpoint_start_time
         print(f"✅ /api/unified/chat 完了: 合計処理時間 {total_elapsed:.2f}秒")
@@ -3716,37 +3776,114 @@ def extract_symptoms(message: str) -> List[str]:
     except Exception as e:
         return [message]
 
+def _safe_json_loads(text: str) -> Optional[Dict[str, Any]]:
+    """LLM出力からJSONをできるだけ安全にパースする（失敗時はNone）"""
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+    # JSONっぽい部分だけ抜き出して再トライ
+    try:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            return json.loads(text[start : end + 1])
+    except Exception:
+        pass
+    return None
+
 def process_diagnostic(symptoms: List[str], additional_info: str) -> Dict[str, Any]:
     """診断処理"""
     try:
         from langchain_openai import ChatOpenAI
         
-        llm = ChatOpenAI(api_key=OPENAI_API_KEY, model_name="gpt-4o-mini")
+        llm = ChatOpenAI(api_key=OPENAI_API_KEY, model_name="gpt-4o-mini", temperature=0.2)
         
         prompt = f"""
-        キャンピングカーの症状から原因を診断してください。
-        
-        症状: {', '.join(symptoms)}
-        追加情報: {additional_info}
-        
-        以下の形式でJSONを返してください:
-        {{
-            "possible_causes": ["原因1", "原因2", "原因3"],
-            "confidence": 0.0-1.0,
-            "recommended_actions": ["対処法1", "対処法2"],
-            "urgency": "low|medium|high"
-        }}
-        """
+あなたはキャンピングカー修理のプロ整備士です。ユーザーが自分で確認できる現実的なチェックを優先し、具体的に提案してください。
+必ず **JSONのみ** を返してください（前後に説明文を付けない）。
+
+【ユーザー情報】
+- 症状（抽出）: {', '.join(symptoms)}
+- 追加情報（原文）: {additional_info}
+
+【出力JSONスキーマ（厳守）】
+{{
+  "possible_causes": ["原因候補1", "原因候補2", "原因候補3", "原因候補4"],
+  "quick_checks": ["今すぐできる確認1", "今すぐできる確認2", "今すぐできる確認3"],
+  "recommended_actions": ["次の一手1", "次の一手2"],
+  "questions_to_ask": ["追加で確認したい質問1", "質問2", "質問3"],
+  "what_to_tell_shop": ["修理店に伝える情報1", "情報2"],
+  "confidence": 0.0,
+  "urgency": "low"
+}}
+
+【指針】
+- possible_causes は具体名（例: ヒューズ切れ、ブレーカー遮断、冷媒漏れ、コンプレッサ不良、室外/室内ファン不良、サーモスタット不良、電圧低下 など）
+- quick_checks は「どこを・どう見るか」まで書く（例: 12V電圧を計測、分電盤のブレーカー確認、フィルタ詰まり確認、外気温と設定温度差、異音/振動の有無）
+- urgency は safety/走行に直結する場合のみ high、それ以外は medium/low
+- confidence は 0.0〜1.0 の小数
+"""
         
         response = llm.invoke(prompt)
-        return json.loads(response.content)
+        parsed = _safe_json_loads(response.content)
+        if parsed:
+            return parsed
+        # JSON化に失敗した場合でも、テキストを生で返して握りつぶさない
+        return {
+            "possible_causes": ["診断結果の解析に失敗しました（出力がJSONではありませんでした）"],
+            "quick_checks": [],
+            "recommended_actions": ["もう一度「症状カテゴリ」と「状況（いつから/どの電源/外気温/異音）」を添えて診断してください"],
+            "questions_to_ask": [],
+            "what_to_tell_shop": [],
+            "confidence": 0.0,
+            "urgency": "medium",
+            "raw": response.content[:3000],
+        }
         
     except Exception as e:
+        # LLMが失敗した場合でも、最低限の具体的チェックを返す（特にエアコン系）
+        text = (additional_info or "") + " " + " ".join(symptoms or [])
+        is_aircon = ("エアコン" in text) or ("冷房" in text) or ("暖房" in text)
+        if is_aircon:
+            return {
+                "possible_causes": [
+                    "ヒューズ切れ / ブレーカー遮断（12V/100V系）",
+                    "電圧低下（サブバッテリー残量不足・配線接触不良）",
+                    "フィルタ詰まり・吸排気の詰まり（風量低下）",
+                    "冷媒不足（漏れ含む）・コンプレッサ不調",
+                ],
+                "quick_checks": [
+                    "12V電圧を確認（可能ならテスターで。目安: 12.0V未満だと不調が出やすい）",
+                    "分電盤/ブレーカー/ヒューズ（エアコン・インバータ・室内機）を確認",
+                    "吸気フィルタを外して清掃し、風量が戻るか確認",
+                ],
+                "recommended_actions": [
+                    "電源系（バッテリー/インバータ/外部電源）を切り分けて症状が再現するか確認",
+                    "冷媒やコンプレッサ疑いの場合は修理店で点検（ガス漏れ点検・圧力測定）",
+                ],
+                "questions_to_ask": [
+                    "外部電源(100V)接続時でも同じですか？ それとも走行充電/サブバッテリー時だけ？",
+                    "設定温度・外気温・風量設定は？（例: 風は出るが冷えない/風が弱い等）",
+                    "異音（カチカチ/うなり）やエラー表示はありますか？",
+                ],
+                "what_to_tell_shop": [
+                    "使用電源（外部100V/インバータ/サブバッテリー）と症状の再現条件",
+                    "風の有無（風は出る/出ない）、冷え方、エラー表示、異音",
+                ],
+                "confidence": 0.35,
+                "urgency": "medium",
+                "error": str(e),
+            }
         return {
-            "possible_causes": ["診断エラー"],
+            "possible_causes": ["診断処理でエラーが発生しました"],
+            "quick_checks": [],
+            "recommended_actions": ["入力内容（いつから/状況/エラー表示）を増やして再実行してください"],
+            "questions_to_ask": [],
+            "what_to_tell_shop": [],
             "confidence": 0.0,
-            "recommended_actions": ["専門家に相談してください"],
-            "urgency": "high"
+            "urgency": "medium",
+            "error": str(e),
         }
 
 def generate_repair_guide(problem: str, category: str) -> Dict[str, Any]:
