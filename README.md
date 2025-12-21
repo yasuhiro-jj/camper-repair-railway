@@ -133,9 +133,10 @@ CASE_DB_ID=your_repair_case_db_id
 ITEM_DB_ID=your_parts_tools_db_id
 KNOWLEDGE_BASE_DB_ID=2d099e34964341d4ba39b291f24d6b6b
 
-# メール通知機能（SendGrid推奨）
-SENDGRID_API_KEY=your_sendgrid_api_key
-FROM_EMAIL=info@camper-repair.net
+# メール通知機能（Resend推奨）
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Resend無料運用の例（独自ドメイン未設定の場合）
+FROM_EMAIL=onboarding@resend.dev
 
 # メール通知機能（SMTPフォールバック - オプション）
 SMTP_HOST=smtp.gmail.com
@@ -1020,7 +1021,7 @@ https://your-domain.com/lp-partner-recruit
 
 **注意**: このLPは**修理工場・大工・公務店・自動車整備工場・個人職人向け**のページです。お客様（キャンピングカー所有者）向けのページは `/lp-camper-repair` にあります。
 
-## 📧 メール通知機能の実装方法（SendGrid）
+## 📧 メール通知機能の実装方法（Resend）
 
 ### 概要
 
@@ -1032,46 +1033,38 @@ Notionで修理ステータスを更新すると、お客様に自動でメー�
 3. システムが自動でお客様にメール通知を送信
 4. 修理完了時には支払い案内も自動送信
 
-### SendGridを使う理由
+### Resendを使う理由
 
-- **高い到達率**: Gmailなどのフリーメールより信頼性が高い
-- **大量送信対応**: 月12,000通まで無料
-- **配信分析**: 開封率、クリック率などを追跡可能
-- **スパム判定されにくい**: 専用IPアドレスで送信
+- **設定が簡単**: APIキーだけで送信できる
+- **高い到達率**: トランザクションメールに強い
+- **運用が楽**: シンプルな管理画面
 
 ### セットアップ手順
 
-#### 1. SendGridアカウントを作成
+#### 1. Resendアカウントを作成
 
-1. [SendGrid公式サイト](https://sendgrid.com/)にアクセス
-2. 「Start for Free」をクリックしてアカウント作成
-3. 無料プラン（月12,000通）を選択
+1. [Resend公式サイト](https://resend.com/)にアクセス
+2. サインアップしてダッシュボードへ
 
 #### 2. APIキーを取得
 
-1. SendGridダッシュボードにログイン
-2. 左メニューから「Settings」→「API Keys」を選択
-3. 「Create API Key」をクリック
-4. API Key名を入力（例: `camper-repair-production`）
-5. 「Full Access」を選択
-6. 「Create & View」をクリック
-7. **APIキーをコピー**（この画面でしか表示されません！）
+1. Resendダッシュボードで「API Keys」を開く
+2. 「Create API Key」で作成
+3. **APIキーをコピー**（`re_...` 形式）
 
-#### 3. 送信元メールアドレスを認証
+#### 3. 送信元（From）を設定
 
-1. 左メニューから「Settings」→「Sender Authentication」を選択
-2. 「Single Sender Verification」をクリック
-3. 送信元メールアドレスを入力（例: `info@camper-repair.net`）
-4. 確認メールが届くので、リンクをクリックして認証
+最初は Resend のデフォルト送信元（例: `onboarding@resend.dev`）を使えます。  
+独自ドメイン（例: `info@camper-repair.net`）で送る場合は、Resendでドメイン追加→DNS設定→検証を行ってください。
 
 #### 4. 環境変数を設定
 
 `.env`ファイルに以下を追加：
 
 ```bash
-# SendGrid設定
-SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-FROM_EMAIL=info@camper-repair.net
+# Resend設定
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FROM_EMAIL=onboarding@resend.dev
 ```
 
 #### 5. 本番環境（Railway）に環境変数を設定
@@ -1080,7 +1073,7 @@ FROM_EMAIL=info@camper-repair.net
 2. プロジェクトを選択
 3. 「Variables」タブを開く
 4. 以下を追加：
-   - `SENDGRID_API_KEY`: SendGridのAPIキー
+   - `RESEND_API_KEY`: ResendのAPIキー
    - `FROM_EMAIL`: 送信元メールアドレス
 
 ### 通知タイミング
@@ -1104,10 +1097,10 @@ FROM_EMAIL=info@camper-repair.net
 
 #### メールが届かない場合
 
-1. **SendGrid APIキーを確認**
+1. **Resend APIキーを確認**
    ```bash
    # Railwayの環境変数を確認
-   echo $SENDGRID_API_KEY
+   echo $RESEND_API_KEY
    ```
 
 2. **送信元メールアドレスを確認**

@@ -11,17 +11,13 @@
 
 import os
 import smtplib
+import requests
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Optional
 
-# Resend対応
-try:
-    import resend
-    RESEND_AVAILABLE = True
-except ImportError:
-    RESEND_AVAILABLE = False
-    print("⚠️ Resendがインストールされていません。")
+# Resend対応（公式HTTP APIで送信するため、追加ライブラリ不要）
+RESEND_API_URL = "https://api.resend.com/emails"
 
 # SendGrid対応
 try:
@@ -40,7 +36,7 @@ class EmailSender:
         """初期化"""
         # Resend設定（最優先）
         self.resend_api_key = os.environ.get("RESEND_API_KEY")
-        self.use_resend = RESEND_AVAILABLE and bool(self.resend_api_key)
+        self.use_resend = bool(self.resend_api_key)
         
         # SendGrid設定（フォールバック）
         self.sendgrid_api_key = os.environ.get("SENDGRID_API_KEY")
@@ -52,10 +48,6 @@ class EmailSender:
         self.smtp_user = os.environ.get("SMTP_USER")
         self.smtp_password = os.environ.get("SMTP_PASSWORD")
         self.from_email = os.environ.get("FROM_EMAIL", self.smtp_user or "info@camper-repair.net")
-        
-        # Resend初期化
-        if self.use_resend:
-            resend.api_key = self.resend_api_key
         
         # メール送信が有効かどうか
         self.enabled = self.use_resend or self.use_sendgrid or bool(self.smtp_user and self.smtp_password)
@@ -341,21 +333,34 @@ https://camper-repair.net/
                 print("⚠️ RESEND_API_KEYが設定されていません。")
                 return False
             
-            params = {
+            payload = {
                 "from": f"岡山キャンピングカー修理サポートセンター <{self.from_email}>",
                 "to": [to_email],
                 "subject": subject,
                 "text": body,
             }
-            
-            response = resend.Emails.send(params)
-            
-            if response:
+
+            resp = requests.post(
+                RESEND_API_URL,
+                headers={
+                    "Authorization": f"Bearer {self.resend_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=20,
+            )
+
+            if 200 <= resp.status_code < 300:
                 print(f"✅ メール送信成功（Resend）: {to_email}")
                 return True
-            else:
-                print(f"⚠️ Resend送信エラー")
-                return False
+
+            # 失敗時の詳細
+            try:
+                err_json = resp.json()
+            except Exception:
+                err_json = None
+            print(f"⚠️ Resend送信エラー（status={resp.status_code}）: {err_json or resp.text}")
+            return False
             
         except Exception as e:
             print(f"❌ Resend送信失敗: {e}")
