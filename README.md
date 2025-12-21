@@ -133,11 +133,30 @@ CASE_DB_ID=your_repair_case_db_id
 ITEM_DB_ID=your_parts_tools_db_id
 KNOWLEDGE_BASE_DB_ID=2d099e34964341d4ba39b291f24d6b6b
 
+# メール通知機能（SendGrid推奨）
+SENDGRID_API_KEY=your_sendgrid_api_key
+FROM_EMAIL=info@camper-repair.net
+
+# メール通知機能（SMTPフォールバック - オプション）
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASSWORD=your_app_password
+
 # LINE通知機能（オプション）
 LINE_CHANNEL_ID=your_line_channel_id
 LINE_CHANNEL_SECRET=your_line_channel_secret
 LINE_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token
 LINE_LOGIN_CALLBACK_URL=https://your-domain.com/api/line/login/callback
+
+# 支払い案内用の口座情報（オプション）
+PAYMENT_BANK_NAME=○○銀行
+PAYMENT_BANK_BRANCH=○○支店
+PAYMENT_ACCOUNT_NUMBER=1234567
+PAYMENT_ACCOUNT_NAME=岡山キャンピングカー修理サポートセンター
+
+# フロントエンドURL（本番環境用）
+FRONTEND_URL=https://camper-repair-railway-upoj.vercel.app
 ```
 
 **重要**: `.env`ファイルが存在しないとバックエンドが起動できません。
@@ -194,6 +213,25 @@ python -m pip install -r requirements.txt
   # 残りをpipでインストール
   python -m pip install langchain langchain-openai langchain-community langchain-chroma notion-client aiohttp chromadb sentence-transformers openai gunicorn streamlit "numpy<2.0.0"
   ```
+
+
+バックエンド起動（Anaconda Prompt）
+
+   cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean"
+   conda activate campingrepare
+   python unified_backend_api.py
+
+   
+
+
+フロントエンド起動（別ターミナル）
+
+   cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend"
+   conda activate campingrepare   # 必要なら
+   npm run dev
+
+
+
 
 
 
@@ -981,6 +1019,117 @@ https://your-domain.com/lp-partner-recruit
 ```
 
 **注意**: このLPは**修理工場・大工・公務店・自動車整備工場・個人職人向け**のページです。お客様（キャンピングカー所有者）向けのページは `/lp-camper-repair` にあります。
+
+## 📧 メール通知機能の実装方法（SendGrid）
+
+### 概要
+
+Notionで修理ステータスを更新すると、お客様に自動でメール通知が送信される仕組みです。
+
+**動作フロー：**
+1. お客様が修理店に問い合わせ → Notion DBに商談情報が保存
+2. 修理工場がNotionでステータスを更新（「診断中」「修理中」「完了」など）
+3. システムが自動でお客様にメール通知を送信
+4. 修理完了時には支払い案内も自動送信
+
+### SendGridを使う理由
+
+- **高い到達率**: Gmailなどのフリーメールより信頼性が高い
+- **大量送信対応**: 月12,000通まで無料
+- **配信分析**: 開封率、クリック率などを追跡可能
+- **スパム判定されにくい**: 専用IPアドレスで送信
+
+### セットアップ手順
+
+#### 1. SendGridアカウントを作成
+
+1. [SendGrid公式サイト](https://sendgrid.com/)にアクセス
+2. 「Start for Free」をクリックしてアカウント作成
+3. 無料プラン（月12,000通）を選択
+
+#### 2. APIキーを取得
+
+1. SendGridダッシュボードにログイン
+2. 左メニューから「Settings」→「API Keys」を選択
+3. 「Create API Key」をクリック
+4. API Key名を入力（例: `camper-repair-production`）
+5. 「Full Access」を選択
+6. 「Create & View」をクリック
+7. **APIキーをコピー**（この画面でしか表示されません！）
+
+#### 3. 送信元メールアドレスを認証
+
+1. 左メニューから「Settings」→「Sender Authentication」を選択
+2. 「Single Sender Verification」をクリック
+3. 送信元メールアドレスを入力（例: `info@camper-repair.net`）
+4. 確認メールが届くので、リンクをクリックして認証
+
+#### 4. 環境変数を設定
+
+`.env`ファイルに以下を追加：
+
+```bash
+# SendGrid設定
+SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FROM_EMAIL=info@camper-repair.net
+```
+
+#### 5. 本番環境（Railway）に環境変数を設定
+
+1. [Railway Dashboard](https://railway.app)にログイン
+2. プロジェクトを選択
+3. 「Variables」タブを開く
+4. 以下を追加：
+   - `SENDGRID_API_KEY`: SendGridのAPIキー
+   - `FROM_EMAIL`: 送信元メールアドレス
+
+### 通知タイミング
+
+以下のタイミングで自動的にメール通知が送信されます：
+
+1. **問い合わせ受付時**
+   - お客様: 「問い合わせを受け付けました」
+   - 修理店: 「新しい問い合わせが届きました」
+
+2. **ステータス更新時**
+   - 「診断中」「修理中」などのステータス変更時に通知
+
+3. **修理完了時**
+   - 修理完了通知 + 支払い案内（専用口座情報）
+
+4. **評価依頼**
+   - 修理完了後、評価フォームへのリンクを送信
+
+### トラブルシューティング
+
+#### メールが届かない場合
+
+1. **SendGrid APIキーを確認**
+   ```bash
+   # Railwayの環境変数を確認
+   echo $SENDGRID_API_KEY
+   ```
+
+2. **送信元メールアドレスを確認**
+   - SendGridで認証済みか確認
+   - `.env`の`FROM_EMAIL`が正しいか確認
+
+3. **SendGridのログを確認**
+   - SendGridダッシュボード → 「Activity」で送信履歴を確認
+
+#### SMTPフォールバック
+
+SendGridが利用できない場合、自動的にSMTP（Gmail）経由で送信されます。
+
+```bash
+# SMTP設定（フォールバック用）
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASSWORD=your_app_password
+```
+
+**注意**: Gmailの場合、アプリパスワードを使用してください（2段階認証が必要）。
 
 ## 📱 LINE通知機能の実装方法
 

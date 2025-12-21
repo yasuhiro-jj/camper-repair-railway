@@ -4,6 +4,7 @@
 メール通知モジュール
 - 修理店への通知
 - 顧客への確認メール
+- SendGrid API対応
 """
 
 import os
@@ -12,18 +13,41 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Optional
 
+# SendGrid対応
+try:
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail, Email, To, Content
+    SENDGRID_AVAILABLE = True
+except ImportError:
+    SENDGRID_AVAILABLE = False
+    print("⚠️ SendGridがインストールされていません。SMTP経由でメールを送信します。")
+
 
 class EmailSender:
-    """メール送信クラス"""
+    """メール送信クラス（SendGrid優先、SMTPフォールバック）"""
     
     def __init__(self):
         """初期化"""
+        # SendGrid設定
+        self.sendgrid_api_key = os.environ.get("SENDGRID_API_KEY")
+        self.use_sendgrid = SENDGRID_AVAILABLE and bool(self.sendgrid_api_key)
+        
+        # SMTP設定（フォールバック用）
         self.smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
         self.smtp_port = int(os.environ.get("SMTP_PORT", "587"))
         self.smtp_user = os.environ.get("SMTP_USER")
         self.smtp_password = os.environ.get("SMTP_PASSWORD")
-        self.from_email = os.environ.get("FROM_EMAIL", self.smtp_user)
-        self.enabled = bool(self.smtp_user and self.smtp_password)
+        self.from_email = os.environ.get("FROM_EMAIL", self.smtp_user or "info@camper-repair.net")
+        
+        # メール送信が有効かどうか
+        self.enabled = self.use_sendgrid or bool(self.smtp_user and self.smtp_password)
+        
+        if self.use_sendgrid:
+            print("✅ SendGrid APIを使用してメールを送信します")
+        elif self.enabled:
+            print("✅ SMTP経由でメールを送信します")
+        else:
+            print("⚠️ メール送信設定が不完全です")
     
     def send_to_partner(
         self, 
@@ -259,7 +283,68 @@ https://camper-repair.net/
     
     def _send_email(self, to_email: str, subject: str, body: str) -> bool:
         """
-        メール送信の実処理
+        メール送信の実処理（SendGrid優先、SMTPフォールバック）
+        
+        Args:
+            to_email: 送信先メールアドレス
+            subject: 件名
+            body: 本文
+        
+        Returns:
+            送信成功時True、失敗時False
+        """
+        # SendGrid経由で送信
+        if self.use_sendgrid:
+            return self._send_via_sendgrid(to_email, subject, body)
+        
+        # SMTP経由で送信（フォールバック）
+        return self._send_via_smtp(to_email, subject, body)
+    
+    def _send_via_sendgrid(self, to_email: str, subject: str, body: str) -> bool:
+        """
+        SendGrid API経由でメール送信
+        
+        Args:
+            to_email: 送信先メールアドレス
+            subject: 件名
+            body: 本文
+        
+        Returns:
+            送信成功時True、失敗時False
+        """
+        try:
+            if not self.sendgrid_api_key:
+                print("⚠️ SENDGRID_API_KEYが設定されていません。")
+                return False
+            
+            message = Mail(
+                from_email=Email(self.from_email, "岡山キャンピングカー修理サポートセンター"),
+                to_emails=To(to_email),
+                subject=subject,
+                plain_text_content=Content("text/plain", body)
+            )
+            
+            sg = SendGridAPIClient(self.sendgrid_api_key)
+            response = sg.send(message)
+            
+            if response.status_code in [200, 201, 202]:
+                print(f"✅ メール送信成功（SendGrid）: {to_email}")
+                return True
+            else:
+                print(f"⚠️ SendGrid送信エラー（ステータス: {response.status_code}）")
+                return False
+            
+        except Exception as e:
+            print(f"❌ SendGrid送信失敗: {e}")
+            print(f"   送信先: {to_email}")
+            print(f"   件名: {subject}")
+            # SendGrid失敗時はSMTPにフォールバック
+            print("   → SMTP経由で再試行します")
+            return self._send_via_smtp(to_email, subject, body)
+    
+    def _send_via_smtp(self, to_email: str, subject: str, body: str) -> bool:
+        """
+        SMTP経由でメール送信（フォールバック）
         
         Args:
             to_email: 送信先メールアドレス
@@ -286,14 +371,14 @@ https://camper-repair.net/
                 server.login(self.smtp_user, self.smtp_password)
                 server.send_message(msg)
             
-            print(f"✅ メール送信成功: {to_email}")
+            print(f"✅ メール送信成功（SMTP）: {to_email}")
             return True
             
         except Exception as e:
-               print(f"❌ メール送信失敗: {e}")
-               print(f"   送信先: {to_email}")
-               print(f"   件名: {subject}")
-               return False
+            print(f"❌ SMTP送信失敗: {e}")
+            print(f"   送信先: {to_email}")
+            print(f"   件名: {subject}")
+            return False
     
     def send_status_update_to_customer(
         self,
