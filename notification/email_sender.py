@@ -4,7 +4,9 @@
 メール通知モジュール
 - 修理店への通知
 - 顧客への確認メール
-- SendGrid API対応
+- Resend API対応（優先）
+- SendGrid API対応（フォールバック）
+- SMTP対応（最終フォールバック）
 """
 
 import os
@@ -13,6 +15,14 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Optional
 
+# Resend対応
+try:
+    import resend
+    RESEND_AVAILABLE = True
+except ImportError:
+    RESEND_AVAILABLE = False
+    print("⚠️ Resendがインストールされていません。")
+
 # SendGrid対応
 try:
     from sendgrid import SendGridAPIClient
@@ -20,29 +30,39 @@ try:
     SENDGRID_AVAILABLE = True
 except ImportError:
     SENDGRID_AVAILABLE = False
-    print("⚠️ SendGridがインストールされていません。SMTP経由でメールを送信します。")
+    print("⚠️ SendGridがインストールされていません。")
 
 
 class EmailSender:
-    """メール送信クラス（SendGrid優先、SMTPフォールバック）"""
+    """メール送信クラス（Resend優先、SendGrid/SMTPフォールバック）"""
     
     def __init__(self):
         """初期化"""
-        # SendGrid設定
+        # Resend設定（最優先）
+        self.resend_api_key = os.environ.get("RESEND_API_KEY")
+        self.use_resend = RESEND_AVAILABLE and bool(self.resend_api_key)
+        
+        # SendGrid設定（フォールバック）
         self.sendgrid_api_key = os.environ.get("SENDGRID_API_KEY")
         self.use_sendgrid = SENDGRID_AVAILABLE and bool(self.sendgrid_api_key)
         
-        # SMTP設定（フォールバック用）
+        # SMTP設定（最終フォールバック）
         self.smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
         self.smtp_port = int(os.environ.get("SMTP_PORT", "587"))
         self.smtp_user = os.environ.get("SMTP_USER")
         self.smtp_password = os.environ.get("SMTP_PASSWORD")
         self.from_email = os.environ.get("FROM_EMAIL", self.smtp_user or "info@camper-repair.net")
         
-        # メール送信が有効かどうか
-        self.enabled = self.use_sendgrid or bool(self.smtp_user and self.smtp_password)
+        # Resend初期化
+        if self.use_resend:
+            resend.api_key = self.resend_api_key
         
-        if self.use_sendgrid:
+        # メール送信が有効かどうか
+        self.enabled = self.use_resend or self.use_sendgrid or bool(self.smtp_user and self.smtp_password)
+        
+        if self.use_resend:
+            print("✅ Resend APIを使用してメールを送信します")
+        elif self.use_sendgrid:
             print("✅ SendGrid APIを使用してメールを送信します")
         elif self.enabled:
             print("✅ SMTP経由でメールを送信します")
@@ -283,7 +303,7 @@ https://camper-repair.net/
     
     def _send_email(self, to_email: str, subject: str, body: str) -> bool:
         """
-        メール送信の実処理（SendGrid優先、SMTPフォールバック）
+        メール送信の実処理（Resend優先、SendGrid/SMTPフォールバック）
         
         Args:
             to_email: 送信先メールアドレス
@@ -293,12 +313,61 @@ https://camper-repair.net/
         Returns:
             送信成功時True、失敗時False
         """
-        # SendGrid経由で送信
+        # Resend経由で送信（最優先）
+        if self.use_resend:
+            return self._send_via_resend(to_email, subject, body)
+        
+        # SendGrid経由で送信（フォールバック）
         if self.use_sendgrid:
             return self._send_via_sendgrid(to_email, subject, body)
         
-        # SMTP経由で送信（フォールバック）
+        # SMTP経由で送信（最終フォールバック）
         return self._send_via_smtp(to_email, subject, body)
+    
+    def _send_via_resend(self, to_email: str, subject: str, body: str) -> bool:
+        """
+        Resend API経由でメール送信
+        
+        Args:
+            to_email: 送信先メールアドレス
+            subject: 件名
+            body: 本文
+        
+        Returns:
+            送信成功時True、失敗時False
+        """
+        try:
+            if not self.resend_api_key:
+                print("⚠️ RESEND_API_KEYが設定されていません。")
+                return False
+            
+            params = {
+                "from": f"岡山キャンピングカー修理サポートセンター <{self.from_email}>",
+                "to": [to_email],
+                "subject": subject,
+                "text": body,
+            }
+            
+            response = resend.Emails.send(params)
+            
+            if response:
+                print(f"✅ メール送信成功（Resend）: {to_email}")
+                return True
+            else:
+                print(f"⚠️ Resend送信エラー")
+                return False
+            
+        except Exception as e:
+            print(f"❌ Resend送信失敗: {e}")
+            print(f"   送信先: {to_email}")
+            print(f"   件名: {subject}")
+            # Resend失敗時はSendGridにフォールバック
+            if self.use_sendgrid:
+                print("   → SendGrid経由で再試行します")
+                return self._send_via_sendgrid(to_email, subject, body)
+            # SendGridも使えない場合はSMTPにフォールバック
+            print("   → SMTP経由で再試行します")
+            return self._send_via_smtp(to_email, subject, body)
     
     def _send_via_sendgrid(self, to_email: str, subject: str, body: str) -> bool:
         """
