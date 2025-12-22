@@ -113,21 +113,6 @@ export default function InquiryForm({
       if (onSuccess) {
         onSuccess(deal.deal_id);
       }
-
-      // 3秒後にフォームをリセット
-      setTimeout(() => {
-        setFormData({
-          customer_name: '',
-          phone: '',
-          email: '',
-          prefecture: defaultPrefecture,
-          symptom_category: defaultCategory,
-          symptom_detail: defaultDetail,
-          partner_page_id: partnerPageId,
-          notification_method: 'email',
-        });
-        setSuccess(false);
-      }, 3000);
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || '問い合わせの送信に失敗しました');
     } finally {
@@ -159,6 +144,24 @@ export default function InquiryForm({
     } finally {
       setIsSubmittingNote(false);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      customer_name: '',
+      phone: '',
+      email: '',
+      prefecture: defaultPrefecture,
+      symptom_category: defaultCategory,
+      symptom_detail: defaultDetail,
+      partner_page_id: partnerPageId,
+      notification_method: 'email',
+    });
+    setSuccess(false);
+    setSubmittedDealId(null);
+    setShowNoteForm(false);
+    setCustomerNote('');
+    setError(null);
   };
 
   if (success) {
@@ -234,6 +237,13 @@ export default function InquiryForm({
             )}
           </div>
         )}
+
+        <button
+          onClick={resetForm}
+          className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-semibold"
+        >
+          🔄 新しいお問い合わせを送る
+        </button>
       </div>
     );
   }
