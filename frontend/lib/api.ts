@@ -361,12 +361,18 @@ export const customerNoteApi = {
     dealId: string,
     note: string
   ): Promise<{ success: boolean; message?: string; error?: string }> {
-    // 共通のAPIクライアント(apiClient)を利用してバックエンドにリクエストを送信
-    const response = await apiClient.post(
-      `/v1/deals/${dealId}/customer-notes`,
-      { note }
-    );
-    return response.data;
+    const res = await fetch(`/api/customer-notes/${dealId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
+    });
+
+    if (!res.ok) {
+      const errorBody = await res.json().catch(() => ({}));
+      throw new Error(errorBody.error || 'メッセージ送信APIでエラーが発生しました');
+    }
+
+    return res.json();
   },
 };
 

@@ -204,7 +204,7 @@ export default function InquiryForm({
                     onChange={(e) => setCustomerNote(e.target.value)}
                     required
                     rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
                     placeholder="例: 来週の月曜日から車を持って行けます。"
                   />
                 </div>
