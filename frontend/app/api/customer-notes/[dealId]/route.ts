@@ -7,10 +7,10 @@ const BACKEND_URL =
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { dealId: string } },
+  { params }: { params: Promise<{ dealId: string }> },
 ) {
   try {
-    const { dealId } = params;
+    const { dealId } = await params;
     const body = await req.json();
 
     const res = await fetch(
