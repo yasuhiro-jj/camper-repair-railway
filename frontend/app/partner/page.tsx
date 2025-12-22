@@ -36,8 +36,7 @@ function PartnerPageContent() {
 
   const handleInquirySuccess = (dealId: string) => {
     alert(`✅ 問い合わせを受け付けました（商談ID: ${dealId}）`);
-    setShowInquiryForm(false);
-    setSelectedShop(null);
+    // 成功後もフォームを開いたままにして、追加メッセージ送信などを続けられるようにする
   };
 
   const handleCancel = () => {
