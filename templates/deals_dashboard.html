@@ -351,7 +351,10 @@
             };
             
             const btnIndex = statusMap[activeStatus] || 0;
-            document.querySelectorAll('.filter-btn')[btnIndex]?.classList.add('active');
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            if (filterButtons[btnIndex]) {
+                filterButtons[btnIndex].classList.add('active');
+            }
         }
         
         async function loadDeals(status = '') {
@@ -662,6 +665,17 @@
     </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
 
 
 

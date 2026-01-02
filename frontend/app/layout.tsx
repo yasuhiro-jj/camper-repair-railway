@@ -12,15 +12,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001";
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
-  title: {
-    default: "キャンピングカー修理チャットボット | AI搭載の修理サポート",
-    template: "%s | キャンピングカー修理チャットボット",
-  },
-  description: "AI搭載のキャンピングカー修理サポートシステム。症状を入力するだけで、専門的な修理アドバイスを提供します。24時間対応、無料診断・見積り対応。",
+  title: "キャンピングカー 修理｜診断・原因・対処ガイド",
+  description:
+    "キャンピングカーの修理不安を3分オンライン診断とLINE相談で可視化し、エアコンや電装など10カテゴリの記事とRAGナレッジで原因と対処を整理するハブメディアです。全国の提携工場へ繋がる診断導線も備え、費用感やリスク回避まで1ページで確認できます。",
   keywords: [
     "キャンピングカー",
     "修理",
@@ -45,9 +43,10 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ja_JP",
     url: baseUrl,
-    siteName: "キャンピングカー修理チャットボット",
-    title: "キャンピングカー修理チャットボット | AI搭載の修理サポート",
-    description: "AI搭載のキャンピングカー修理サポートシステム。症状を入力するだけで、専門的な修理アドバイスを提供します。",
+    siteName: "キャンピングカー 修理｜診断・原因・対処ガイド",
+    title: "キャンピングカー 修理｜診断・原因・対処ガイド",
+    description:
+      "カテゴリ別ガイドと3分診断・LINE相談で不安を解消するキャンピングカー修理メディア。Railway診断と提携工場マッチングに直結。",
     images: [
       {
         url: `${baseUrl}/og-image.png`,
@@ -59,8 +58,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "キャンピングカー修理チャットボット | AI搭載の修理サポート",
-    description: "AI搭載のキャンピングカー修理サポートシステム。症状を入力するだけで、専門的な修理アドバイスを提供します。",
+    title: "キャンピングカー 修理｜診断・原因・対処ガイド",
+    description:
+      "3分オンライン診断とLINE相談で不安を解消し、カテゴリ別記事で原因と対処がわかるハブ型メディア。",
     images: [`${baseUrl}/og-image.png`],
   },
   robots: {

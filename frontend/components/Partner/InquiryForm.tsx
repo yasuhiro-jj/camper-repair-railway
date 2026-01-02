@@ -462,10 +462,10 @@ export default function InquiryForm({
                 formatDiagnosisFallback((diagnosticResult as any).diagnosis);
               const html = (text || '診断結果が取得できませんでした').replace(/\n/g, '<br>');
               return (
-                <div
-                  className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap"
+            <div 
+              className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap"
                   dangerouslySetInnerHTML={{ __html: html }}
-                />
+            />
               );
             })()}
           </div>

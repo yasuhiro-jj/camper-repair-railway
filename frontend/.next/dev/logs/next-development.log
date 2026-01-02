@@ -1,3 +1,261 @@
-[00:00:02.236] Server  LOG      ✓ Ready in 1581ms
-[00:00:57.767] Server  LOG      ○ Compiling / ...
-[00:00:59.898] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:03.268] Server  LOG      ✓ Ready in 2.6s
+[00:00:31.885] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:00:31.886] Server  ERROR    ⨯ TurbopackInternalError: Failed to write page endpoint /_error
+
+Caused by:
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <PageEndpoint as Endpoint>::output failed
+- Failed to write page endpoint /_error
+- Execution of all_server_paths failed
+- Execution of server_path failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+[00:00:31.892] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:00:31.893] Server  ERROR   TurbopackInternalError: Failed to write app endpoint /page
+
+Caused by:
+- byte index 24 is not a char boundary; it is inside '用' (bytes 23..26) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_a0ff3932`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <AppEndpoint as Endpoint>::output failed
+- Failed to write app endpoint /page
+- Execution of all_server_paths failed
+- Execution of all_assets_from_entries failed
+- Execution of <BuildManifest as OutputAsset>::references failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 24 is not a char boundary; it is inside '用' (bytes 23..26) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_a0ff3932`
+[00:00:31.898] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:00:31.898] Server  ERROR    ⨯ TurbopackInternalError: Failed to write page endpoint /_error
+
+Caused by:
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <PageEndpoint as Endpoint>::output failed
+- Failed to write page endpoint /_error
+- Execution of all_server_paths failed
+- Execution of server_path failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+[00:00:31.902] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:00:31.903] Server  ERROR   TurbopackInternalError: Failed to write page endpoint /_error
+
+Caused by:
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <PageEndpoint as Endpoint>::output failed
+- Failed to write page endpoint /_error
+- Execution of all_server_paths failed
+- Execution of server_path failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+[00:00:31.922] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:00:31.923] Server  ERROR    ⨯ TurbopackInternalError: Failed to write page endpoint /_error
+
+Caused by:
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <PageEndpoint as Endpoint>::output failed
+- Failed to write page endpoint /_error
+- Execution of all_server_paths failed
+- Execution of server_path failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+[00:00:31.927] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:00:31.927] Server  ERROR   TurbopackInternalError: Failed to write app endpoint /page
+
+Caused by:
+- byte index 24 is not a char boundary; it is inside '用' (bytes 23..26) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_a0ff3932`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <AppEndpoint as Endpoint>::output failed
+- Failed to write app endpoint /page
+- Execution of all_server_paths failed
+- Execution of all_assets_from_entries failed
+- Execution of <BuildManifest as OutputAsset>::references failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 24 is not a char boundary; it is inside '用' (bytes 23..26) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_a0ff3932`
+[00:00:31.932] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:00:31.933] Server  ERROR    ⨯ TurbopackInternalError: Failed to write page endpoint /_error
+
+Caused by:
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <PageEndpoint as Endpoint>::output failed
+- Failed to write page endpoint /_error
+- Execution of all_server_paths failed
+- Execution of server_path failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+[00:00:31.937] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:00:31.937] Server  ERROR   TurbopackInternalError: Failed to write page endpoint /_error
+
+Caused by:
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <PageEndpoint as Endpoint>::output failed
+- Failed to write page endpoint /_error
+- Execution of all_server_paths failed
+- Execution of server_path failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+[00:18:07.932] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:18:07.932] Server  ERROR    ⨯ TurbopackInternalError: Failed to write page endpoint /_error
+
+Caused by:
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <PageEndpoint as Endpoint>::output failed
+- Failed to write page endpoint /_error
+- Execution of all_server_paths failed
+- Execution of server_path failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+[00:18:07.936] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:18:07.937] Server  ERROR   TurbopackInternalError: Failed to write app endpoint /partner/page
+
+Caused by:
+- byte index 24 is not a char boundary; it is inside '用' (bytes 23..26) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_a0ff3932`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <AppEndpoint as Endpoint>::output failed
+- Failed to write app endpoint /partner/page
+- Execution of all_server_paths failed
+- Execution of all_assets_from_entries failed
+- Execution of <BuildManifest as OutputAsset>::references failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 24 is not a char boundary; it is inside '用' (bytes 23..26) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_a0ff3932`
+[00:18:07.941] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:18:07.942] Server  ERROR    ⨯ TurbopackInternalError: Failed to write page endpoint /_error
+
+Caused by:
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <PageEndpoint as Endpoint>::output failed
+- Failed to write page endpoint /_error
+- Execution of all_server_paths failed
+- Execution of server_path failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+[00:18:07.946] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:18:07.947] Server  ERROR   TurbopackInternalError: Failed to write page endpoint /_error
+
+Caused by:
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <PageEndpoint as Endpoint>::output failed
+- Failed to write page endpoint /_error
+- Execution of all_server_paths failed
+- Execution of server_path failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+[00:44:42.058] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:44:42.059] Server  ERROR    ⨯ TurbopackInternalError: Failed to write page endpoint /_error
+
+Caused by:
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <PageEndpoint as Endpoint>::output failed
+- Failed to write page endpoint /_error
+- Execution of all_server_paths failed
+- Execution of server_path failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+[00:44:42.063] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:44:42.063] Server  ERROR   TurbopackInternalError: Failed to write app endpoint /partner/page
+
+Caused by:
+- byte index 24 is not a char boundary; it is inside '用' (bytes 23..26) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_a0ff3932`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <AppEndpoint as Endpoint>::output failed
+- Failed to write app endpoint /partner/page
+- Execution of all_server_paths failed
+- Execution of all_assets_from_entries failed
+- Execution of <BuildManifest as OutputAsset>::references failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 24 is not a char boundary; it is inside '用' (bytes 23..26) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_a0ff3932`
+[00:44:42.066] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:44:42.067] Server  ERROR    ⨯ TurbopackInternalError: Failed to write page endpoint /_error
+
+Caused by:
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <PageEndpoint as Endpoint>::output failed
+- Failed to write page endpoint /_error
+- Execution of all_server_paths failed
+- Execution of server_path failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+[00:44:42.070] Server  ERROR   C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend\node_modules\next\dist\shared\lib\turbopack\internal-error.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: Error: sourceMapURL could not be parsed
+[00:44:42.070] Server  ERROR   TurbopackInternalError: Failed to write page endpoint /_error
+
+Caused by:
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <PageEndpoint as Endpoint>::output failed
+- Failed to write page endpoint /_error
+- Execution of all_server_paths failed
+- Execution of server_path failed
+- Execution of <BrowserChunkingContext as ChunkingContext>::chunk_path failed
+- Execution of AssetIdent::output_name failed
+- byte index 37 is not a char boundary; it is inside 'フ' (bytes 35..38) of `OneDrive_Desktop_移行用まとめフォルダー_udemy-langchain_camper-repair-clean_frontend_pages__error_2da965e7`

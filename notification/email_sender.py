@@ -15,6 +15,8 @@ import requests
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Optional
+from dotenv import load_dotenv
+load_dotenv()
 
 # Resend対応（公式HTTP APIで送信するため、追加ライブラリ不要）
 RESEND_API_URL = "https://api.resend.com/emails"
@@ -51,6 +53,28 @@ class EmailSender:
         
         # メール送信が有効かどうか
         self.enabled = self.use_resend or self.use_sendgrid or bool(self.smtp_user and self.smtp_password)
+
+        #region agent log
+        import json as _json, time as _time
+        try:
+            with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as _f:
+                _f.write(_json.dumps({
+                    "sessionId": "debug-session",
+                    "runId": "initial",
+                    "hypothesisId": "E1",
+                    "location": "email_sender.py:EmailSender.__init__",
+                    "message": "EmailSender initialized",
+                    "data": {
+                        "use_resend": self.use_resend,
+                        "use_sendgrid": self.use_sendgrid,
+                        "smtp_enabled": bool(self.smtp_user and self.smtp_password),
+                        "from_email_set": bool(self.from_email)
+                    },
+                    "timestamp": int(_time.time() * 1000)
+                }, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
+        #endregion
         
         if self.use_resend:
             print("✅ Resend APIを使用してメールを送信します")
@@ -227,6 +251,134 @@ https://camper-repair.net/
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 岡山キャンピングカー修理サポートセンター
+電話: 086-206-6622
+メール: info@camper-repair.net
+営業時間: 年中無休（9:00〜21:00）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+        
+        return self._send_email(customer_email, subject, body)
+    
+    def send_status_update_to_customer(
+        self,
+        customer_email: str,
+        customer_name: str,
+        partner_name: str,
+        status: str,
+        deal_id: Optional[str] = None
+    ) -> bool:
+        """
+        顧客にステータス変更通知を送信
+        
+        Args:
+            customer_email: 顧客のメールアドレス
+            customer_name: 顧客名
+            partner_name: 修理店名
+            status: 新しいステータス（pending, contacted, in_progress, estimate_sent, completed, cancelled）
+            deal_id: 商談ID（オプション）
+        
+        Returns:
+            送信成功時True、失敗時False
+        """
+        if not self.enabled:
+            print("⚠️ メール送信設定が不完全です。メール送信をスキップします。")
+            return False
+        
+        if not customer_email:
+            print("⚠️ 顧客のメールアドレスが設定されていません。")
+            return False
+        
+        # ステータスごとのメッセージを定義
+        status_messages = {
+            "pending": {
+                "subject": "【お問い合わせ受付】岡山キャンピングカー修理サポートセンター",
+                "title": "お問い合わせを受け付けました",
+                "message": f"""
+お問い合わせいただきありがとうございます。
+
+{partner_name}にご連絡させていただきました。
+修理店より直接ご連絡がございますので、今しばらくお待ちください。
+"""
+            },
+            "contacted": {
+                "subject": "【対応開始】岡山キャンピングカー修理サポートセンター",
+                "title": "修理店が対応を開始しました",
+                "message": f"""
+{partner_name}が対応を開始いたしました。
+
+担当者より詳細なヒアリングのご連絡をさせていただきます。
+今しばらくお待ちください。
+"""
+            },
+            "in_progress": {
+                "subject": "【作業開始】岡山キャンピングカー修理サポートセンター",
+                "title": "修理作業を開始しました",
+                "message": f"""
+{partner_name}にて修理作業を開始いたしました。
+
+作業完了まで今しばらくお待ちください。
+進捗状況は随時ご報告させていただきます。
+"""
+            },
+            "estimate_sent": {
+                "subject": "【見積もり送付】岡山キャンピングカー修理サポートセンター",
+                "title": "見積もりを送付しました",
+                "message": f"""
+{partner_name}より見積もりを送付させていただきました。
+
+内容をご確認いただき、ご不明な点がございましたら
+お気軽にお問い合わせください。
+"""
+            },
+            "completed": {
+                "subject": "【修理完了】岡山キャンピングカー修理サポートセンター",
+                "title": "修理が完了しました",
+                "message": f"""
+{partner_name}での修理が完了いたしました。
+
+この度はご利用いただき、誠にありがとうございました。
+よろしければ、サービスの評価をお願いいたします。
+
+▼ 評価フォーム
+https://camper-repair.net/review?deal_id={deal_id or ''}
+"""
+            },
+            "cancelled": {
+                "subject": "【キャンセル】岡山キャンピングカー修理サポートセンター",
+                "title": "お問い合わせがキャンセルされました",
+                "message": f"""
+お問い合わせをキャンセルさせていただきました。
+
+またのご利用を心よりお待ちしております。
+"""
+            }
+        }
+        
+        # ステータスに対応するメッセージを取得
+        status_info = status_messages.get(status)
+        if not status_info:
+            print(f"⚠️ 未対応のステータス: {status}")
+            return False
+        
+        subject = status_info["subject"]
+        deal_info = f"\n【商談ID】\n{deal_id}\n" if deal_id else ""
+        
+        body = f"""
+{customer_name} 様
+
+お世話になっております。
+岡山キャンピングカー修理サポートセンターです。
+{deal_info}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{status_info["title"]}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{status_info["message"]}
+
+ご不明な点がございましたら、お気軽にお問い合わせください。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+岡山キャンピングカー修理サポートセンター
+https://camper-repair.net/
 電話: 086-206-6622
 メール: info@camper-repair.net
 営業時間: 年中無休（9:00〜21:00）
@@ -450,8 +602,7 @@ https://camper-repair.net/
             
         except Exception as e:
             print(f"❌ SMTP送信失敗: {e}")
-            print(f"   送信先: {to_email}")
-            print(f"   件名: {subject}")
+            print(f"   送信先: {to_email}, 件名: {subject}")
             return False
     
     def send_status_update_to_customer(

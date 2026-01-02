@@ -36,3 +36,18 @@ export default function QuickActions({ onQuickMessage }: QuickActionsProps) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

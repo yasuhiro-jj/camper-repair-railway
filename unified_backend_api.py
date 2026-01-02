@@ -5,7 +5,16 @@
 Flask + RAG + SERP + Notion + AI の全機能を統合
 """
 
-from flask import Flask, request, jsonify, g, send_from_directory
+from flask import (
+    Flask,
+    request,
+    jsonify,
+    g,
+    send_from_directory,
+    render_template,
+    session,
+    redirect,
+)
 from flask_cors import CORS, cross_origin
 import asyncio
 import aiohttp
@@ -81,7 +90,8 @@ except ImportError:
     print("⚠️ Notionクライアントが利用できません")
 
 # === Flask アプリケーションの設定 ===
-app = Flask(__name__)
+app = Flask(__name__, template_folder="templates", static_folder="static")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "change-me")
 
 ALLOWED_ORIGINS = [
     "http://localhost:8501",
@@ -3806,9 +3816,9 @@ def process_diagnostic(symptoms: List[str], additional_info: str) -> Dict[str, A
 【ユーザー情報】
 - 症状（抽出）: {', '.join(symptoms)}
 - 追加情報（原文）: {additional_info}
-
+        
 【出力JSONスキーマ（厳守）】
-{{
+        {{
   "possible_causes": ["原因候補1", "原因候補2", "原因候補3", "原因候補4"],
   "quick_checks": ["今すぐできる確認1", "今すぐできる確認2", "今すぐできる確認3"],
   "recommended_actions": ["次の一手1", "次の一手2"],
@@ -3823,7 +3833,7 @@ def process_diagnostic(symptoms: List[str], additional_info: str) -> Dict[str, A
 - quick_checks は「どこを・どう見るか」まで書く（例: 12V電圧を計測、分電盤のブレーカー確認、フィルタ詰まり確認、外気温と設定温度差、異音/振動の有無）
 - urgency は safety/走行に直結する場合のみ high、それ以外は medium/low
 - confidence は 0.0〜1.0 の小数
-"""
+        """
         
         response = llm.invoke(prompt)
         parsed = _safe_json_loads(response.content)
@@ -4833,6 +4843,53 @@ def suggest_best_practices():
 
 # ===== フェーズ2-3: 工場教育AIモード 終了 =====
 
+# ===== 管理ダッシュボード（Flaskテンプレート） =====
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    """簡易パスコードログイン"""
+    if request.method == "POST":
+        code = request.form.get("code", "").strip()
+        admin_code = os.getenv("ADMIN_CODE", "change-me")
+
+        if code == admin_code:
+            session["admin_authenticated"] = True
+            return redirect("/admin/dashboard")
+        return (
+            render_template("admin_login.html", error="パスコードが正しくありません"),
+            401,
+        )
+
+    return render_template("admin_login.html")
+
+
+@app.route("/admin/logout")
+def admin_logout():
+    """ログアウト"""
+    session.pop("admin_authenticated", None)
+    return redirect("/admin/login")
+
+
+@app.route("/admin/dashboard")
+def admin_dashboard():
+    """工場向けダッシュボード（チャットログ表示）"""
+    if not session.get("admin_authenticated"):
+        return redirect("/admin/login")
+
+    status_filter = request.args.get("status", "")
+    return render_template("factory_dashboard.html", status_filter=status_filter)
+
+
+@app.route("/admin/deals-dashboard")
+def admin_deals_dashboard():
+    """商談管理ダッシュボード"""
+    if not session.get("admin_authenticated"):
+        return redirect("/admin/login")
+
+    status_filter = request.args.get("status", "")
+    return render_template("deals_dashboard.html", status_filter=status_filter)
+
+
 # ===== フェーズ3: 工場ダッシュボードAPI（Next.js用） =====
 
 @app.route("/admin/api/cases", methods=["GET"])
@@ -4846,6 +4903,27 @@ def get_admin_cases():
         status = request.args.get("status")  # フィルタ（受付/診断中/修理中/完了/キャンセル）
         limit = int(request.args.get("limit", 100))
         partner_page_id = request.args.get("partner_page_id")  # パートナー工場のNotion Page ID
+
+        #region agent log
+        import json as _json, time as _time
+        try:
+            with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as _f:
+                _f.write(_json.dumps({
+                    "sessionId": "debug-session",
+                    "runId": "initial",
+                    "hypothesisId": "H1",
+                    "location": "unified_backend_api.py:get_admin_cases:entry",
+                    "message": "get_admin_cases called",
+                    "data": {
+                        "status": status,
+                        "limit": limit,
+                        "partner_page_id": partner_page_id
+                    },
+                    "timestamp": int(_time.time() * 1000)
+                }, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
+        #endregion
         
         # パートナー工場IDが指定されている場合、その工場に紹介された案件のみ取得
         cases = manager.get_cases(
@@ -4858,6 +4936,28 @@ def get_admin_cases():
             print(f"✅ パートナー工場専用の案件取得成功: {len(cases)}件（工場ID: {partner_page_id}）")
         else:
             print(f"✅ 全案件取得成功: {len(cases)}件")
+
+        #region agent log
+        import json as _json, time as _time
+        try:
+            with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as _f:
+                _f.write(_json.dumps({
+                    "sessionId": "debug-session",
+                    "runId": "initial",
+                    "hypothesisId": "H2",
+                    "location": "unified_backend_api.py:get_admin_cases:exit",
+                    "message": "get_admin_cases result",
+                    "data": {
+                        "cases_count": len(cases),
+                        "partner_page_id": partner_page_id,
+                        "status": status,
+                        "limit": limit
+                    },
+                    "timestamp": int(_time.time() * 1000)
+                }, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
+        #endregion
         
         return jsonify({
             "success": True,

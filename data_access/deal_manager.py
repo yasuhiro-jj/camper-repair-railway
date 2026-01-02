@@ -292,45 +292,46 @@ class DealManager:
             deal = self.get_deal(deal_id)
             if not deal:
                 return None
-
+            
             page_id = deal["page_id"]
-
+            
             properties = {
                 "紹介ステータス": {
                     "select": {"name": status}
                 }
             }
-
+            
             # 成約済みの場合は成約日を設定
             if status == "completed" and not deal.get("deal_date"):
                 properties["成約日"] = {
                     "date": {"start": self._now_jst_iso()}
                 }
-
+            
             # Notionでページ更新
             updated_page = self.notion.pages.update(
                 page_id=page_id,
                 properties=properties
             )
-
+            
             updated_deal = self._parse_deal_page(updated_page)
-
-            # LINE通知を送信
+            
+            # 通知を送信（LINE + メール）
             if send_notification:
                 self._send_status_update_notification(updated_deal, status)
-
+                self._send_status_update_email(updated_deal, status)
+            
             # 商談完了時に修理完了通知と評価依頼通知を送信
             if status == "completed":
                 self._send_repair_complete_notification(updated_deal)
                 self._send_review_request_notification(updated_deal)
-
+            
             return updated_deal
         except Exception as e:
             print(f"❌ 商談ステータス更新エラー: {e}")
             import traceback
             traceback.print_exc()
             raise
-
+    
     def get_deals_by_partner(
         self,
         partner_page_id: str,
@@ -439,6 +440,65 @@ class DealManager:
         except Exception as e:
             # 通知エラーはログに記録するが、ステータス更新は成功とする
             print(f"⚠️ LINE通知送信エラー（ステータス更新は正常に完了しました）: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _send_status_update_email(self, deal: Dict[str, Any], status: str):
+        """ステータス更新時にメール通知を送信"""
+        try:
+            # メールアドレスがある場合のみ送信
+            customer_email = deal.get("email")
+            if not customer_email:
+                print("⚠️ 顧客のメールアドレスが設定されていないため、メール通知をスキップします")
+                return
+            
+            # 通知方法がメールの場合のみ送信
+            notification_method = deal.get("notification_method", "").lower()
+            if notification_method != "email":
+                print(f"⚠️ 通知方法がメールではないため、メール通知をスキップします（通知方法: {notification_method}）")
+                return
+            
+            # メール送信モジュールをインポート
+            from notification.email_sender import EmailSender
+            
+            email_sender = EmailSender()
+            if not email_sender.enabled:
+                print("⚠️ メール送信機能が無効のため、メール通知をスキップします")
+                return
+            
+            # 修理店名を取得
+            partner_name = "修理店"
+            partner_page_ids = deal.get("partner_page_ids", [])
+            if partner_page_ids:
+                try:
+                    from data_access.partner_shop_manager import PartnerShopManager
+                    partner_manager = PartnerShopManager()
+                    partner_shop = partner_manager.get_shop_by_page_id(partner_page_ids[0])
+                    if partner_shop:
+                        partner_name = partner_shop.get("name", "修理店")
+                except Exception as e:
+                    print(f"⚠️ 修理店情報取得エラー: {e}")
+            
+            # メール通知を送信
+            customer_name = deal.get("customer_name", "お客様")
+            deal_id = deal.get("deal_id", "")
+            
+            result = email_sender.send_status_update_to_customer(
+                customer_email=customer_email,
+                customer_name=customer_name,
+                partner_name=partner_name,
+                status=status,
+                deal_id=deal_id
+            )
+            
+            if result:
+                print(f"✅ メール通知送信成功: {customer_name}様（{customer_email}）（ステータス: {status}）")
+            else:
+                print(f"⚠️ メール通知送信失敗: {customer_name}様（{customer_email}）")
+                
+        except Exception as e:
+            # 通知エラーはログに記録するが、ステータス更新は成功とする
+            print(f"⚠️ メール通知送信エラー（ステータス更新は正常に完了しました）: {e}")
             import traceback
             traceback.print_exc()
     
@@ -711,8 +771,9 @@ class DealManager:
             if not deal:
                 return None
             
-            # 現在の報告回数を取得
-            current_count = deal.get("progress_report_count", 0)
+            # 現在の報告回数を取得（Notion側が未設定の場合はNoneになるので0に正規化）
+            raw_count = deal.get("progress_report_count")
+            current_count = raw_count if isinstance(raw_count, int) and raw_count >= 0 else 0
             
             # 最大回数に達している場合はエラー
             if current_count >= max_reports:

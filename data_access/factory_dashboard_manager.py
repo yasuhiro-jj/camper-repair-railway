@@ -22,7 +22,7 @@ NOTION_DEAL_DB_ID = os.getenv("NOTION_DEAL_DB_ID") or os.getenv("DEAL_DB_ID")
 NOTION_API_VERSION = os.getenv("NOTION_API_VERSION", "2022-06-28")
 
 # データベースIDをサニタイズ
-def _sanitize_db_id(db_id: str | None) -> str | None:
+def _sanitize_db_id(db_id: Optional[str]) -> Optional[str]:
     if not db_id:
         return None
     try:
@@ -37,6 +37,7 @@ NOTION_DEAL_DB_ID = _sanitize_db_id(NOTION_DEAL_DB_ID)
 
 NOTION_PAGES_URL = "https://api.notion.com/v1/pages"
 NOTION_DATABASE_URL = "https://api.notion.com/v1/databases"
+NOTION_COMMENTS_URL = "https://api.notion.com/v1/comments"
 
 # ステータス定義（Phase 4対応）
 STATUS_OPTIONS = ["受付", "診断中", "修理中", "完了", "キャンセル"]
@@ -64,6 +65,7 @@ class FactoryDashboardManager:
         self.status_mapping = {
             "pending": "受付",
             "contacted": "診断中",
+            "in_progress": "修理中",
             "completed": "完了",
             "cancelled": "キャンセル"
         }
@@ -90,6 +92,8 @@ class FactoryDashboardManager:
             案件リスト
         """
         cases = []
+        log_cases = []
+        deal_cases = []
         
         # チャットログDBから案件を取得
         if self.log_db_id:
@@ -106,6 +110,30 @@ class FactoryDashboardManager:
                 cases.extend(deal_cases)
             except Exception as e:
                 logger.warning(f"⚠️ 商談DBからの案件取得エラー: {e}")
+
+        #region agent log
+        import json as _json, time as _time
+        try:
+            with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as _f:
+                _f.write(_json.dumps({
+                    "sessionId": "debug-session",
+                    "runId": "initial",
+                    "hypothesisId": "H3",
+                    "location": "factory_dashboard_manager.py:get_cases",
+                    "message": "Notion case fetch summary",
+                    "data": {
+                        "status_filter": status,
+                        "partner_page_id": partner_page_id,
+                        "log_db_enabled": bool(self.log_db_id),
+                        "deal_db_enabled": bool(self.deal_db_id),
+                        "log_cases_count": len(log_cases),
+                        "deal_cases_count": len(deal_cases)
+                    },
+                    "timestamp": int(_time.time() * 1000)
+                }, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
+        #endregion
         
         # タイムスタンプでソート（新しい順）
         cases.sort(key=lambda x: x.get("timestamp") or x.get("created_time") or "", reverse=(sort_direction == "descending"))
@@ -131,7 +159,6 @@ class FactoryDashboardManager:
         """チャットログDBから案件を取得"""
         try:
             query = {
-                "database_id": self.log_db_id,
                 "page_size": limit,
             }
             
@@ -211,7 +238,6 @@ class FactoryDashboardManager:
                 deal_status = reverse_mapping.get(status)
             
             query = {
-                "database_id": self.deal_db_id,
                 "page_size": limit,
             }
             
@@ -534,6 +560,13 @@ class FactoryDashboardManager:
                     # 通知エラーはログに記録するが、ステータス更新は成功とする
                     logger.warning(f"⚠️ LINE通知送信エラー（ステータス更新は正常に完了しました）: {notify_error}")
                 
+                # メール通知を送信
+                try:
+                    self._send_status_update_email(page_id, status)
+                except Exception as email_error:
+                    # 通知エラーはログに記録するが、ステータス更新は成功とする
+                    logger.warning(f"⚠️ メール通知送信エラー（ステータス更新は正常に完了しました）: {email_error}")
+                
                 return True
             else:
                 logger.error(f"❌ 商談DBステータス更新失敗: {response.status_code} - {response.text}")
@@ -627,6 +660,93 @@ class FactoryDashboardManager:
             import traceback
             traceback.print_exc()
     
+    def _send_status_update_email(self, page_id: str, status: str):
+        """ステータス更新時にメール通知を送信"""
+        try:
+            # 商談情報を取得
+            response = requests.get(
+                f"{NOTION_PAGES_URL}/{page_id}",
+                headers=self.headers,
+                timeout=15
+            )
+            
+            if not response.ok:
+                logger.warning(f"⚠️ 商談情報取得失敗: {response.status_code}")
+                return
+            
+            page = response.json()
+            props = page.get("properties", {})
+            
+            # メールアドレスを取得
+            customer_email = self._get_email(props.get("メールアドレス", {}))
+            if not customer_email:
+                logger.info("⚠️ 顧客のメールアドレスが設定されていないため、メール通知をスキップします")
+                return
+            
+            # 通知方法を確認
+            notification_method = self._get_select(props.get("通知方法", {}))
+            if notification_method and notification_method.lower() != "email":
+                logger.info(f"⚠️ 通知方法がメールではないため、メール通知をスキップします（通知方法: {notification_method}）")
+                return
+            
+            # メール送信モジュールをインポート
+            from notification.email_sender import EmailSender
+            
+            email_sender = EmailSender()
+            if not email_sender.enabled:
+                logger.info("⚠️ メール送信機能が無効のため、メール通知をスキップします")
+                return
+            
+            # 顧客情報を取得
+            customer_name = self._get_rich_text(props.get("顧客名", {})) or "お客様"
+            deal_id_prop = props.get("商談ID", {})
+            deal_id = ""
+            if deal_id_prop.get("type") == "title":
+                title_list = deal_id_prop.get("title", [])
+                if title_list:
+                    deal_id = title_list[0].get("text", {}).get("content", "")
+            
+            # 修理店名を取得
+            partner_name = "修理店"
+            partner_relation = props.get("紹介修理店", {})
+            partner_page_ids = []
+            if partner_relation.get("type") == "relation":
+                partner_page_ids = [rel.get("id") for rel in partner_relation.get("relation", [])]
+            
+            if partner_page_ids:
+                try:
+                    from data_access.partner_shop_manager import PartnerShopManager
+                    partner_manager = PartnerShopManager()
+                    partner_shop = partner_manager.get_shop_by_page_id(partner_page_ids[0])
+                    if partner_shop:
+                        partner_name = partner_shop.get("name", "修理店")
+                except Exception as e:
+                    logger.warning(f"⚠️ 修理店情報取得エラー: {e}")
+            
+            # ステータスを商談DBのステータスに変換
+            reverse_mapping = {v: k for k, v in self.status_mapping.items()}
+            deal_status = reverse_mapping.get(status, status)
+            
+            # メール通知を送信
+            result = email_sender.send_status_update_to_customer(
+                customer_email=customer_email,
+                customer_name=customer_name,
+                partner_name=partner_name,
+                status=deal_status,  # 商談DBのステータス形式で送信
+                deal_id=deal_id
+            )
+            
+            if result:
+                logger.info(f"✅ メール通知送信成功: {customer_name}様（{customer_email}）（ステータス: {status}）")
+            else:
+                logger.warning(f"⚠️ メール通知送信失敗: {customer_name}様（{customer_email}）")
+                
+        except Exception as e:
+            # 通知エラーはログに記録するが、ステータス更新は成功とする
+            logger.warning(f"⚠️ メール通知送信エラー（ステータス更新は正常に完了しました）: {e}")
+            import traceback
+            traceback.print_exc()
+    
     def _update_status_via_comment(self, page_id: str, status: str) -> bool:
         """ステータスプロパティがない場合、コメントに追記"""
         try:
@@ -643,20 +763,41 @@ class FactoryDashboardManager:
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             new_comment = f"{existing_comment}\n\n[{timestamp}] ステータス: {status}" if existing_comment else f"[{timestamp}] ステータス: {status}"
             
-            properties = {
-                "comment": {
-                    "rich_text": [{"text": {"content": new_comment}}]
+            if "comment" in props:
+                properties = {
+                    "comment": {
+                        "rich_text": [{"text": {"content": new_comment}}]
+                    }
                 }
-            }
-            
-            response = requests.patch(
-                f"{NOTION_PAGES_URL}/{page_id}",
-                headers=self.headers,
-                json={"properties": properties},
-                timeout=15
-            )
-            
-            return response.ok
+                
+                response = requests.patch(
+                    f"{NOTION_PAGES_URL}/{page_id}",
+                    headers=self.headers,
+                    json={"properties": properties},
+                    timeout=15
+                )
+                
+                return response.ok
+            else:
+                # comment プロパティがない場合は Notion の comments API を使用
+                return self._append_notion_comment(page_id, new_comment)
+            if "comment" in props:
+                properties = {
+                    "comment": {
+                        "rich_text": [{"text": {"content": new_comment}}]
+                    }
+                }
+                
+                response = requests.patch(
+                    f"{NOTION_PAGES_URL}/{page_id}",
+                    headers=self.headers,
+                    json={"properties": properties},
+                    timeout=15
+                )
+                
+                return response.ok
+            else:
+                return self._append_notion_comment(page_id, new_comment)
         except Exception as e:
             logger.error(f"❌ コメント経由ステータス更新エラー: {e}")
             return False
@@ -686,28 +827,63 @@ class FactoryDashboardManager:
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             new_comment = f"{existing_comment}\n\n[{timestamp}] {comment}" if existing_comment else f"[{timestamp}] {comment}"
             
-            properties = {
-                "comment": {
-                    "rich_text": [{"text": {"content": new_comment}}]
+            if "comment" in props:
+                properties = {
+                    "comment": {
+                        "rich_text": [{"text": {"content": new_comment}}]
+                    }
                 }
+                
+                response = requests.patch(
+                    f"{NOTION_PAGES_URL}/{page_id}",
+                    headers=self.headers,
+                    json={"properties": properties},
+                    timeout=15
+                )
+                
+                if response.ok:
+                    logger.info(f"✅ コメント追加成功: {page_id}")
+                    return True
+                else:
+                    logger.error(f"❌ コメント追加失敗: {response.status_code} - {response.text}")
+                    return False
+            else:
+                # comment プロパティがない場合は NotionコメントAPIを利用
+                if self._append_notion_comment(page_id, new_comment):
+                    logger.info(f"✅ コメント追加成功（NotionコメントAPI）: {page_id}")
+                    return True
+                else:
+                    logger.error("❌ コメント追加失敗: NotionコメントAPIでもエラー")
+                    return False
+        
+        except Exception as e:
+            logger.error(f"❌ コメント追加エラー: {e}")
+            return False
+    
+    def _append_notion_comment(self, page_id: str, comment_text: str) -> bool:
+        """NotionコメントAPI経由でコメントを追加"""
+        try:
+            payload = {
+                "parent": {"page_id": page_id},
+                "rich_text": [{
+                    "text": {"content": comment_text[:1900]}
+                }]
             }
             
-            response = requests.patch(
-                f"{NOTION_PAGES_URL}/{page_id}",
+            response = requests.post(
+                NOTION_COMMENTS_URL,
                 headers=self.headers,
-                json={"properties": properties},
+                json=payload,
                 timeout=15
             )
             
             if response.ok:
-                logger.info(f"✅ コメント追加成功: {page_id}")
                 return True
             else:
-                logger.error(f"❌ コメント追加失敗: {response.status_code} - {response.text}")
+                logger.error(f"❌ NotionコメントAPI失敗: {response.status_code} - {response.text}")
                 return False
-        
         except Exception as e:
-            logger.error(f"❌ コメント追加エラー: {e}")
+            logger.error(f"❌ NotionコメントAPIエラー: {e}")
             return False
     
     def update_image_url(self, page_id: str, image_url: str) -> bool:

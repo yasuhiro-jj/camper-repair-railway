@@ -335,51 +335,51 @@
         
         function renderCases(cases) {
             const casesListEl = document.getElementById('cases-list');
-            casesListEl.innerHTML = cases.map(case => `
-                <div class="case-card" data-page-id="${case.page_id}">
+            casesListEl.innerHTML = cases.map(caseItem => `
+                <div class="case-card" data-page-id="${caseItem.page_id}">
                     <div class="case-header">
-                        <div class="case-title">${escapeHtml(case.title)}</div>
-                        <span class="case-status status-${case.status || '受付'}">${case.status || '受付'}</span>
+                        <div class="case-title">${escapeHtml(caseItem.title)}</div>
+                        <span class="case-status status-${caseItem.status || '受付'}">${caseItem.status || '受付'}</span>
                     </div>
                     
                     <div class="case-info">
-                        <div>📅 ${formatDate(case.timestamp || case.created_time)}</div>
-                        ${case.category ? `<div>🏷️ ${escapeHtml(case.category)}</div>` : ''}
-                        ${case.session_id ? `<div>🆔 ${escapeHtml(case.session_id.substring(0, 8))}...</div>` : ''}
+                        <div>📅 ${formatDate(caseItem.timestamp || caseItem.created_time)}</div>
+                        ${caseItem.category ? `<div>🏷️ ${escapeHtml(caseItem.category)}</div>` : ''}
+                        ${caseItem.session_id ? `<div>🆔 ${escapeHtml(caseItem.session_id.substring(0, 8))}...</div>` : ''}
                     </div>
                     
-                    ${case.user_message ? `
+                    ${caseItem.user_message ? `
                         <div class="case-message">
-                            <strong>ユーザー:</strong> ${escapeHtml(case.user_message.substring(0, 200))}${case.user_message.length > 200 ? '...' : ''}
+                            <strong>ユーザー:</strong> ${escapeHtml(caseItem.user_message.substring(0, 200))}${caseItem.user_message.length > 200 ? '...' : ''}
                         </div>
                     ` : ''}
                     
-                    ${case.bot_message ? `
+                    ${caseItem.bot_message ? `
                         <div class="case-message">
-                            <strong>AI応答:</strong> ${escapeHtml(case.bot_message.substring(0, 200))}${case.bot_message.length > 200 ? '...' : ''}
+                            <strong>AI応答:</strong> ${escapeHtml(caseItem.bot_message.substring(0, 200))}${caseItem.bot_message.length > 200 ? '...' : ''}
                         </div>
                     ` : ''}
                     
                     <div class="case-actions">
-                        <select class="action-select" id="status-${case.page_id}">
-                            <option value="受付" ${case.status === '受付' ? 'selected' : ''}>受付</option>
-                            <option value="診断中" ${case.status === '診断中' ? 'selected' : ''}>診断中</option>
-                            <option value="修理中" ${case.status === '修理中' ? 'selected' : ''}>修理中</option>
-                            <option value="完了" ${case.status === '完了' ? 'selected' : ''}>完了</option>
-                            <option value="キャンセル" ${case.status === 'キャンセル' ? 'selected' : ''}>キャンセル</option>
+                        <select class="action-select" id="status-${caseItem.page_id}">
+                            <option value="受付" ${caseItem.status === '受付' ? 'selected' : ''}>受付</option>
+                            <option value="診断中" ${caseItem.status === '診断中' ? 'selected' : ''}>診断中</option>
+                            <option value="修理中" ${caseItem.status === '修理中' ? 'selected' : ''}>修理中</option>
+                            <option value="完了" ${caseItem.status === '完了' ? 'selected' : ''}>完了</option>
+                            <option value="キャンセル" ${caseItem.status === 'キャンセル' ? 'selected' : ''}>キャンセル</option>
                         </select>
-                        <button class="btn-update" onclick="updateStatus('${case.page_id}')">ステータス更新</button>
+                        <button class="btn-update" onclick="updateStatus('${caseItem.page_id}')">ステータス更新</button>
                     </div>
                     
                     <div class="comment-section">
-                        <input type="text" class="comment-input" id="comment-${case.page_id}" placeholder="コメントを入力...">
-                        <button class="btn-comment" onclick="addComment('${case.page_id}')">コメント追加</button>
-                        ${case.comment ? `<div class="existing-comments">${escapeHtml(case.comment)}</div>` : ''}
+                        <input type="text" class="comment-input" id="comment-${caseItem.page_id}" placeholder="コメントを入力...">
+                        <button class="btn-comment" onclick="addComment('${caseItem.page_id}')">コメント追加</button>
+                        ${caseItem.comment ? `<div class="existing-comments">${escapeHtml(caseItem.comment)}</div>` : ''}
                     </div>
                     
                     <div class="progress-report-section" style="margin-top: 10px; padding: 10px; background: #f0f8ff; border-radius: 5px;">
-                        <input type="text" class="comment-input" id="progress-report-${case.page_id}" placeholder="経過報告を入力（例: あと残り1週間ほどで完了します）..." style="width: 100%; margin-bottom: 5px;">
-                        <button class="btn-progress-report" onclick="sendProgressReport('${case.page_id}')" style="background: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer;">📊 経過報告を送信（最大2回）</button>
+                        <input type="text" class="comment-input" id="progress-report-${caseItem.page_id}" placeholder="経過報告を入力（例: あと残り1週間ほどで完了します）..." style="width: 100%; margin-bottom: 5px;">
+                        <button class="btn-progress-report" onclick="sendProgressReport('${caseItem.page_id}')" style="background: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer;">📊 経過報告を送信（最大2回）</button>
                     </div>
                 </div>
             `).join('');

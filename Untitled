@@ -1,0 +1,12 @@
+# Resend API設定（最優先）
+RESEND_API_KEY=re_ZWoxfoCD_7guKrszZJKkn1YY1HvbaVC4R
+FROM_EMAIL=onboarding@resend.dev
+
+# SendGrid設定（フォールバック - オプション）
+# SENDGRID_API_KEY=
+
+# SMTP設定（最終フォールバック - オプション）
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=
+# SMTP_PASSWORD=

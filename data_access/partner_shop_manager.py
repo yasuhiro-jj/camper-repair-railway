@@ -208,11 +208,7 @@ class PartnerShopManager:
                 normalized_prefecture = self._normalize_prefecture(prefecture)
                 
                 # 正規化された都道府県名で完全一致検索を試みる
-                if normalized_prefecture:
-                    filters.append({
-                        "property": "所在地（都道府県）",
-                        "select": {"equals": normalized_prefecture}
-                    })
+                if normalized_prefecture: filters.append({"property": "所在地（都道府県）", "select": {"equals": normalized_prefecture}})
                 else:
                     # 正規化できない場合は部分一致検索を使用
                     use_partial_match = True
