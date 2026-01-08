@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { categories } from "@/app/lib/categories";
+import { categories } from "../lib/categories";
 
 export default function CategoryGrid() {
   return (
