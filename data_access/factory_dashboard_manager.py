@@ -111,30 +111,6 @@ class FactoryDashboardManager:
             except Exception as e:
                 logger.warning(f"⚠️ 商談DBからの案件取得エラー: {e}")
 
-        #region agent log
-        import json as _json, time as _time
-        try:
-            with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                _f.write(_json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "initial",
-                    "hypothesisId": "H3",
-                    "location": "factory_dashboard_manager.py:get_cases",
-                    "message": "Notion case fetch summary",
-                    "data": {
-                        "status_filter": status,
-                        "partner_page_id": partner_page_id,
-                        "log_db_enabled": bool(self.log_db_id),
-                        "deal_db_enabled": bool(self.deal_db_id),
-                        "log_cases_count": len(log_cases),
-                        "deal_cases_count": len(deal_cases)
-                    },
-                    "timestamp": int(_time.time() * 1000)
-                }, ensure_ascii=False) + "\n")
-        except Exception:
-            pass
-        #endregion
-        
         # タイムスタンプでソート（新しい順）
         cases.sort(key=lambda x: x.get("timestamp") or x.get("created_time") or "", reverse=(sort_direction == "descending"))
         

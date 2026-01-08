@@ -53,28 +53,6 @@ class EmailSender:
         
         # メール送信が有効かどうか
         self.enabled = self.use_resend or self.use_sendgrid or bool(self.smtp_user and self.smtp_password)
-
-        #region agent log
-        import json as _json, time as _time
-        try:
-            with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                _f.write(_json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "initial",
-                    "hypothesisId": "E1",
-                    "location": "email_sender.py:EmailSender.__init__",
-                    "message": "EmailSender initialized",
-                    "data": {
-                        "use_resend": self.use_resend,
-                        "use_sendgrid": self.use_sendgrid,
-                        "smtp_enabled": bool(self.smtp_user and self.smtp_password),
-                        "from_email_set": bool(self.from_email)
-                    },
-                    "timestamp": int(_time.time() * 1000)
-                }, ensure_ascii=False) + "\n")
-        except Exception:
-            pass
-        #endregion
         
         if self.use_resend:
             print("✅ Resend APIを使用してメールを送信します")

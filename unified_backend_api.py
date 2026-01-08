@@ -4903,27 +4903,6 @@ def get_admin_cases():
         status = request.args.get("status")  # フィルタ（受付/診断中/修理中/完了/キャンセル）
         limit = int(request.args.get("limit", 100))
         partner_page_id = request.args.get("partner_page_id")  # パートナー工場のNotion Page ID
-
-        #region agent log
-        import json as _json, time as _time
-        try:
-            with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                _f.write(_json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "initial",
-                    "hypothesisId": "H1",
-                    "location": "unified_backend_api.py:get_admin_cases:entry",
-                    "message": "get_admin_cases called",
-                    "data": {
-                        "status": status,
-                        "limit": limit,
-                        "partner_page_id": partner_page_id
-                    },
-                    "timestamp": int(_time.time() * 1000)
-                }, ensure_ascii=False) + "\n")
-        except Exception:
-            pass
-        #endregion
         
         # パートナー工場IDが指定されている場合、その工場に紹介された案件のみ取得
         cases = manager.get_cases(
@@ -4936,28 +4915,6 @@ def get_admin_cases():
             print(f"✅ パートナー工場専用の案件取得成功: {len(cases)}件（工場ID: {partner_page_id}）")
         else:
             print(f"✅ 全案件取得成功: {len(cases)}件")
-
-        #region agent log
-        import json as _json, time as _time
-        try:
-            with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                _f.write(_json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "initial",
-                    "hypothesisId": "H2",
-                    "location": "unified_backend_api.py:get_admin_cases:exit",
-                    "message": "get_admin_cases result",
-                    "data": {
-                        "cases_count": len(cases),
-                        "partner_page_id": partner_page_id,
-                        "status": status,
-                        "limit": limit
-                    },
-                    "timestamp": int(_time.time() * 1000)
-                }, ensure_ascii=False) + "\n")
-        except Exception:
-            pass
-        #endregion
         
         return jsonify({
             "success": True,
@@ -6268,26 +6225,6 @@ def get_partners():
         - prefecture: 都道府県フィルタ（オプション）
         - specialty: 専門分野フィルタ（オプション）
     """
-    # #region agent log
-    import json as _json, time as _time
-    try:
-        with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as _f:
-            _f.write(_json.dumps({
-                "sessionId": "debug-session",
-                "runId": "initial",
-                "hypothesisId": "A",
-                "location": "unified_backend_api.py:6030",
-                "message": "get_partners called",
-                "data": {
-                    "PARTNER_MANAGER_AVAILABLE": PARTNER_MANAGER_AVAILABLE,
-                    "args": request.args.to_dict()
-                },
-                "timestamp": int(_time.time() * 1000)
-            }, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
-    # #endregion
-
     if not PARTNER_MANAGER_AVAILABLE:
         import sys
         sys.stderr.write(f"[AgentLog] ERROR: PARTNER_MANAGER_AVAILABLE is False\n")
