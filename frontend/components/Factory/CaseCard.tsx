@@ -134,7 +134,7 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
           value={caseItem.status}
           onChange={handleStatusChange}
           disabled={isUpdating}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 text-gray-900 bg-white"
         >
           <option value="受付">受付</option>
           <option value="診断中">診断中</option>
@@ -157,7 +157,7 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder="コメントを入力..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 text-gray-900 bg-white"
             rows={3}
           />
           <div className="flex gap-2">

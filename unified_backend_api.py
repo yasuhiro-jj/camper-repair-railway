@@ -318,11 +318,30 @@ def initialize_services():
         if PHASE1_AVAILABLE:
             try:
                 print("🔄 Factory ManagerとBuilder Managerを初期化中...")
-                factory_manager = FactoryManager()
-                builder_manager = BuilderManager()
-                print("✅ Factory ManagerとBuilder Manager初期化完了")
+                # NOTION_FACTORY_DB_IDの確認
+                factory_db_id = os.getenv("NOTION_FACTORY_DB_ID") or os.getenv("FACTORY_DB_ID")
+                if factory_db_id:
+                    print(f"✅ NOTION_FACTORY_DB_ID確認済み: {factory_db_id[:10]}...")
+                    factory_manager = FactoryManager()
+                else:
+                    print("⚠️ NOTION_FACTORY_DB_IDが設定されていません。Factory Managerは無効化されます。")
+                    factory_manager = None
+                
+                # Builder Managerの初期化
+                builder_db_id = os.getenv("NOTION_BUILDER_DB_ID") or os.getenv("BUILDER_DB_ID")
+                if builder_db_id:
+                    print(f"✅ NOTION_BUILDER_DB_ID確認済み: {builder_db_id[:10]}...")
+                    builder_manager = BuilderManager()
+                else:
+                    print("⚠️ NOTION_BUILDER_DB_IDが設定されていません。Builder Managerは無効化されます。")
+                    builder_manager = None
+                
+                if factory_manager or builder_manager:
+                    print("✅ Factory ManagerとBuilder Manager初期化完了")
             except Exception as e:
                 print(f"⚠️ Factory Manager/Builder Manager初期化エラー: {e}")
+                import traceback
+                traceback.print_exc()
                 factory_manager = None
                 builder_manager = None
         else:

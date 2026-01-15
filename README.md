@@ -338,6 +338,9 @@ CASE_DB_ID=your_repair_case_db_id
 ITEM_DB_ID=your_parts_tools_db_id
 KNOWLEDGE_BASE_DB_ID=2d099e34964341d4ba39b291f24d6b6b
 
+# 工場DB（工場マッチング機能用）
+NOTION_FACTORY_DB_ID=c0df759557bb4b088492760ae3c8bc4a
+
 # メール通知機能（Resend推奨）
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # Resend無料運用の例（独自ドメイン未設定の場合）

@@ -83,7 +83,7 @@ export default function ManualSearchModal({
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="症状、修理内容、部品名などで検索"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                 />
                 <button
                   onClick={handleSearch}
@@ -105,7 +105,7 @@ export default function ManualSearchModal({
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   placeholder="例: エアコン、バッテリー"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                 />
               </div>
               <div>
@@ -117,7 +117,7 @@ export default function ManualSearchModal({
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value)}
                   placeholder="例: 初級、中級、上級"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                 />
               </div>
             </div>
