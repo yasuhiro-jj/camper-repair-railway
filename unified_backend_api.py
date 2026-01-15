@@ -5941,9 +5941,17 @@ def add_progress_report(deal_id):
                 # 現在の報告回数を取得
                 report_count = updated_deal.get("progress_report_count", 0)
                 
+                # デバッグログ: 通知設定の確認
+                print(f"📧 経過報告メール送信チェック:")
+                print(f"   - notification_method: {notification_method}")
+                print(f"   - email_sender.enabled: {email_sender.enabled}")
+                print(f"   - customer_email: {customer_email}")
+                print(f"   - report_count: {report_count}")
+                
                 # メール通知（メールを選択した場合）
                 if notification_method == "email" and email_sender.enabled and customer_email:
-                    email_sender.send_progress_report_to_customer(
+                    print(f"✅ メール送信条件を満たしています。メール送信を開始します...")
+                    result = email_sender.send_progress_report_to_customer(
                         customer_email=customer_email,
                         customer_name=customer_name,
                         partner_name=partner_name,
@@ -5951,6 +5959,17 @@ def add_progress_report(deal_id):
                         report_count=report_count,
                         deal_id=deal_id
                     )
+                    if result:
+                        print(f"✅ 経過報告メール送信成功: {customer_email}")
+                    else:
+                        print(f"❌ 経過報告メール送信失敗: {customer_email}")
+                else:
+                    if notification_method != "email":
+                        print(f"⚠️ 通知方法が'email'ではありません（{notification_method}）。メール送信をスキップします。")
+                    elif not email_sender.enabled:
+                        print(f"⚠️ メール送信機能が無効化されています。メール送信をスキップします。")
+                    elif not customer_email:
+                        print(f"⚠️ 顧客のメールアドレスが設定されていません。メール送信をスキップします。")
                 
                 # LINE通知（LINEを選択した場合）
                 if notification_method == "line" and line_notifier.enabled and line_user_id:

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const BACKEND_URL =
   process.env.NODE_ENV === 'development'
     ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002'
-    : 'https://web-development-8c2f.up.railway.app';
+    : process.env.NEXT_PUBLIC_API_URL || 'https://web-production-c8b78.up.railway.app';
 
 export async function POST(
   req: NextRequest,

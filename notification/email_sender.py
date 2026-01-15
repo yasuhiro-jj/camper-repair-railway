@@ -36,6 +36,16 @@ class EmailSender:
     
     def __init__(self):
         """初期化"""
+        # 環境変数の読み込み状況を確認
+        print("🔍 EmailSender初期化: 環境変数の確認")
+        print(f"   - RESEND_API_KEY: {'設定済み' if os.environ.get('RESEND_API_KEY') else '未設定'}")
+        if os.environ.get('RESEND_API_KEY'):
+            api_key = os.environ.get('RESEND_API_KEY')
+            print(f"   - RESEND_API_KEY値（最初の10文字）: {api_key[:10]}...")
+            print(f"   - RESEND_API_KEY値（最後の10文字）: ...{api_key[-10:]}")
+            print(f"   - RESEND_API_KEY長さ: {len(api_key)}文字")
+        print(f"   - FROM_EMAIL: {os.environ.get('FROM_EMAIL', '未設定')}")
+        
         # Resend設定（最優先）
         self.resend_api_key = os.environ.get("RESEND_API_KEY")
         self.use_resend = bool(self.resend_api_key)
@@ -388,8 +398,22 @@ https://camper-repair.net/
         Returns:
             送信成功時True、失敗時False
         """
+        print(f"📧 send_progress_report_to_customer() 呼び出し:")
+        print(f"   - customer_email: {customer_email}")
+        print(f"   - customer_name: {customer_name}")
+        print(f"   - partner_name: {partner_name}")
+        print(f"   - report_count: {report_count}")
+        print(f"   - deal_id: {deal_id}")
+        print(f"   - self.enabled: {self.enabled}")
+        print(f"   - self.use_resend: {self.use_resend}")
+        print(f"   - self.resend_api_key: {'設定済み' if self.resend_api_key else '未設定'}")
+        print(f"   - self.from_email: {self.from_email}")
+        
         if not self.enabled:
-            print("⚠️ SMTP設定が不完全です。メール送信をスキップします。")
+            print("⚠️ メール送信機能が無効化されています。メール送信をスキップします。")
+            print(f"   - use_resend: {self.use_resend}")
+            print(f"   - use_sendgrid: {self.use_sendgrid}")
+            print(f"   - smtp_user: {'設定済み' if self.smtp_user else '未設定'}")
             return False
 
         if not customer_email:
@@ -397,6 +421,9 @@ https://camper-repair.net/
             return False
 
         subject = f"【修理経過報告 #{report_count}】岡山キャンピングカー修理サポートセンター"
+        print(f"📧 メール送信開始:")
+        print(f"   - 件名: {subject}")
+        print(f"   - 送信先: {customer_email}")
         
         deal_info = f"\n【商談ID】\n{deal_id}\n" if deal_id else ""
 
@@ -421,7 +448,12 @@ https://camper-repair.net/
 https://camper-repair.net/
 """
 
-        return self._send_email(customer_email, subject, body)
+        result = self._send_email(customer_email, subject, body)
+        if result:
+            print(f"✅ 経過報告メール送信成功: {customer_email}")
+        else:
+            print(f"❌ 経過報告メール送信失敗: {customer_email}")
+        return result
     
     def _send_email(self, to_email: str, subject: str, body: str) -> bool:
         """
@@ -435,15 +467,24 @@ https://camper-repair.net/
         Returns:
             送信成功時True、失敗時False
         """
+        print(f"📧 _send_email() 呼び出し:")
+        print(f"   - 送信先: {to_email}")
+        print(f"   - 件名: {subject}")
+        print(f"   - use_resend: {self.use_resend}")
+        print(f"   - use_sendgrid: {self.use_sendgrid}")
+        
         # Resend経由で送信（最優先）
         if self.use_resend:
+            print("📧 Resend API経由でメール送信を試みます...")
             return self._send_via_resend(to_email, subject, body)
         
         # SendGrid経由で送信（フォールバック）
         if self.use_sendgrid:
+            print("📧 SendGrid API経由でメール送信を試みます...")
             return self._send_via_sendgrid(to_email, subject, body)
         
         # SMTP経由で送信（最終フォールバック）
+        print("📧 SMTP経由でメール送信を試みます...")
         return self._send_via_smtp(to_email, subject, body)
     
     def _send_via_resend(self, to_email: str, subject: str, body: str) -> bool:
@@ -459,6 +500,12 @@ https://camper-repair.net/
             送信成功時True、失敗時False
         """
         try:
+            print(f"📧 Resend API送信開始:")
+            print(f"   - API URL: {RESEND_API_URL}")
+            print(f"   - 送信先: {to_email}")
+            print(f"   - 送信元: {self.from_email}")
+            print(f"   - 件名: {subject}")
+            
             if not self.resend_api_key:
                 print("⚠️ RESEND_API_KEYが設定されていません。")
                 return False
@@ -469,6 +516,8 @@ https://camper-repair.net/
                 "subject": subject,
                 "text": body,
             }
+            
+            print(f"📧 Resend APIリクエスト送信...")
 
             resp = requests.post(
                 RESEND_API_URL,
@@ -479,17 +528,27 @@ https://camper-repair.net/
                 json=payload,
                 timeout=20,
             )
+            
+            print(f"📧 Resend APIレスポンス:")
+            print(f"   - ステータスコード: {resp.status_code}")
+            print(f"   - レスポンス: {resp.text[:200]}")
 
             if 200 <= resp.status_code < 300:
-                print(f"✅ メール送信成功（Resend）: {to_email}")
-                return True
+                try:
+                    resp_json = resp.json()
+                    print(f"✅ メール送信成功（Resend）: {to_email}")
+                    print(f"   - Resend ID: {resp_json.get('id', 'N/A')}")
+                    return True
+                except Exception as e:
+                    print(f"✅ メール送信成功（Resend）: {to_email}（レスポンス解析エラー: {e}）")
+                    return True
 
             # 失敗時の詳細
             try:
                 err_json = resp.json()
+                print(f"⚠️ Resend送信エラー（status={resp.status_code}）: {err_json}")
             except Exception:
-                err_json = None
-            print(f"⚠️ Resend送信エラー（status={resp.status_code}）: {err_json or resp.text}")
+                print(f"⚠️ Resend送信エラー（status={resp.status_code}）: {resp.text[:200]}")
             return False
             
         except Exception as e:

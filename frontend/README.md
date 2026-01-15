@@ -30,17 +30,24 @@ npm install
 
 **内容**:
 ```env
-NEXT_PUBLIC_API_URL=https://web-development-8c2f.up.railway.app
+NEXT_PUBLIC_API_URL=https://web-production-c8b78.up.railway.app
 ```
 
 **Windowsで作成する場合**:
 ```bash
 # コマンドプロンプト
-echo NEXT_PUBLIC_API_URL=https://web-development-8c2f.up.railway.app > .env.local
+echo NEXT_PUBLIC_API_URL=https://web-production-c8b78.up.railway.app > .env.local
 
 # PowerShell
-Set-Content -Path .env.local -Value "NEXT_PUBLIC_API_URL=https://web-development-8c2f.up.railway.app"
+Set-Content -Path .env.local -Value "NEXT_PUBLIC_API_URL=https://web-production-c8b78.up.railway.app"
 ```
+
+**Vercel環境変数の設定**:
+Vercelにデプロイしている場合、Vercelダッシュボードで環境変数を設定してください：
+1. Vercelダッシュボード → プロジェクト選択 → Settings → Environment Variables
+2. `NEXT_PUBLIC_API_URL` = `https://web-production-c8b78.up.railway.app` を追加
+3. Production, Preview, Development すべてにチェック
+4. 保存後、再デプロイ
 
 ### 4. 開発サーバーの起動
 
