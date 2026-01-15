@@ -48,3 +48,27 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* 入力フィールドのテキスト色を確実に黒にする */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+input[type="password"],
+textarea,
+select {
+  color: #333333 !important;
+  background-color: #ffffff !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #999999 !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  color: #333333 !important;
+  background-color: #ffffff !important;
+}
