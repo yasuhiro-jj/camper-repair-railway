@@ -55,20 +55,42 @@ input[type="email"],
 input[type="tel"],
 input[type="number"],
 input[type="password"],
+input[type="search"],
+input[type="url"],
 textarea,
 select {
-  color: #333333 !important;
+  color: #000000 !important;
   background-color: #ffffff !important;
 }
 
 input::placeholder,
-textarea::placeholder {
+textarea::placeholder,
+select::placeholder {
   color: #999999 !important;
+  opacity: 1 !important;
 }
 
 input:focus,
 textarea:focus,
 select:focus {
-  color: #333333 !important;
+  color: #000000 !important;
   background-color: #ffffff !important;
+}
+
+input:focus::placeholder,
+textarea:focus::placeholder {
+  color: #999999 !important;
+  opacity: 1 !important;
+}
+
+/* より強力なセレクタで確実に適用 */
+input[type="text"]:not([readonly]):not([disabled]),
+input[type="email"]:not([readonly]):not([disabled]),
+input[type="tel"]:not([readonly]):not([disabled]),
+input[type="number"]:not([readonly]):not([disabled]),
+input[type="password"]:not([readonly]):not([disabled]),
+input[type="search"]:not([readonly]):not([disabled]),
+textarea:not([readonly]):not([disabled]),
+select:not([readonly]):not([disabled]) {
+  color: #000000 !important;
 }

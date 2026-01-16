@@ -76,7 +76,8 @@ export default function FactoryMatching({ caseInfo, onFactorySelected }: Factory
             value={formData.category}
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             placeholder="例: エアコン、バッテリー、水回り"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black bg-white"
+            style={{ color: '#000000' }}
           />
         </div>
 
@@ -102,7 +103,8 @@ export default function FactoryMatching({ caseInfo, onFactorySelected }: Factory
             value={formData.customer_location}
             onChange={(e) => setFormData({ ...formData, customer_location: e.target.value })}
             placeholder="例: 東京都、大阪府"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black bg-white"
+            style={{ color: '#000000' }}
           />
         </div>
       </div>
