@@ -54,7 +54,6 @@ Notion統合型の最強キャンピングカー修理サポートシステム
 - SEO最適化済み（メタタグ、構造化データ）
 
 
-
 【リポジトリ】
 C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean
 
@@ -346,6 +345,11 @@ RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # Resend無料運用の例（独自ドメイン未設定の場合）
 FROM_EMAIL=onboarding@resend.dev
 
+# JWT認証設定（工場ダッシュボード認証機能用）
+JWT_SECRET_KEY=your-super-secret-key-change-this-in-production-min-32-characters
+JWT_ALGORITHM=HS256
+JWT_EXPIRATION_HOURS=24
+
 # メール通知機能（SMTPフォールバック - オプション）
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -369,6 +373,15 @@ FRONTEND_URL=https://camper-repair-railway-upoj.vercel.app
 ```
 
 **重要**: `.env`ファイルが存在しないとバックエンドが起動できません。
+
+**環境変数の確認方法:**
+
+```bash
+# 環境変数設定確認スクリプトを実行
+python check_env.py
+```
+
+このスクリプトで、必要な環境変数がすべて設定されているか確認できます。
 
 #### フロントエンドの環境変数
 
@@ -430,8 +443,6 @@ python -m pip install -r requirements.txt
    conda activate campingrepare
    python unified_backend_api.py
 
-   
-
 
 フロントエンド起動（別ターミナル）
 
@@ -440,10 +451,13 @@ python -m pip install -r requirements.txt
    npm run dev
 
 
+# 正しいディレクトリに移動
+cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean"
 
-
-
-
+# ここで git コマンドを実行
+git add frontend/app/components/FeaturedPosts.tsx
+git commit -m "fix: FeaturedPostsから不要な見出し・説明文を削除"
+git push
 
 
 #### フロントエンドの依存関係
@@ -484,11 +498,7 @@ npm run dev
 - ポート3000が使用中でないか確認
 - `.env.local`ファイルの設定を確認（必要に応じて）
 
-
-
-
-
-
+---
 
 ## 🚀 クイックスタート
 
@@ -501,8 +511,6 @@ npm run dev
 **重要**: バックエンドとフロントエンドは**別々のターミナル**で起動してください。
 
 ---
-
-
 
 
 ### 4. バックエンドを起動
@@ -523,10 +531,6 @@ conda activate campingrepare
 # バックエンドを起動
 python unified_backend_api.py
 ```
-
-
-
-
 
 
 **起動確認:**
@@ -565,6 +569,18 @@ python unified_backend_api.py
 - Next.js 16 の Turbopack は日本語を含むパスで動作しません
 - **解決策**: プロジェクトを英数字のみのパスにコピーしてください
 - 推奨パス: `C:\next-camper\camper-repair-clean`
+
+**🚨重要: ワークスペースの日本語パスについて**
+
+`移行用まとめフォルダー` のような**日本語を含むパス**は、PowerShell や `git` の一部コマンド、`npm` コマンドなどで**文字化けや予期せぬエラー**を引き起こす可能性があります。
+
+**推奨事項**:
+プロジェクトを配置するルートディレクトリ名には、**半角英数字のみ**を使用することを強く推奨します。
+
+例: `C:\dev\udemy-projects\camper-repair-clean`
+
+パスに関する問題が発生した場合は、まずプロジェクトのルートディレクトリ名に日本語が含まれていないか確認してください。
+
 
 **プロジェクトのコピー手順:**
 1. `C:\next-camper` フォルダを作成
@@ -994,10 +1010,31 @@ AI: 「バッテリーが上がりやすい場合、以下の原因が考えら�
 
 ## 🔒 セキュリティ
 
-- 環境変数に機密情報を保存
+### 実装済みのセキュリティ機能
+
+- ✅ **JWT認証システム** - 工場ダッシュボード用の認証（2026/01/17実装完了）
+- ✅ **パスワードハッシュ化** - bcryptによるセキュアなパスワード管理
+- ✅ **ロールベースアクセス制御（RBAC）** - 工場ロールと管理者ロールの分離
+- ✅ **環境変数による機密情報管理** - APIキーをコードから分離
+- ✅ **CORS設定** - 許可されたオリジンのみアクセス可能
+- ✅ **Notion APIキーの権限管理** - 最小権限の原則
+
+### セキュリティ設定
+
+- 環境変数に機密情報を保存（`.env`ファイル）
 - `.gitignore`でAPIキーを除外
 - Notion APIキーの権限を最小限に設定
 - CORS設定を適切に管理
+
+### 詳細ドキュメント
+
+詳細は [セキュリティと認証.md](./セキュリティと認証.md) を参照してください。
+
+- JWT認証の実装詳細
+- パスワード管理の仕組み
+- アクセス制御の実装
+- APIキー管理のベストプラクティス
+- トラブルシューティング
 
 ## 📊 カテゴリ一覧
 
@@ -1243,6 +1280,8 @@ https://your-domain.com/lp-partner-recruit
 
 **注意**: このLPは**修理工場・大工・公務店・自動車整備工場・個人職人向け**のページです。お客様（キャンピングカー所有者）向けのページは `/lp-camper-repair` にあります。
 
+---
+
 ## 📧 メール通知機能の実装方法（Resend）
 
 ### 概要
@@ -1383,6 +1422,8 @@ SMTP_PASSWORD=your_app_password
 3. Callback URLを設定（例: `https://your-domain.com/api/line/login/callback`）
 
 #### 3. 環境変数を設定
+
+詳細は `ENV_SETUP_GUIDE.md` を参照してください。
 
 `.env`ファイルに以下を追加：
 
@@ -1553,7 +1594,7 @@ LINE LoginのCallback URLが正しく設定されているか確認してくだ�
 - Notion Comments API フォールバック実装
 
 #### 📂 プロジェクト構成の変更
-- **日本語パス問題の解決**: Next.js 16 の Turbopack が日本語パスで動作しないため、プロジェクトを `C:\next-camper\camper-repair-clean` にコピーして使用
+- **日本語パス問題の解決**: Next.js 16 の Turbopack が日本語パスで動作しないため、プロジェクトを `C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean` にコピーして使用
 - バックエンド: 元の場所で起動可能
 - フロントエンド: 英数字パスから起動推奨
 
@@ -1563,6 +1604,113 @@ LINE LoginのCallback URLが正しく設定されているか確認してくだ�
 - ✅ Railway への再デプロイ
 - ✅ 本番環境でのメール送信テスト（成功確認）
 
+### 2026/01/28 - パスワード変更機能実装
+
+#### ✅ 完了した機能
+1. **パスワード変更機能**
+   - `POST /api/v1/auth/change-password` エンドポイント追加
+   - 現在のパスワード確認
+   - パスワード強度チェック（8文字以上、大文字・小文字・数字を含む）
+   - Notion DBへのパスワードハッシュ更新
+
+2. **パスワード強度チェック機能**
+   - `auth_utils.py`に`validate_password_strength()`関数を追加
+   - パスワードの複雑さを検証
+
+#### 🔧 技術的な実装
+- パスワード強度チェック（正規表現による検証）
+- 現在のパスワード確認によるセキュリティ強化
+- Notion APIによるパスワードハッシュ更新
+
+#### 📝 使用方法
+```bash
+# パスワード変更APIの呼び出し
+POST /api/v1/auth/change-password
+Authorization: Bearer <JWTトークン>
+Content-Type: application/json
+
+{
+  "current_password": "現在のパスワード",
+  "new_password": "新しいパスワード"
+}
+```
+
+詳細は [セキュリティと認証.md](./セキュリティと認証.md) を参照してください。
+
+---
+
+### 2026/01/17 - 工場ダッシュボード認証機能実装
+
+#### ✅ 完了した機能
+1. **JWT認証システム**
+   - `auth_utils.py` を作成（JWT認証ユーティリティ）
+   - パスワードハッシュ化（bcrypt）
+   - トークン生成・検証機能
+   - 認証デコレータ（`@require_auth`）
+
+2. **認証エンドポイント**
+   - `POST /api/v1/auth/login` - ログイン
+   - `GET /api/v1/auth/me` - 現在のユーザー情報取得
+   - `POST /api/v1/auth/logout` - ログアウト
+   - `POST /api/v1/auth/change-password` - パスワード変更
+   - `POST /api/v1/auth/request-password-reset` - パスワードリセット要求（メール送信）
+   - `POST /api/v1/auth/reset-password` - パスワードリセット（トークン検証後）
+
+3. **アクセス制御**
+   - 工場ロール: 自工場の案件のみアクセス可能
+   - 管理者ロール: 全案件にアクセス可能
+   - 既存エンドポイントに認証チェックを追加
+
+4. **フロントエンド実装**
+   - ログインページ（`/factory/login`）
+   - 認証ガード（`useAuthGuard` フック）
+   - Axiosインターセプター（自動トークン付与、401エラー処理）
+   - 工場ダッシュボードに認証ガードを追加
+
+5. **初期アカウント作成スクリプト**
+   - `create_factory_account.py` を作成
+   - テストアカウント・管理者アカウントの作成機能
+
+#### 🔧 技術的な実装
+- JWT認証（PyJWT + bcrypt）
+- ロールベースアクセス制御（RBAC）
+- トークン有効期限: 24時間
+- セキュアなパスワードハッシュ化
+
+#### 📝 必要な設定
+1. **Notionパートナー修理店DBにプロパティ追加**
+   - ログインID（Text）
+   - パスワードハッシュ（Text）
+   - ロール（Select: factory/admin）
+   - アカウント有効（Checkbox）
+   - 最終ログイン日時（Date）
+
+2. **環境変数の設定**
+   
+   詳細は `ENV_SETUP_GUIDE.md` を参照してください。
+   
+   `.env` ファイルに以下を追加：
+   ```bash
+   # JWT認証設定
+   JWT_SECRET_KEY=your-super-secret-key-change-this-in-production-min-32-characters
+   JWT_ALGORITHM=HS256
+   JWT_EXPIRATION_HOURS=24
+   
+   # メール通知機能（Resend）
+   RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   FROM_EMAIL=onboarding@resend.dev
+   ```
+   
+   **JWT_SECRET_KEYの生成方法:**
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(32))"
+   ```
+
+3. **初期アカウント作成**
+   ```bash
+   python create_factory_account.py
+   ```
+
 ---
 
 ## 🎉 今後の予定
@@ -1571,12 +1719,14 @@ LINE LoginのCallback URLが正しく設定されているか確認してくだ�
 - [x] メール通知機能の実装
 - [x] LINE通知機能の実装
 - [x] メール送信の本番テスト
-- [ ] ユーザー認証機能
+- [x] ユーザー認証機能（工場ダッシュボード認証）
 - [ ] 修理履歴の保存
 - [ ] モバイルアプリ対応
 - [ ] 画像アップロード機能
 - [ ] 多言語対応
 - [ ] LPページの問い合わせAPI連携（Notion/SendGrid）
+- [x] パスワード変更機能（2026/01/28実装完了）
+- [x] パスワードリセット機能（2026/02/13実装完了）
 
 ---
 

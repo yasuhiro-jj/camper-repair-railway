@@ -446,15 +446,20 @@ class DealManager:
     def _send_status_update_email(self, deal: Dict[str, Any], status: str):
         """ステータス更新時にメール通知を送信"""
         try:
+            # 通知対象のステータスのみ送信（contacted, in_progress, completed）
+            if status not in ['contacted', 'in_progress', 'completed']:
+                print(f"⚠️ ステータス '{status}' は通知対象外のため、メール通知をスキップします")
+                return
+            
             # メールアドレスがある場合のみ送信
             customer_email = deal.get("email")
             if not customer_email:
                 print("⚠️ 顧客のメールアドレスが設定されていないため、メール通知をスキップします")
                 return
             
-            # 通知方法がメールの場合のみ送信
+            # 通知方法がメールの場合のみ送信（通知方法が未設定の場合はメール送信を試みる）
             notification_method = deal.get("notification_method", "").lower()
-            if notification_method != "email":
+            if notification_method and notification_method != "email":
                 print(f"⚠️ 通知方法がメールではないため、メール通知をスキップします（通知方法: {notification_method}）")
                 return
             
@@ -467,7 +472,7 @@ class DealManager:
                 return
             
             # 修理店名を取得
-            partner_name = "修理店"
+            partner_name = "修理工場"
             partner_page_ids = deal.get("partner_page_ids", [])
             if partner_page_ids:
                 try:
@@ -475,7 +480,7 @@ class DealManager:
                     partner_manager = PartnerShopManager()
                     partner_shop = partner_manager.get_shop_by_page_id(partner_page_ids[0])
                     if partner_shop:
-                        partner_name = partner_shop.get("name", "修理店")
+                        partner_name = partner_shop.get("name", "修理工場")
                 except Exception as e:
                     print(f"⚠️ 修理店情報取得エラー: {e}")
             
@@ -753,15 +758,15 @@ class DealManager:
         self,
         deal_id: str,
         progress_message: str,
-        max_reports: int = 2
+        max_reports: int = 5
     ) -> Optional[Dict[str, Any]]:
         """
-        工場側からの経過報告を追加（最大2回まで）
+        工場側からの経過報告を追加（最大5回まで）
 
         Args:
             deal_id: 商談ID
             progress_message: 経過報告メッセージ
-            max_reports: 最大報告回数（デフォルト: 2）
+            max_reports: 最大報告回数（デフォルト: 5）
 
         Returns:
             更新された商談情報（制限に達した場合はNone）

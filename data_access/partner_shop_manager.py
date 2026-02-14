@@ -680,6 +680,36 @@ class PartnerShopManager:
             return prop.get("checkbox", False)
         return False
     
+    def get_shop_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """
+        メールアドレスでパートナー修理店詳細を取得
+        
+        Args:
+            email: 検索するメールアドレス
+        
+        Returns:
+            パートナー修理店情報（見つからない場合はNone）
+        """
+        try:
+            response = self.notion.databases.query(
+                database_id=self.partner_db_id,
+                filter={
+                    "property": "メールアドレス",
+                    "email": {
+                        "equals": email
+                    }
+                }
+            )
+            
+            if response.get("results"):
+                return self._parse_shop_page(response["results"][0])
+            
+            return None
+            
+        except Exception as e:
+            print(f"❌ パートナー修理店取得エラー（Email: {email}）: {e}")
+            return None
+
     def update_shop_ratings(
         self,
         page_id: str,
