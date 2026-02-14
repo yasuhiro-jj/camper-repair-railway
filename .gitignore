@@ -117,3 +117,6 @@ check_*.py
 repair_center_api.py
 repair_advice_center.html.backup
 test_search_simple.html
+
+# Agentが生成したスクリプト
+commit-featured-posts.ps1
