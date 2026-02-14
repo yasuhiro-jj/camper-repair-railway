@@ -903,16 +903,16 @@ npm run dev
 - [CHANGELOG](CHANGELOG.md) - 変更履歴
 - [SUMMARY](SUMMARY.md) - 売却準備完了サマリー
 
-## 🌐 Railwayデプロイ
+## 🌐 デプロイ
 
-詳細は `RAILWAY_DEPLOY_GUIDE.md` を参照してください。
+**バックエンド（Railway）＋ フロントエンド（Vercel）** のデプロイ手順は **[DEPLOY.md](DEPLOY.md)** を参照してください。
 
 ### クイックデプロイ
 
 1. GitHubにプッシュ
-2. [Railway](https://railway.app)でプロジェクト作成
-3. 環境変数を設定
-4. デプロイ完了！
+2. [Railway](https://railway.app)でバックエンドをデプロイ
+3. [Vercel](https://vercel.com)でフロントエンドをデプロイ（Root Directory: `frontend`）
+4. 環境変数 `NEXT_PUBLIC_API_URL` にRailwayのURLを設定
 
 ## 📁 プロジェクト構造
 
