@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 
 export default function RepairAdvicePage() {
+  const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
@@ -53,6 +55,15 @@ export default function RepairAdvicePage() {
   const handleQuickSearch = (term: string) => {
     handleSearch(term);
   };
+
+  // `?q=` があれば初期検索（カテゴリ一覧からの遷移用）
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q && q.trim()) {
+      handleSearch(q.trim());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-500 via-red-600 to-red-700 p-4">
