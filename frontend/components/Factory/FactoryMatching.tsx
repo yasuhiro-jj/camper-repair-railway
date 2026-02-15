@@ -178,25 +178,25 @@ export default function FactoryMatching({ caseInfo, onFactorySelected }: Factory
                     <div>
                       <span className="text-gray-600">地域: </span>
                       <span className="font-medium">
-                        {(factory.score_details.location_score * 100).toFixed(0)}%
+                        {(((factory.score_details.location_score ?? 0) * 100).toFixed(0))}%
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-600">専門分野: </span>
                       <span className="font-medium">
-                        {(factory.score_details.specialty_score * 100).toFixed(0)}%
+                        {(((factory.score_details.specialty_score ?? 0) * 100).toFixed(0))}%
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-600">混雑状況: </span>
                       <span className="font-medium">
-                        {(factory.score_details.workload_score * 100).toFixed(0)}%
+                        {(((factory.score_details.workload_score ?? 0) * 100).toFixed(0))}%
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-600">評価: </span>
                       <span className="font-medium">
-                        {(factory.score_details.rating_score * 100).toFixed(0)}%
+                        {(((factory.score_details.rating_score ?? 0) * 100).toFixed(0))}%
                       </span>
                     </div>
                   </div>
