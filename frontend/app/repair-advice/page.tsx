@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 
-export default function RepairAdvicePage() {
+function RepairAdvicePageInner() {
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -209,6 +209,22 @@ export default function RepairAdvicePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function RepairAdvicePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-red-500 via-red-600 to-red-700 p-4 flex items-center justify-center">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-xl text-gray-700">
+            読み込み中...
+          </div>
+        </div>
+      }
+    >
+      <RepairAdvicePageInner />
+    </Suspense>
   );
 }
 
