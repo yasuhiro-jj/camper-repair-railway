@@ -72,6 +72,12 @@ share/python-wheels/
 *.manifest
 *.spec
 
+# Frontend の lib は追跡する（Next.js 用）
+!frontend/lib/
+!frontend/lib/**
+!frontend/app/lib/
+!frontend/app/lib/**
+
 # IDEの設定
 .vscode/
 .idea/
