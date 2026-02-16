@@ -1930,33 +1930,36 @@ def unified_chat():
         print(f"🚀 /api/unified/chat リクエスト開始: message='{message[:50]}...', mode={mode}")
         
         # タイムアウト付きで処理を実行
+        # 注意: `with ThreadPoolExecutor(...)` だと、TimeoutError後も executor の終了処理で
+        #       実行中タスクを待ってしまい、結果的にAPIが長時間ブロックすることがあります。
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        future = None
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                def process_request():
-                    # 意図分析
-                    intent_start = time.time()
-                    intent = analyze_intent(message)
-                    intent_time = time.time() - intent_start
-                    print(f"✅ 意図分析完了: {intent_time:.2f}秒")
-                    
-                    # モード別処理
-                    process_start = time.time()
-                    if mode == "diagnostic":
-                        result = process_diagnostic_mode(message, intent)
-                    elif mode == "repair_search":
-                        result = process_repair_search_mode(message, intent)
-                    elif mode == "cost_estimate":
-                        result = process_cost_estimate_mode(message, intent)
-                    else:  # chat
-                        result = process_chat_mode(message, intent, include_serp)
-                    process_time = time.time() - process_start
-                    print(f"✅ モード別処理完了: {process_time:.2f}秒")
-                    
-                    return result
+            def process_request():
+                # 意図分析
+                intent_start = time.time()
+                intent = analyze_intent(message)
+                intent_time = time.time() - intent_start
+                print(f"✅ 意図分析完了: {intent_time:.2f}秒")
                 
-                future = executor.submit(process_request)
-                result = future.result(timeout=endpoint_timeout)
+                # モード別処理
+                process_start = time.time()
+                if mode == "diagnostic":
+                    result = process_diagnostic_mode(message, intent)
+                elif mode == "repair_search":
+                    result = process_repair_search_mode(message, intent)
+                elif mode == "cost_estimate":
+                    result = process_cost_estimate_mode(message, intent)
+                else:  # chat
+                    result = process_chat_mode(message, intent, include_serp)
+                process_time = time.time() - process_start
+                print(f"✅ モード別処理完了: {process_time:.2f}秒")
                 
+                return result
+            
+            future = executor.submit(process_request)
+            result = future.result(timeout=endpoint_timeout)
+            
         except concurrent.futures.TimeoutError:
             elapsed_time = time.time() - endpoint_start_time
             print(f"❌ /api/unified/chat タイムアウト: {elapsed_time:.2f}秒（制限: {endpoint_timeout}秒）")
@@ -1965,6 +1968,19 @@ def unified_chat():
                 "timeout": True,
                 "elapsed_time": f"{elapsed_time:.2f}s"
             }), 504
+        finally:
+            try:
+                # 可能なら未完了futureをキャンセル（実行中のスレッド自体は止まらない場合あり）
+                if future and not future.done():
+                    future.cancel()
+            except Exception:
+                pass
+            # 重要: wait=False で、未完了タスクを待たずに戻る
+            try:
+                executor.shutdown(wait=False, cancel_futures=True)
+            except TypeError:
+                # Python<3.9 互換: cancel_futures未対応
+                executor.shutdown(wait=False)
         
         # 返答テキストの抽出（Notion保存用）
         print(f"🔍 会話ログ保存準備中... (session_id: {session_id})")
@@ -2945,15 +2961,19 @@ def process_chat_mode(message: str, intent: Dict[str, Any], include_serp: bool =
                 print(f"⚠️ Notion検索エラー: {e}")
             return {}
         
-        # 並列実行（最大3秒でタイムアウト）
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        # 並列実行（タイムアウト後も executor 終了で待たないようにする）
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
+        future_rag = None
+        future_serp = None
+        future_notion = None
+        try:
             future_rag = executor.submit(search_rag)
             future_serp = executor.submit(search_serp) if include_serp else None
             future_notion = executor.submit(search_notion)
             
             try:
                 # RAG検索（最優先、2秒でタイムアウト）
-                rag_results = future_rag.result(timeout=2.0)
+                rag_results = future_rag.result(timeout=2.0) if future_rag else {}
             except concurrent.futures.TimeoutError:
                 print("⚠️ RAG検索タイムアウト（2秒）")
                 rag_results = {}
@@ -2968,10 +2988,22 @@ def process_chat_mode(message: str, intent: Dict[str, Any], include_serp: bool =
             
             try:
                 # Notion検索（2秒でタイムアウト）
-                notion_results = future_notion.result(timeout=2.0)
+                notion_results = future_notion.result(timeout=2.0) if future_notion else {}
             except concurrent.futures.TimeoutError:
                 print("⚠️ Notion検索タイムアウト（2秒）")
                 notion_results = {}
+        finally:
+            # タイムアウトしたタスクを待たずに進む（ここが遅延の主因だった）
+            try:
+                for f in [future_rag, future_serp, future_notion]:
+                    if f and not f.done():
+                        f.cancel()
+            except Exception:
+                pass
+            try:
+                executor.shutdown(wait=False, cancel_futures=True)
+            except TypeError:
+                executor.shutdown(wait=False)
         
         search_time = time.time() - start_time
         print(f"⚡ 並列検索完了: {search_time:.2f}秒")
@@ -2989,7 +3021,9 @@ def process_chat_mode(message: str, intent: Dict[str, Any], include_serp: bool =
             # タイムアウト付きで統合検索最適化を実行
             integration_start_time = time.time()
             try:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                integration_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                integration_future = None
+                try:
                     def run_integration():
                         # A/Bテストフレームワークをインポート（オプション）
                         ab_test_variant_local = None
@@ -3027,8 +3061,18 @@ def process_chat_mode(message: str, intent: Dict[str, Any], include_serp: bool =
                         
                         return integrated_results, ab_test_variant_local, dynamic_weights, merge_time
                     
-                    future = executor.submit(run_integration)
-                    integrated_results, ab_test_variant, dynamic_weights, merge_time = future.result(timeout=integration_timeout)
+                    integration_future = integration_executor.submit(run_integration)
+                    integrated_results, ab_test_variant, dynamic_weights, merge_time = integration_future.result(timeout=integration_timeout)
+                finally:
+                    try:
+                        if integration_future and not integration_future.done():
+                            integration_future.cancel()
+                    except Exception:
+                        pass
+                    try:
+                        integration_executor.shutdown(wait=False, cancel_futures=True)
+                    except TypeError:
+                        integration_executor.shutdown(wait=False)
                     
             except concurrent.futures.TimeoutError:
                 integration_duration = time.time() - integration_start_time
@@ -3532,6 +3576,17 @@ def generate_ai_response(message: str, rag_results: Dict, serp_results: Dict, in
     retry_delay = 2  # 秒
     ai_timeout = 30  # AI応答生成のタイムアウト（秒）
     
+    def _is_openai_auth_error(err: Exception) -> bool:
+        try:
+            # openai v1.x
+            from openai import AuthenticationError as _AuthErr
+            if isinstance(err, _AuthErr):
+                return True
+        except Exception:
+            pass
+        msg = str(err)
+        return ("401" in msg) and ("Incorrect API key" in msg or "Unauthorized" in msg or "invalid_api_key" in msg)
+
     for attempt in range(max_retries):
         try:
             from langchain_openai import ChatOpenAI
@@ -3665,9 +3720,21 @@ def generate_ai_response(message: str, rag_results: Dict, serp_results: Dict, in
             ai_start_time = time.time()
             try:
                 # ThreadPoolExecutorでタイムアウトを制御
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(llm.invoke, messages)
-                    response = future.result(timeout=ai_timeout)
+                ai_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                ai_future = None
+                try:
+                    ai_future = ai_executor.submit(llm.invoke, messages)
+                    response = ai_future.result(timeout=ai_timeout)
+                finally:
+                    try:
+                        if ai_future and not ai_future.done():
+                            ai_future.cancel()
+                    except Exception:
+                        pass
+                    try:
+                        ai_executor.shutdown(wait=False, cancel_futures=True)
+                    except TypeError:
+                        ai_executor.shutdown(wait=False)
                 
                 ai_duration = time.time() - ai_start_time
                 print(f"✅ AI応答生成完了: {ai_duration:.2f}秒")
@@ -3694,6 +3761,11 @@ def generate_ai_response(message: str, rag_results: Dict, serp_results: Dict, in
             else:
                 return "⚠️ AI回答生成がタイムアウトしました。時間をおいて再度お試しください。"
         except Exception as e:
+            # 認証エラーはリトライしても直らないので即返す（待ち時間短縮）
+            if _is_openai_auth_error(e):
+                print(f"❌ OpenAI認証エラー（リトライせず終了）: {str(e)}")
+                return "⚠️ OpenAI APIキーが無効です。`.env` の `OPENAI_API_KEY` を正しいキーに更新して、バックエンドを再起動してください。"
+
             # フェーズ2-1: 強化されたエラーハンドリングを使用
             error_message, should_retry = error_handler.handle_openai_error(e, attempt, max_retries)
             
@@ -5568,7 +5640,21 @@ def create_deal():
             partner_manager = PartnerShopManager()
             partner_shop = partner_manager.get_shop_by_page_id(data["partner_page_id"])
             
+            print(f"📧 メール通知処理開始:")
+            print(f"   - partner_page_id: {data.get('partner_page_id')}")
+            print(f"   - partner_shop取得: {'成功' if partner_shop else '失敗'}")
+            
+            if not partner_shop:
+                print(f"⚠️ 修理店情報が取得できませんでした（partner_page_id: {data.get('partner_page_id')}）")
+                print(f"   - Notion DBから修理店が見つからない可能性があります")
+            
             if partner_shop:
+                print(f"   - partner_shop.name: {partner_shop.get('name', 'N/A')}")
+                print(f"   - partner_shop.email: {partner_shop.get('email', 'N/A')}")
+                print(f"   - email_sender.enabled: {email_sender.enabled}")
+                print(f"   - email_sender.use_resend: {email_sender.use_resend}")
+                print(f"   - RESEND_API_KEY: {'設定済み' if os.getenv('RESEND_API_KEY') else '未設定'}")
+                
                 customer_info = {
                     "name": data["customer_name"],
                     "phone": data["phone"],
@@ -5581,16 +5667,32 @@ def create_deal():
                 
                 # 通知方法を取得（デフォルトはメール）
                 notification_method = data.get("notification_method", "email")
+                print(f"   - notification_method: {notification_method}")
                 
                 # メール通知機能（メールを選択した場合）
                 if notification_method == "email" and email_sender.enabled:
                     # 修理店にメール通知
-                    if partner_shop.get("email"):
-                        email_sender.send_to_partner(
-                            partner_email=partner_shop["email"],
+                    partner_email = partner_shop.get("email")
+                    if partner_email:
+                        print(f"📧 修理店へのメール送信を開始: {partner_email}")
+                        result = email_sender.send_to_partner(
+                            partner_email=partner_email,
                             partner_name=partner_name,
                             customer_info=customer_info
                         )
+                        if result:
+                            print(f"✅ 修理店へのメール送信成功: {partner_email}")
+                        else:
+                            print(f"❌ 修理店へのメール送信失敗: {partner_email}")
+                    else:
+                        print(f"⚠️ 修理店のメールアドレスが設定されていません（partner_shop.email: {partner_email}）")
+                        print(f"   - partner_shop keys: {list(partner_shop.keys())}")
+                elif notification_method == "email" and not email_sender.enabled:
+                    print("⚠️ メール送信機能が無効化されています。")
+                    print(f"   - email_sender.enabled: {email_sender.enabled}")
+                    print(f"   - RESEND_API_KEY: {'設定済み' if os.getenv('RESEND_API_KEY') else '未設定'}")
+                    print(f"   - SMTP_USER: {'設定済み' if os.getenv('SMTP_USER') else '未設定'}")
+                    print("⚠️ SMTP設定が不完全です。メール送信をスキップします。")
                     
                     # 顧客に確認メール（メールアドレスが入力されている場合）
                     if data.get("email"):
@@ -6276,6 +6378,20 @@ def get_partners():
         }), 503
     
     try:
+        # partner_manager の存在確認
+        if not partner_manager:
+            import sys
+            sys.stderr.write("[AgentLog] ERROR: partner_manager is None\n")
+            sys.stderr.flush()
+            return jsonify({
+                "success": False,
+                "error": "パートナー管理機能が初期化されていません",
+                "_debug": {
+                    "PARTNER_MANAGER_AVAILABLE": PARTNER_MANAGER_AVAILABLE,
+                    "partner_manager_is_none": True
+                }
+            }), 503
+        
         # クエリパラメータ取得
         status = request.args.get("status", "アクティブ")
         prefecture = request.args.get("prefecture")
@@ -6284,6 +6400,8 @@ def get_partners():
         # パートナー修理店を取得
         import sys
         sys.stderr.write(f"[DEBUG] Calling list_shops with status={status}, prefecture={prefecture}, specialty={specialty}\n")
+        sys.stderr.write(f"[DEBUG] partner_manager type: {type(partner_manager)}\n")
+        sys.stderr.write(f"[DEBUG] partner_manager._manager: {getattr(partner_manager, '_manager', 'N/A')}\n")
         sys.stderr.flush()
         
         partners = partner_manager.list_shops(
@@ -6310,11 +6428,31 @@ def get_partners():
             }
         })
         
+    except AttributeError as e:
+        import sys
+        import traceback
+        error_trace = traceback.format_exc()
+        sys.stderr.write(f"[AgentLog] ❌ get_partners AttributeError: {e}\n")
+        sys.stderr.write(f"[AgentLog] Traceback: {error_trace}\n")
+        sys.stderr.flush()
+        print(f"❌ パートナー修理店取得エラー（AttributeError）: {e}")
+        print(error_trace)
+        return jsonify({
+            "success": False,
+            "error": f"パートナー管理機能の属性エラー: {str(e)}",
+            "_debug": {
+                "error_type": "AttributeError",
+                "error_message": str(e),
+                "partner_manager_exists": partner_manager is not None,
+                "partner_manager_type": type(partner_manager).__name__ if partner_manager else None
+            }
+        }), 500
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
         
         # stderrにも出力
+        import sys
         sys.stderr.write(f"[AgentLog] ❌ get_partners Exception: {e}\n")
         sys.stderr.write(f"[AgentLog] Traceback: {error_trace}\n")
         sys.stderr.flush()
@@ -6326,7 +6464,8 @@ def get_partners():
             "error": str(e),
             "_debug": {
                 "error_type": type(e).__name__,
-                "error_message": str(e)
+                "error_message": str(e),
+                "partner_manager_exists": partner_manager is not None
             }
         }), 500
 

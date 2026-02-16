@@ -26,12 +26,6 @@ export default function ChatPage() {
             >
               🔧 修理店を探す
             </Link>
-            <Link
-              href="/lp-partner-recruit"
-              className="inline-block px-5 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-semibold"
-            >
-              🏭 パートナー募集
-            </Link>
           </div>
         </div>
 

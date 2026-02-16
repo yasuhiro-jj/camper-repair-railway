@@ -2,9 +2,14 @@ import os
 from dotenv import load_dotenv
 
 # .envファイルを読み込み（存在する場合）
-if os.path.exists('.env'):
+# NOTE: 実行時のカレントディレクトリに依存しないよう、このファイルと同階層の .env を読む
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_DOTENV_PATH = os.path.join(_BASE_DIR, ".env")
+
+if os.path.exists(_DOTENV_PATH):
     try:
-        load_dotenv()
+        # OS環境変数を優先（override=False）
+        load_dotenv(_DOTENV_PATH, override=False)
     except UnicodeDecodeError:
         # .envファイルのエンコーディングエラーの場合、無視して続行
         print("Warning: .envファイルのエンコーディングエラーを無視して続行します")
@@ -38,11 +43,13 @@ if not OPENAI_API_KEY:
     print("Warning: OPENAI_API_KEYが設定されていません。環境変数を設定してください。")
 elif "your_" in OPENAI_API_KEY:
     print("Warning: OPENAI_API_KEYにプレースホルダーが設定されています。実際のAPIキーに置き換えてください。")
-    print(f"現在の値: {OPENAI_API_KEY}")
+    # キー全文/一部でもログに出さない（漏洩防止）
 else:
-    print(f"Info: OPENAI_API_KEYが正しく設定されています: {OPENAI_API_KEY[:20]}...")
+    # キー全文/一部でもログに出さない（漏洩防止）
+    print("Info: OPENAI_API_KEYが設定されています。")
 
 if not SERP_API_KEY:
     print("Warning: SERP_API_KEYが設定されていません。環境変数を設定してください。")
 else:
-    print(f"Info: SERP_API_KEYが設定されています: {SERP_API_KEY[:20]}...")
+    # キー全文/一部でもログに出さない（漏洩防止）
+    print("Info: SERP_API_KEYが設定されています。")

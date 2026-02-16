@@ -472,11 +472,23 @@ https://camper-repair.net/
         print(f"   - 件名: {subject}")
         print(f"   - use_resend: {self.use_resend}")
         print(f"   - use_sendgrid: {self.use_sendgrid}")
+        print(f"   - smtp_user: {'設定済み' if self.smtp_user else '未設定'}")
+        print(f"   - smtp_password: {'設定済み' if self.smtp_password else '未設定'}")
         
         # Resend経由で送信（最優先）
         if self.use_resend:
             print("📧 Resend API経由でメール送信を試みます...")
-            return self._send_via_resend(to_email, subject, body)
+            result = self._send_via_resend(to_email, subject, body)
+            # Resendが失敗した場合、フォールバックを試みる
+            if not result:
+                print("📧 Resend送信失敗、フォールバックを試みます...")
+                if self.use_sendgrid:
+                    print("   → SendGrid経由で再試行します")
+                    result = self._send_via_sendgrid(to_email, subject, body)
+                if not result and self.smtp_user and self.smtp_password:
+                    print("   → SMTP経由で再試行します")
+                    result = self._send_via_smtp(to_email, subject, body)
+            return result
         
         # SendGrid経由で送信（フォールバック）
         if self.use_sendgrid:
@@ -547,8 +559,31 @@ https://camper-repair.net/
             try:
                 err_json = resp.json()
                 print(f"⚠️ Resend送信エラー（status={resp.status_code}）: {err_json}")
+                error_message = err_json.get('message', '')
+                # 403エラー（無料プランの制限）やその他のエラーの場合、フォールバックを試みる
+                if resp.status_code == 403 or 'validation_error' in str(err_json.get('name', '')):
+                    print(f"   → Resendの制限により、フォールバック送信を試みます...")
+                    # SendGridにフォールバック
+                    if self.use_sendgrid:
+                        print("   → SendGrid経由で再試行します")
+                        return self._send_via_sendgrid(to_email, subject, body)
+                    # SendGridも使えない場合はSMTPにフォールバック
+                    if self.smtp_user and self.smtp_password:
+                        print("   → SMTP経由で再試行します")
+                        return self._send_via_smtp(to_email, subject, body)
             except Exception:
                 print(f"⚠️ Resend送信エラー（status={resp.status_code}）: {resp.text[:200]}")
+            
+            # フォールバックを試みる（エラーレスポンスの解析に失敗した場合も）
+            if resp.status_code >= 400:
+                print(f"   → Resend送信失敗（status={resp.status_code}）、フォールバック送信を試みます...")
+                if self.use_sendgrid:
+                    print("   → SendGrid経由で再試行します")
+                    return self._send_via_sendgrid(to_email, subject, body)
+                if self.smtp_user and self.smtp_password:
+                    print("   → SMTP経由で再試行します")
+                    return self._send_via_smtp(to_email, subject, body)
+            
             return False
             
         except Exception as e:

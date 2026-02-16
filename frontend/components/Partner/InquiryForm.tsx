@@ -280,7 +280,7 @@ export default function InquiryForm({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          メールアドレス（任意）
+          メール相談の方はメールアドレス必須
         </label>
         <input
           type="email"
