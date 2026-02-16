@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-const DIAGNOSIS_URL = "https://web-production-c8b78.up.railway.app/";
-const LINE_URL = "https://line.me/R/ti/p/@okayama-camper";
+const DIAGNOSIS_URL = "https://camper-repair-railway.vercel.app/chat";
+const LINE_URL = "https://line.me/R/ti/p/@003kcpjk";
 
 export default function Hero() {
   return (

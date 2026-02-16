@@ -4,7 +4,6 @@ import DiagnosisCTA from "./components/DiagnosisCTA";
 import FeaturedPosts from "./components/FeaturedPosts";
 import FooterCTA from "./components/FooterCTA";
 import Hero from "./components/Hero";
-import LatestPosts from "./components/LatestPosts";
 
 export default function Home() {
   return (
@@ -13,8 +12,10 @@ export default function Home() {
         <Hero />
         <CategoryGrid />
         <DiagnosisCTA />
+        <section className="space-y-4">
+          <h2 className="text-2xl font-semibold text-slate-900">よく読まれている記事</h2>
+        </section>
         <FeaturedPosts />
-        <LatestPosts />
         <FooterCTA />
       </Container>
     </main>
