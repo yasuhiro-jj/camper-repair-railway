@@ -188,6 +188,23 @@ export const authApi = {
       throw new Error(toMessage(err, 'パスワードのリセットに失敗しました'));
     }
   },
+
+  async getCurrentUser(): Promise<any> {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      if (!token) {
+        throw new Error('認証トークンがありません');
+      }
+      const res = await backendApi.get('/api/v1/auth/me', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return res.data;
+    } catch (err) {
+      throw new Error(toMessage(err, 'ユーザー情報の取得に失敗しました'));
+    }
+  },
 };
 
 export const factoryApi = {
