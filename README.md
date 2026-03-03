@@ -446,9 +446,6 @@ python -m pip install -r requirements.txt
 
 フロントエンド起動（別ターミナル）
 
-   cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend"
-   conda activate campingrepare   # 必要なら
-   npm run dev
 
 
 # 正しいディレクトリに移動

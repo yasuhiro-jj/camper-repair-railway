@@ -133,3 +133,15 @@
 {"timestamp": "2025-12-04T16:00:15.560261", "operation": "Notion検索(強化版)", "duration": 0.04236936569213867, "success": true, "details": {"total_results": 0, "keywords": ["エアサス冷えない"], "databases": 3}}
 {"timestamp": "2025-12-04T16:00:16.881757", "operation": "RAG検索(強化版)", "duration": 1.3709015846252441, "success": true, "details": {"total_found": 10, "returned": 5, "queries_used": 1}}
 {"timestamp": "2025-12-04T16:00:29.962337", "operation": "AI生成", "duration": 12.990243911743164, "success": true, "details": {}}
+{"timestamp": "2026-02-16T23:07:16.687390", "operation": "RAG検索(強化版)", "duration": 0.35408902168273926, "success": true, "details": {"total_found": 0, "returned": 0, "queries_used": 4}}
+{"timestamp": "2026-02-16T23:08:09.107647", "operation": "Notion検索(強化版)", "duration": 52.77326941490173, "success": true, "details": {"total_results": 0, "keywords": ["バッテリー上りません", "バッテリー"], "databases": 3}}
+{"timestamp": "2026-02-16T23:08:11.671312", "operation": "AI生成", "duration": 2.490579128265381, "success": true, "details": {}}
+{"timestamp": "2026-02-16T23:16:28.194991", "operation": "RAG検索(強化版)", "duration": 0.24249529838562012, "success": true, "details": {"total_found": 0, "returned": 0, "queries_used": 4}}
+{"timestamp": "2026-02-16T23:16:33.352863", "operation": "AI生成", "duration": 3.1257097721099854, "success": true, "details": {}}
+{"timestamp": "2026-02-16T23:17:16.717940", "operation": "Notion検索(強化版)", "duration": 48.76210832595825, "success": true, "details": {"total_results": 0, "keywords": ["トイレ詰まりました", "トイレ"], "databases": 3}}
+{"timestamp": "2026-02-16T23:33:33.885903", "operation": "RAG検索(強化版)", "duration": 0.2884328365325928, "success": true, "details": {"total_found": 0, "returned": 0, "queries_used": 4}}
+{"timestamp": "2026-02-16T23:33:38.054481", "operation": "AI生成", "duration": 2.1380386352539062, "success": true, "details": {}}
+{"timestamp": "2026-02-16T23:34:03.903261", "operation": "RAG検索(強化版)", "duration": 0.28332972526550293, "success": true, "details": {"total_found": 0, "returned": 0, "queries_used": 4}}
+{"timestamp": "2026-02-16T23:34:06.207555", "operation": "AI生成", "duration": 0.28400754928588867, "success": true, "details": {}}
+{"timestamp": "2026-02-16T23:34:20.253863", "operation": "Notion検索(強化版)", "duration": 46.6563925743103, "success": true, "details": {"total_results": 0, "keywords": ["トイレ", "トイレ詰まりました"], "databases": 3}}
+{"timestamp": "2026-02-16T23:34:46.382234", "operation": "Notion検索(強化版)", "duration": 42.7582323551178, "success": true, "details": {"total_results": 0, "keywords": ["トイレ", "トイレ詰まりました"], "databases": 3}}

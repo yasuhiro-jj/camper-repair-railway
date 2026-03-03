@@ -5762,6 +5762,11 @@ def create_deal():
             "message": "問い合わせを受け付けました"
         })
         
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
     except Exception as e:
         import traceback
         print(f"❌ 商談作成エラー: {e}")

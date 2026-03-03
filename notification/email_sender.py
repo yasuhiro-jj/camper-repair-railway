@@ -653,6 +653,14 @@ https://camper-repair.net/
             送信成功時True、失敗時False
         """
         try:
+            print(f"📧 SMTP送信開始:")
+            print(f"   - SMTP_HOST: {self.smtp_host}")
+            print(f"   - SMTP_PORT: {self.smtp_port}")
+            print(f"   - SMTP_USER: {'設定済み' if self.smtp_user else '未設定'}")
+            print(f"   - SMTP_PASSWORD: {'設定済み' if self.smtp_password else '未設定'}")
+            print(f"   - FROM_EMAIL: {self.from_email}")
+            print(f"   - 送信先: {to_email}")
+            
             if not self.smtp_user or not self.smtp_password:
                 print("⚠️ SMTP設定が不完全です。メール送信をスキップします。")
                 return False
@@ -664,9 +672,13 @@ https://camper-repair.net/
             
             msg.attach(MIMEText(body, 'plain', 'utf-8'))
             
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+            print(f"📧 SMTPサーバーに接続中: {self.smtp_host}:{self.smtp_port}")
+            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30) as server:
+                print(f"📧 STARTTLS開始...")
                 server.starttls()
+                print(f"📧 ログイン中...")
                 server.login(self.smtp_user, self.smtp_password)
+                print(f"📧 メール送信中...")
                 server.send_message(msg)
             
             print(f"✅ メール送信成功（SMTP）: {to_email}")
@@ -675,6 +687,9 @@ https://camper-repair.net/
         except Exception as e:
             print(f"❌ SMTP送信失敗: {e}")
             print(f"   送信先: {to_email}, 件名: {subject}")
+            print(f"   エラータイプ: {type(e).__name__}")
+            import traceback
+            print(f"   トレースバック: {traceback.format_exc()}")
             return False
     
     def send_status_update_to_customer(

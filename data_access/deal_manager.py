@@ -6,6 +6,7 @@
 """
 
 import os
+import uuid
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -114,6 +115,14 @@ class DealManager:
             作成された商談データ
         """
         try:
+            # partner_page_id が有効なUUIDでない場合はエラー（NotionのrelationはUUID必須）
+            try:
+                uuid.UUID(partner_page_id)
+            except (ValueError, TypeError):
+                raise ValueError(
+                    "紹介修理店が選択されていません。修理店一覧から実際の修理店を選択してください。"
+                )
+
             # 商談IDを生成
             deal_id = self._get_next_deal_id()
             

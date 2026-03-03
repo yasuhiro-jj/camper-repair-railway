@@ -100,8 +100,8 @@ export default function InquiryForm({
         return;
       }
 
-      if (!formData.partner_page_id) {
-        setError('紹介修理店が選択されていません');
+      if (!formData.partner_page_id || formData.partner_page_id === 'demo-page-id') {
+        setError('紹介修理店が選択されていません。修理店一覧から実際の修理店を選択してください。');
         setIsLoading(false);
         return;
       }
