@@ -305,7 +305,7 @@ export default function InquiryForm({
         )}
         {formData.partner_page_id === 'demo-page-id' && (
           <p className="text-xs text-amber-600 mt-1">
-            ⚠️ デモモードです。上記から実際の修理店を選択してください。
+            ⚠️ 上記から実際の修理店を選択してください。
           </p>
         )}
       </div>
