@@ -1,10 +1,12 @@
 /**
  * ビルダー一覧API - バックエンドへのプロキシ
+ * Notion API経由のため応答が遅くなる場合がある
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Vercel Pro: 最大60秒まで延長可能
 
 const BACKEND_URL =
   process.env.NODE_ENV === 'development'
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
     const res = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(45000), // 45秒（Vercel→Railway→Notion往復で時間がかかる場合あり）
       cache: 'no-store',
     });
 
