@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { dealApi, InquiryFormData, costEstimationApi, CostEstimation, PartnerShop, customerNoteApi, diagnosticApi, DiagnosticResponse } from '@/lib/api';
+import { useState, useEffect } from 'react';
+import { dealApi, InquiryFormData, costEstimationApi, CostEstimation, PartnerShop, customerNoteApi, diagnosticApi, DiagnosticResponse, partnerShopApi } from '@/lib/api';
 
 interface InquiryFormProps {
   defaultCategory?: string;
@@ -47,6 +47,29 @@ export default function InquiryForm({
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [customerNote, setCustomerNote] = useState('');
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+  const [shops, setShops] = useState<PartnerShop[]>([]);
+  const [isLoadingShops, setIsLoadingShops] = useState(false);
+
+  // 修理店一覧を取得
+  useEffect(() => {
+    const loadShops = async () => {
+      setIsLoadingShops(true);
+      try {
+        const shopList = await partnerShopApi.getShops('アクティブ');
+        setShops(shopList);
+        
+        // partnerPageId が props で渡されている場合、それを初期値として設定
+        if (partnerPageId && partnerPageId !== 'demo-page-id') {
+          setFormData(prev => ({ ...prev, partner_page_id: partnerPageId }));
+        }
+      } catch (err) {
+        console.error('修理店一覧の取得に失敗しました:', err);
+      } finally {
+        setIsLoadingShops(false);
+      }
+    };
+    loadShops();
+  }, [partnerPageId]);
 
   const formatDiagnosisFallback = (diag: any): string => {
     if (!diag || typeof diag !== 'object') return '';
@@ -250,6 +273,43 @@ export default function InquiryForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* 修理店選択 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          紹介修理店 <span className="text-red-500">*</span>
+        </label>
+        {isLoadingShops ? (
+          <div className="px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+            読み込み中...
+          </div>
+        ) : (
+          <select
+            value={formData.partner_page_id}
+            onChange={(e) => setFormData({ ...formData, partner_page_id: e.target.value })}
+            required
+            className={inputBaseClass}
+            disabled={!!partnerShop && partnerShop.shop_id !== 'demo'}
+          >
+            <option value="">-- 修理店を選択してください --</option>
+            {shops.map((shop) => (
+              <option key={shop.page_id} value={shop.page_id || ''}>
+                {shop.name || '名称不明'} {shop.prefecture ? `(${shop.prefecture})` : ''}
+              </option>
+            ))}
+          </select>
+        )}
+        {partnerShop && partnerShop.shop_id !== 'demo' && (
+          <p className="text-xs text-gray-500 mt-1">
+            選択済み: {partnerShop.name}
+          </p>
+        )}
+        {formData.partner_page_id === 'demo-page-id' && (
+          <p className="text-xs text-amber-600 mt-1">
+            ⚠️ デモモードです。上記から実際の修理店を選択してください。
+          </p>
+        )}
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           お名前 <span className="text-red-500">*</span>
