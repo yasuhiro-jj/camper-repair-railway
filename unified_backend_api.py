@@ -5133,7 +5133,8 @@ def get_builders():
     """ビルダー一覧取得"""
     try:
         if not builder_manager:
-            return jsonify({"error": "Builder Managerが利用できません"}), 503
+            # Builder Manager未初期化時は空リストを返す（503ではなく200で正常応答）
+            return jsonify({"builders": [], "count": 0})
         
         # クエリパラメータ取得
         status = request.args.get("status")

@@ -24,7 +24,7 @@ export default function DatabaseSection() {
     } catch (error: any) {
       setStatus({
         type: 'error',
-        message: error.response?.data?.error || 'エラーが発生しました',
+        message: error.response?.data?.error || error.message || 'エラーが発生しました',
       });
     } finally {
       setIsLoading(false);

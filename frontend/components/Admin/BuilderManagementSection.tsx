@@ -30,7 +30,7 @@ export default function BuilderManagementSection() {
       setBuilders(builderList);
     } catch (err: any) {
       console.error('ビルダー一覧の取得に失敗しました:', err);
-      setError(err.response?.data?.error || 'ビルダー一覧の取得に失敗しました');
+      setError(err.response?.data?.error || err.message || 'ビルダー一覧の取得に失敗しました');
     } finally {
       setIsLoading(false);
     }

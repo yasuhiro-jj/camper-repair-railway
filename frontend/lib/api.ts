@@ -509,7 +509,7 @@ export const reviewApi = {
 export const adminApi = {
   async getSystemInfo(): Promise<{ dbStatus: string; docCount: number }> {
     try {
-      const res = await backendApi.get('/api/admin/system-info');
+      const res = await nextApi.get('/api/admin/system-info');
       return res.data as any;
     } catch (err) {
       throw new Error(toMessage(err, 'システム情報の取得に失敗しました'));
@@ -518,7 +518,7 @@ export const adminApi = {
 
   async reloadDatabase(): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
-      const res = await backendApi.post('/reload_data', {});
+      const res = await nextApi.post('/api/admin/reload-database', {});
       return res.data as any;
     } catch (err) {
       throw new Error(toMessage(err, 'データベースの再構築に失敗しました'));
@@ -527,7 +527,7 @@ export const adminApi = {
 
   async getBuilders(): Promise<any[]> {
     try {
-      const res = await backendApi.get('/api/v1/builders', { params: { limit: 100 } });
+      const res = await nextApi.get('/api/admin/builders', { params: { limit: 100 } });
       const data = res.data as any;
       return data?.builders || [];
     } catch (err) {

@@ -645,6 +645,28 @@ http://localhost:3000
 - お客様向け: http://localhost:3000/lp-camper-repair
 - 業者向け: http://localhost:3000/lp-partner-recruit
 
+#### 工場ダッシュボードへのアクセス
+
+各工場は、Notionのパートナー修理店DBに登録されている**Notion Page ID**を使用して、工場ダッシュボードにアクセスします。
+
+**Notion Page IDの確認方法:**
+1. Notionで該当するパートナー修理店（例: SHOP-001, SHOP-002）のページを開きます。
+2. ブラウザのアドレスバーに表示されるURLを確認します。
+   例: `https://www.notion.so/SHOP-001-**364a29748f4a42339b7e54e3c19ee355**?v=...`
+3. `SHOP-XXX-` の後に続く32文字の英数字がNotion Page IDです。
+
+**アクセスURLの例:**
+工場ダッシュボードのURLに、取得した`partner_page_id`をクエリパラメータとして追加します。
+
+```
+http://localhost:3000/factory?partner_page_id=364a29748f4a42339b7e54e3c19ee355
+```
+
+**注意点:**
+- `partner_page_id`がない場合、または不正なIDの場合、案件が表示されないことがあります。
+- 本番環境URLを使用する場合は、デプロイ済みのフロントエンドURLを使用してください。
+  例: `https://camper-repair-railway-upoj.vercel.app/factory?partner_page_id=364a29748f4a42339b7e54e3c19ee355`
+
 #### 開発・デバッグ用
 
 **バックエンドAPI（直接アクセス）:**
