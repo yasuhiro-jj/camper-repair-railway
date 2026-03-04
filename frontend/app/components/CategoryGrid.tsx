@@ -23,7 +23,7 @@ export default function CategoryGrid() {
                 <p className="text-lg font-semibold text-slate-900">{category.name}</p>
                 <p className="text-sm text-slate-500">{category.description}</p>
               </div>
-              <span className="text-sm font-semibold text-yellow-500">記事へ</span>
+              <span className="text-sm font-semibold text-yellow-500">症状事例はこちら</span>
             </div>
           </Link>
         ))}
