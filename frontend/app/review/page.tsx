@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Navigation from '@/components/Navigation';
 import { reviewApi } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
@@ -50,10 +49,13 @@ function ReviewPageContent() {
         anonymous
       );
       
+      // 成功メッセージを表示してからホームにリダイレクト
       alert('✅ 評価を送信しました。ありがとうございました！');
-      router.push('/partner');
+      router.push('/');
     } catch (err: any) {
-      setError(err.message || '評価の送信に失敗しました');
+      console.error('評価送信エラー:', err);
+      const errorMessage = err.response?.data?.error || err.message || '評価の送信に失敗しました。もう一度お試しください。';
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -89,11 +91,9 @@ function ReviewPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">
       <div className="max-w-2xl mx-auto">
-        <Navigation />
-
-        <div className="bg-white rounded-lg shadow-sm p-8 mt-6">
+        <div className="bg-white rounded-lg shadow-lg p-8 mt-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             ⭐ 修理店の評価
           </h1>
@@ -102,40 +102,58 @@ function ReviewPageContent() {
           </p>
 
           {error && (
-            <div className="bg-red-100 text-red-800 p-4 rounded-lg mb-6 border border-red-300">
-              ❌ {error}
+            <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 border-2 border-red-200">
+              <div className="flex items-start">
+                <span className="text-xl mr-2">⚠️</span>
+                <div>
+                  <p className="font-semibold mb-1">エラーが発生しました</p>
+                  <p className="text-sm">{error}</p>
+                </div>
+              </div>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* 商談ID */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                商談ID <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={dealId}
-                onChange={(e) => setDealId(e.target.value)}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="例: DEAL-20241103-001"
-              />
-            </div>
+            {/* 商談ID - URLパラメータから自動入力される場合は非表示 */}
+            {!dealId && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  商談ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={dealId}
+                  onChange={(e) => setDealId(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="例: DEAL-20241103-001"
+                />
+                <p className="text-xs text-gray-500 mt-1">※ 修理完了通知メールに記載されています</p>
+              </div>
+            )}
+            {dealId && (
+              <input type="hidden" value={dealId} />
+            )}
 
-            {/* パートナー工場ID */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                パートナー工場ID <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={partnerPageId}
-                onChange={(e) => setPartnerPageId(e.target.value)}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+            {/* パートナー工場ID - URLパラメータから自動入力される場合は非表示 */}
+            {!partnerPageId && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  パートナー工場ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={partnerPageId}
+                  onChange={(e) => setPartnerPageId(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">※ 修理完了通知メールに記載されています</p>
+              </div>
+            )}
+            {partnerPageId && (
+              <input type="hidden" value={partnerPageId} />
+            )}
 
             {/* お客様名 */}
             <div>
@@ -204,8 +222,8 @@ function ReviewPageContent() {
               </button>
               <button
                 type="button"
-                onClick={() => router.push('/partner')}
-                className="px-6 py-3 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
+                onClick={() => router.push('/')}
+                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
               >
                 キャンセル
               </button>

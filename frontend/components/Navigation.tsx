@@ -7,8 +7,13 @@ export default function Navigation() {
   const pathname = usePathname();
 
   // 一般ユーザー向けページではナビゲーションを非表示
-  const publicPages = ['/', '/chat', '/partner', '/lp-camper-repair', '/lp-partner-recruit', '/repair-advice'];
-  const isPublicPage = publicPages.includes(pathname || '');
+  const publicPages = ['/', '/chat', '/partner', '/lp-camper-repair', '/lp-partner-recruit', '/repair-advice', '/review'];
+  const currentPath = pathname || '';
+  const isPublicPage = publicPages.some((page) =>
+    page === '/'
+      ? currentPath === '/'
+      : currentPath === page || currentPath.startsWith(`${page}/`)
+  );
 
   // 一般ユーザー向けページではナビゲーションを表示しない
   if (isPublicPage) {

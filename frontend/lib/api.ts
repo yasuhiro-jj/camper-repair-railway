@@ -487,7 +487,7 @@ export const reviewApi = {
     anonymous: boolean,
   ): Promise<any> {
     try {
-      const res = await backendApi.post('/api/v1/reviews', {
+      const res = await nextApi.post('/api/reviews', {
         deal_id: dealId,
         partner_page_id: partnerPageId,
         customer_name: customerName,

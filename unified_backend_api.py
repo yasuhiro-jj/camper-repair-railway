@@ -5253,7 +5253,9 @@ def create_review():
     }
     """
     try:
+        import uuid
         from data_access.review_manager import ReviewManager
+        from data_access.partner_shop_manager import PartnerShopManager
         
         data = request.get_json()
         deal_id = data.get("deal_id")
@@ -5274,11 +5276,33 @@ def create_review():
                 "success": False,
                 "error": "star_ratingは1〜5の範囲で指定してください"
             }), 400
+
+        # partner_page_id は Notion Page ID（UUID）を想定だが、
+        # フロントから SHOP-xxx（店舗ID）が来るケースも許容する
+        normalized_partner_page_id = partner_page_id
+        try:
+            uuid.UUID(str(partner_page_id))
+        except Exception:
+            try:
+                partner_manager = PartnerShopManager()
+                partner_shop = partner_manager.get_shop(str(partner_page_id))
+                if partner_shop and partner_shop.get("page_id"):
+                    normalized_partner_page_id = partner_shop["page_id"]
+                else:
+                    return jsonify({
+                        "success": False,
+                        "error": f"パートナー工場が見つかりません: {partner_page_id}"
+                    }), 404
+            except Exception as e:
+                return jsonify({
+                    "success": False,
+                    "error": f"パートナー工場IDの解決に失敗しました: {e}"
+                }), 500
         
         review_manager = ReviewManager()
         review = review_manager.create_review(
             deal_id=deal_id,
-            partner_page_id=partner_page_id,
+            partner_page_id=normalized_partner_page_id,
             customer_name=customer_name,
             star_rating=star_rating,
             comment=comment,
