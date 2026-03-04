@@ -7,7 +7,6 @@ export default function CategoryGrid() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-slate-900">症状からカテゴリを選ぶ</h2>
-          <p className="text-sm text-slate-600">10カテゴリはすべてRAGで連動。今後の追加も配列を増やすだけで反映できます。</p>
         </div>
         <p className="text-xs uppercase tracking-wide text-slate-500">すべての記事が診断・LINEと連携</p>
       </div>
