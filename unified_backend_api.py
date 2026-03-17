@@ -98,6 +98,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
     "http://localhost:5002",
+    "https://camper-repair-railway.vercel.app",
     "https://camper-repair-railway-upoj.vercel.app",
 ]
 

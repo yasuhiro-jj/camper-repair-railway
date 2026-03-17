@@ -59,18 +59,29 @@ C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langch
 
 ---
 
-## ⚠️ 本番フロントエンド（必須）
+## 🌐 Vercel フロントエンド一覧（ややこしいので整理）
 
-**工場ダッシュボード・管理者画面は、必ず以下のフロントエンドを使用してください。**
+同じリポジトリから複数の Vercel プロジェクトがデプロイされています。**用途ごとにURLが異なる**ので注意してください。
 
-| 環境 | URL |
-|------|-----|
-| **本番（必須）** | **https://camper-repair-railway-upoj.vercel.app** |
+| Vercelプロジェクト | ベースURL | 用途 | 主な機能 |
+|-------------------|-----------|------|----------|
+| **camper-repair-railway** | https://camper-repair-railway.vercel.app | **LP・集客用** | お客様向けLP、パートナー募集LP、問い合わせフォーム |
+| **camper-repair-railway-upoj** | https://camper-repair-railway-upoj.vercel.app | **工場・管理者用** | 工場ダッシュボード、管理者画面、Notion DB連携 |
 
-- 上記URLは Notion 接続済み・`NEXT_PUBLIC_API_URL` 設定済み
-- 他の Vercel プロジェクト（`camper-repair-railway.vercel.app` 等）は環境変数未設定のため使用しないこと
+### 詳細
+
+**camper-repair-railway**（LP・集客用）
+- LP（お客様用）: https://camper-repair-railway.vercel.app/lp-camper-repair
+- LP（パートナー募集）: https://camper-repair-railway.vercel.app/lp-partner-recruit
+- 問い合わせフォーム（lp-camper-repair）→ Resend で `info@okayama-camper-repair.net` に送信、Notion 商談DBに保存
+- パートナー登録フォーム（lp-partner-recruit）→ Resend で `info@okayama-camper-repair.net` に送信、Notion パートナーDBに保存
+- GitHub: `yasuhiro-j/camper-repair-r...`
+
+**camper-repair-railway-upoj**（工場・管理者用）※Notion DB連携済み
 - 工場ダッシュボード: https://camper-repair-railway-upoj.vercel.app/factory
 - 管理者画面: https://camper-repair-railway-upoj.vercel.app/admin
+- Notion 接続済み・`NEXT_PUBLIC_API_URL` 設定済み
+- **工場ダッシュボード・管理者画面は必ずこのURLを使用すること**（他プロジェクトは環境変数未設定のため使用不可）
 
 ---
 
@@ -1265,6 +1276,8 @@ python unified_backend_api.py
 5. **問い合わせフォーム**
    - ユーザー（修理依頼）向けのフォーム
    - APIエンドポイント：`/api/inquiry`
+   - **受信先**: `info@okayama-camper-repair.net`（Resend経由）
+   - **Notion保存**: 商談DB（`NOTION_DEAL_DB_ID`）に自動保存
 
 6. **フッター**
    - 会社情報、リンク、連絡先
@@ -1309,6 +1322,26 @@ https://your-domain.com/lp-camper-repair
 ```
 
 **注意**: このLPは**お客様（キャンピングカー所有者）向け**のページです。修理工場向けの登録ページは別途 `/lp-partner-recruit` にあります。
+
+#### LP問い合わせの受信設定（Resend + Notion）
+
+問い合わせフォーム送信時、以下が実行されます：
+
+1. **Resendでメール送信** → `info@okayama-camper-repair.net` に届く
+2. **Notion商談DBに保存** → [商談DB](https://www.notion.so/0976749dbf3f47a58990cdd1b50c5437) に新規ページ作成
+
+**必要な環境変数**（`frontend/.env.local` または Vercel の Variables）:
+
+```env
+RESEND_API_KEY=re_xxxxx          # Resend APIキー（ドメイン okayama-camper-repair.net 設定済み）
+FROM_EMAIL=info@okayama-camper-repair.net
+NOTION_API_KEY=ntn_xxxxx         # Notion APIキー
+NOTION_DEAL_DB_ID=0976749dbf3f47a58990cdd1b50c5437
+```
+
+**Notion商談DBの準備**:
+- 「症状カテゴリ」の select に **「LPお問い合わせ」** を追加してください
+- 「紹介修理店」が必須の場合は、LP問い合わせ用に空（未設定）を許可するか、オプションに変更してください
 
 ---
 
@@ -1408,6 +1441,15 @@ https://your-domain.com/lp-partner-recruit
 ```
 
 **注意**: このLPは**修理工場・大工・公務店・自動車整備工場・個人職人向け**のページです。お客様（キャンピングカー所有者）向けのページは `/lp-camper-repair` にあります。
+
+#### パートナー登録フォームの受信設定（Resend + Notion）
+
+パートナー登録フォーム送信時、以下が実行されます：
+
+1. **Resendでメール送信** → `info@okayama-camper-repair.net` に届く
+2. **NotionパートナーDBに保存** → [パートナーDB](https://www.notion.so/51ac4a26485544e89a4f6d5e28919bc7) に新規ページ作成（店舗ID: LP申込-YYYYMMDD-xxx）
+
+**必要な環境変数**（lp-camper-repair と同じ）: `RESEND_API_KEY`, `FROM_EMAIL`, `NOTION_API_KEY`, `NOTION_PARTNER_DB_ID`
 
 ---
 

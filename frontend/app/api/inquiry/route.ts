@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const RESEND_API_URL = 'https://api.resend.com/emails';
+const INQUIRY_EMAIL = 'info@okayama-camper-repair.net';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -14,8 +17,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: ここでNotionやSendGridに送信する処理を実装
-    // 現在はモック実装として、ログに出力
+    const inquiryType = type === 'partner' ? '修理工場登録' : 'ユーザー';
+    const timestamp = new Date().toISOString();
+    
     console.log('問い合わせ受信:', {
       name,
       email,
@@ -24,48 +28,122 @@ export async function POST(request: NextRequest) {
       issue,
       type,
       message,
-      timestamp: new Date().toISOString(),
+      timestamp,
     });
 
-    // 実際の実装例（Notion API使用の場合）
-    // const notionResponse = await fetch('https://api.notion.com/v1/pages', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${process.env.NOTION_API_KEY}`,
-    //     'Content-Type': 'application/json',
-    //     'Notion-Version': '2022-06-28',
-    //   },
-    //   body: JSON.stringify({
-    //     parent: { database_id: process.env.NOTION_DATABASE_ID },
-    //     properties: {
-    //       Name: { title: [{ text: { content: name } }] },
-    //       Email: { email: email },
-    //       Phone: { phone_number: phone },
-    //       Region: { rich_text: [{ text: { content: region } }] },
-    //       Issue: { rich_text: [{ text: { content: issue } }] },
-    //       Type: { select: { name: type } },
-    //       Message: { rich_text: [{ text: { content: message || '' } }] },
-    //     },
-    //   }),
-    // });
+    // 1. Resendでメール送信
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.FROM_EMAIL || 'info@okayama-camper-repair.net';
+    
+    if (resendApiKey) {
+      try {
+        const emailSubject = `【${inquiryType}】LPからのお問い合わせ - ${name}様`;
+        const emailBody = `
+LPお問い合わせフォームから新しいお問い合わせがありました。
 
-    // SendGrid使用の場合の例
-    // const sgMail = require('@sendgrid/mail');
-    // sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    // const msg = {
-    //   to: 'info@example.com',
-    //   from: 'noreply@example.com',
-    //   subject: `【${type === 'user' ? 'ユーザー' : '修理工場登録'}】問い合わせ`,
-    //   text: `
-    //     名前: ${name}
-    //     メール: ${email}
-    //     電話: ${phone}
-    //     地域: ${region}
-    //     内容: ${issue}
-    //     メッセージ: ${message || 'なし'}
-    //   `,
-    // };
-    // await sgMail.send(msg);
+【お客様情報】
+お名前: ${name}
+メールアドレス: ${email}
+電話番号: ${phone}
+地域（都道府県）: ${region}
+
+【${type === 'user' ? '故障内容' : '事業内容']}
+${issue}
+
+【メッセージ（任意）】
+${message || 'なし'}
+
+---
+種別: ${inquiryType}
+送信日時: ${new Date().toLocaleString('ja-JP')}
+        `.trim();
+
+        const resendRes = await fetch(RESEND_API_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: `岡山キャンピングカー修理サポートセンター <${fromEmail}>`,
+            to: [INQUIRY_EMAIL],
+            subject: emailSubject,
+            text: emailBody,
+            reply_to: email,
+          }),
+        });
+
+        if (!resendRes.ok) {
+          const errText = await resendRes.text();
+          console.error('Resend送信エラー:', resendRes.status, errText);
+        } else {
+          console.log('✅ Resendメール送信成功:', INQUIRY_EMAIL);
+        }
+      } catch (err) {
+        console.error('Resend送信エラー:', err);
+      }
+    } else {
+      console.warn('⚠️ RESEND_API_KEYが未設定です。メール送信をスキップします。');
+    }
+
+    // 2. Notionに保存（商談DB: 0976749dbf3f47a58990cdd1b50c5437）
+    const notionApiKey = process.env.NOTION_API_KEY;
+    const notionDbId = process.env.NOTION_DEAL_DB_ID || '0976749dbf3f47a58990cdd1b50c5437';
+    
+    if (notionApiKey && notionDbId) {
+      try {
+        const dealId = `LP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random().toString(36).slice(2, 5)}`;
+        
+        const notionRes = await fetch('https://api.notion.com/v1/pages', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${notionApiKey}`,
+            'Content-Type': 'application/json',
+            'Notion-Version': '2022-06-28',
+          },
+          body: JSON.stringify({
+            parent: { database_id: notionDbId.replace(/-/g, '') },
+            properties: {
+              '商談ID': {
+                title: [{ text: { content: dealId } }],
+              },
+              '顧客名': {
+                rich_text: [{ text: { content: name } }],
+              },
+              'メールアドレス': {
+                email: email,
+              },
+              '電話番号': {
+                phone_number: phone,
+              },
+              '所在地（都道府県）': {
+                select: { name: region },
+              },
+              '症状カテゴリ': {
+                select: { name: 'LPお問い合わせ' },
+              },
+              '症状詳細': {
+                rich_text: [{ text: { content: `${issue}${message ? `\n\n【メッセージ】\n${message}` : ''}` } }],
+              },
+              '紹介修理店': {
+                relation: [],
+              },
+            },
+          }),
+        });
+
+        if (!notionRes.ok) {
+          const errText = await notionRes.text();
+          console.error('Notion保存エラー:', notionRes.status, errText);
+        } else {
+          console.log('✅ Notion保存成功:', dealId);
+        }
+      } catch (err) {
+        console.error('Notion保存エラー:', err);
+      }
+    } else {
+      console.warn('⚠️ NOTION_API_KEY または NOTION_DEAL_DB_ID が未設定です。Notion保存をスキップします。');
+    }
 
     return NextResponse.json(
       { 
