@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 const PARTNER_RECRUIT_EMAIL = 'info@okayama-camper-repair.net';
+// 届かない場合のバックアップ用（Vercel環境変数 PARTNER_BACKUP_EMAIL で指定、例: Gmail）
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,7 +57,7 @@ ${experience || '記載なし'}
           },
           body: JSON.stringify({
             from: `岡山キャンピングカー修理サポートセンター <${fromEmail}>`,
-            to: [PARTNER_RECRUIT_EMAIL],
+            to: [PARTNER_RECRUIT_EMAIL, process.env.PARTNER_BACKUP_EMAIL].filter(Boolean),
             subject: emailSubject,
             text: emailBody,
             reply_to: email,

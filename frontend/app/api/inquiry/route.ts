@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 const INQUIRY_EMAIL = 'info@okayama-camper-repair.net';
+// 届かない場合のバックアップ用（Vercel環境変数 INQUIRY_BACKUP_EMAIL で指定、例: Gmail）
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
           },
           body: JSON.stringify({
             from: `岡山キャンピングカー修理サポートセンター <${fromEmail}>`,
-            to: [INQUIRY_EMAIL],
+            to: [INQUIRY_EMAIL, process.env.INQUIRY_BACKUP_EMAIL].filter(Boolean),
             subject: emailSubject,
             text: emailBody,
             reply_to: email,
