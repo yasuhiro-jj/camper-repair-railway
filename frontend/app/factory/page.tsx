@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { FactoryCase } from '@/types';
 import { factoryApi } from '@/lib/api';
+import { useAuthGuard } from '@/lib/authGuard';
 import CaseList from '@/components/Factory/CaseList';
 import StatusFilter from '@/components/Factory/StatusFilter';
 import FactoryMatching from '@/components/Factory/FactoryMatching';
@@ -12,38 +13,47 @@ import Navigation from '@/components/Navigation';
 
 function FactoryDashboardPageContent() {
   const searchParams = useSearchParams();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuthGuard();
   const [cases, setCases] = useState<FactoryCase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeStatus, setActiveStatus] = useState<string>('');
   const [isManualSearchOpen, setIsManualSearchOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   
-  // URLパラメータまたはローカルストレージから工場IDを取得
-  const getPartnerPageId = (): string | undefined => {
-    // 1. URLパラメータから取得
-    const urlPartnerId = searchParams.get('partner_page_id');
-    if (urlPartnerId) {
-      // ローカルストレージにも保存（次回アクセス時に使用）
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('partner_page_id', urlPartnerId);
-      }
-      return urlPartnerId;
-    }
-    
-    // 2. ローカルストレージから取得
+  useEffect(() => {
     if (typeof window !== 'undefined') {
-      const storedPartnerId = localStorage.getItem('partner_page_id');
-      if (storedPartnerId) {
-        return storedPartnerId;
-      }
+      setUserRole(localStorage.getItem('role'));
+    }
+  }, [isAuthenticated]);
+  
+  // 案件取得時の工場ID（各工場は自社の案件のみ、管理者は全件）
+  const getPartnerPageIdForApi = (): string | undefined => {
+    if (typeof window === 'undefined') return undefined;
+    
+    const role = localStorage.getItem('role');
+    const factoryId = localStorage.getItem('factory_id');
+    
+    // 工場ロール: 必ず自社のfactory_idでフィルタ（他社の案件は見せない）
+    if (role === 'factory' && factoryId) {
+      return factoryId;
     }
     
-    return undefined;
+    // 管理者ロール: URLで指定があればその工場のみ、なければ全件
+    if (role === 'admin') {
+      const urlPartnerId = searchParams.get('partner_page_id');
+      if (urlPartnerId) return urlPartnerId;
+      return undefined; // 全件表示
+    }
+    
+    // フォールバック: ログイン済みならfactory_idを使用
+    return factoryId || undefined;
   };
 
   const loadCases = async (status: string = '') => {
+    if (!isAuthenticated) return;
     setIsLoading(true);
     try {
-      const partnerPageId = getPartnerPageId();
+      const partnerPageId = getPartnerPageIdForApi();
       const fetchedCases = await factoryApi.getCases(status || undefined, partnerPageId);
       setCases(fetchedCases);
     } catch (error: any) {
@@ -61,8 +71,10 @@ function FactoryDashboardPageContent() {
   };
 
   useEffect(() => {
-    loadCases(activeStatus);
-  }, [activeStatus]);
+    if (isAuthenticated) {
+      loadCases(activeStatus);
+    }
+  }, [activeStatus, isAuthenticated]);
 
   const handleStatusUpdate = async (caseId: string, status: string) => {
     try {
@@ -103,6 +115,17 @@ function FactoryDashboardPageContent() {
     }
   };
 
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">認証確認中...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
@@ -112,7 +135,12 @@ function FactoryDashboardPageContent() {
         {/* ヘッダー */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex justify-between items-center flex-wrap gap-4">
-            <h1 className="text-3xl font-bold text-gray-900">工場向けダッシュボード</h1>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">工場向けダッシュボード</h1>
+              {userRole === 'factory' && (
+                <p className="text-sm text-blue-600 mt-1">🔒 自社の案件のみ表示中</p>
+              )}
+            </div>
             <div className="flex gap-4 items-center">
               <button
                 onClick={() => setIsManualSearchOpen(true)}

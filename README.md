@@ -437,6 +437,11 @@ python -m pip install -r requirements.txt
   ```
 
 
+
+
+
+
+
 バックエンド起動（Anaconda Prompt）
 
    cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean"
@@ -445,6 +450,14 @@ python -m pip install -r requirements.txt
 
 
 フロントエンド起動（別ターミナル）
+
+cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean\frontend"
+npm run dev
+
+
+
+
+
 
 
 
@@ -647,25 +660,73 @@ http://localhost:3000
 
 #### 工場ダッシュボードへのアクセス
 
-各工場は、Notionのパートナー修理店DBに登録されている**Notion Page ID**を使用して、工場ダッシュボードにアクセスします。
+工場ダッシュボードはログイン認証が必要です。
 
-**Notion Page IDの確認方法:**
-1. Notionで該当するパートナー修理店（例: SHOP-001, SHOP-002）のページを開きます。
-2. ブラウザのアドレスバーに表示されるURLを確認します。
-   例: `https://www.notion.so/SHOP-001-**364a29748f4a42339b7e54e3c19ee355**?v=...`
-3. `SHOP-XXX-` の後に続く32文字の英数字がNotion Page IDです。
+**ログインURL:**
+```
+http://localhost:3000/factory/login
+```
 
-**アクセスURLの例:**
-工場ダッシュボードのURLに、取得した`partner_page_id`をクエリパラメータとして追加します。
+---
+
+#### 新しい工場（修理店）を登録する手順
+
+##### ステップ1: Notionにパートナー修理店を追加
+
+Notionのパートナー修理店DBを開き、修理店の情報（店舗名・電話番号・メールアドレス・都道府県など）を1件追加します。
+
+追加後、ブラウザのアドレスバーで **Notion Page ID**（32文字の英数字）を確認してください。
+
+例: `https://www.notion.so/SHOP-003-**xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx**?v=...`
+
+##### ステップ2: 認証情報を設定する（スクリプトを実行）
+
+`create_factory_account.py` の `update_existing_factory_account()` を使って、ログインIDとパスワードをNotionに書き込みます。
+
+```python
+# create_factory_account.py の末尾に追記して実行、またはターミナルで直接実行
+from create_factory_account import update_existing_factory_account
+
+update_existing_factory_account(
+    factory_page_id="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",  # NotionページID（32文字）
+    login_id="shop003",       # 任意のログインID
+    password="Shop003Pass!"   # パスワード（8文字以上、大文字・小文字・数字を含む）
+)
+```
+
+実行後、Notionの修理店ページに以下が自動で書き込まれます：
+- ログインID
+- パスワードハッシュ（bcrypt）
+- ロール: `factory`
+- アカウント有効: ON
+
+##### ステップ3: ログインして確認
 
 ```
-http://localhost:3000/factory?partner_page_id=364a29748f4a42339b7e54e3c19ee355
+http://localhost:3000/factory/login
 ```
+設定したログインIDとパスワードでログインします。
+
+- **工場ロール**: 自社に紹介された案件のみ表示
+- **管理者ロール**: 全案件を表示
+
+---
+
+#### 既存のテストアカウント
+
+`create_factory_account.py` を実行すると以下が作成されます：
+
+| アカウント | ログインID | パスワード |
+|-----------|-----------|-----------|
+| テスト修理工場 | `factory001` | `Password123!` |
+| システム管理者 | `admin` | `Admin123!` |
+
+---
 
 **注意点:**
-- `partner_page_id`がない場合、または不正なIDの場合、案件が表示されないことがあります。
-- 本番環境URLを使用する場合は、デプロイ済みのフロントエンドURLを使用してください。
-  例: `https://camper-repair-railway-upoj.vercel.app/factory?partner_page_id=364a29748f4a42339b7e54e3c19ee355`
+- スクリプトの実行はバックエンドの再起動不要
+- パスワードは8文字以上、大文字・小文字・数字を含む必要があります
+- ログインIDは半角英数字を推奨します
 
 #### 開発・デバッグ用
 

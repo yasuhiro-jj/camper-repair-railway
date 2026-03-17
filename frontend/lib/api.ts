@@ -17,6 +17,17 @@ const backendApi = axios.create({
   withCredentials: true,
 });
 
+// 工場ログイン時は全リクエストにJWTを付与
+backendApi.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 // Next.js API ルート（同一オリジン）用
 const nextApi = axios.create({
   baseURL: '',

@@ -4606,6 +4606,123 @@ def handle_fallback_diagnosis(answer_text, session_id):
         response.headers['Content-Type'] = 'application/json'
         return response, 500
 
+# === 認証 API（工場ログイン用） ===
+
+@app.route("/api/v1/auth/login", methods=["POST", "OPTIONS"])
+def auth_login():
+    """工場ログイン（JWTトークン発行）"""
+    if request.method == "OPTIONS":
+        return "", 204
+    try:
+        from auth_utils import AuthUtils
+        from data_access.notion_client import notion_client
+
+        data = request.get_json() or {}
+        login_id = (data.get("login_id") or "").strip()
+        password = data.get("password") or ""
+
+        if not login_id or not password:
+            return jsonify({"error": "ログインIDとパスワードを入力してください"}), 400
+
+        partner_db_id = (
+            os.getenv("NOTION_PARTNER_DB_ID") or
+            os.getenv("PARTNER_SHOP_DB_ID") or
+            os.getenv("PARTNER_DB_ID")
+        )
+        if not partner_db_id:
+            return jsonify({"error": "認証サービスが設定されていません"}), 503
+
+        partner_db_id = partner_db_id.replace("-", "").lower()
+        notion = notion_client.client
+
+        response = notion.databases.query(
+            database_id=partner_db_id,
+            filter={"property": "ログインID", "rich_text": {"equals": login_id}},
+            page_size=1
+        )
+        results = response.get("results", [])
+        if not results:
+            return jsonify({"error": "ログインIDまたはパスワードが正しくありません"}), 401
+
+        page = results[0]
+        props = page.get("properties", {})
+        page_id = page["id"]
+
+        def _get_text(p, key):
+            prop = p.get(key, {})
+            if prop.get("type") in ("rich_text", "text"):
+                texts = prop.get("rich_text", [])
+                return (texts[0].get("plain_text", "") if texts else "") or ""
+            return ""
+
+        def _get_title(p, key):
+            prop = p.get(key, {})
+            if prop.get("type") == "title":
+                arr = prop.get("title", [])
+                return (arr[0].get("plain_text", "") if arr else "") or ""
+            return ""
+
+        def _get_select(p, key):
+            prop = p.get(key, {})
+            if prop.get("type") == "select" and prop.get("select"):
+                return prop["select"].get("name") or ""
+            return ""
+
+        def _get_checkbox(p, key):
+            return p.get(key, {}).get("checkbox", False)
+
+        password_hash = _get_text(props, "パスワードハッシュ")
+        role = _get_select(props, "ロール") or "factory"
+        factory_name = _get_text(props, "店舗名") or _get_title(props, "店舗ID") or "工場"
+        account_enabled = _get_checkbox(props, "アカウント有効")
+
+        if not account_enabled:
+            return jsonify({"error": "アカウントが無効です。管理者にお問い合わせください"}), 403
+
+        if not password_hash:
+            return jsonify({"error": "ログインIDまたはパスワードが正しくありません"}), 401
+
+        if not AuthUtils.verify_password(password, password_hash):
+            return jsonify({"error": "ログインIDまたはパスワードが正しくありません"}), 401
+
+        token = AuthUtils.generate_token(page_id, login_id, role)
+        return jsonify({
+            "token": token,
+            "factory_id": page_id,
+            "factory_name": factory_name,
+            "login_id": login_id,
+            "role": role
+        })
+    except Exception as e:
+        print(f"❌ 認証エラー: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "ログインに失敗しました"}), 500
+
+
+@app.route("/api/v1/auth/me", methods=["GET", "OPTIONS"])
+def auth_me():
+    """現在のユーザー情報取得（トークン検証用）"""
+    if request.method == "OPTIONS":
+        return "", 204
+    try:
+        from auth_utils import AuthUtils
+
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return jsonify({"error": "認証が必要です"}), 401
+
+        token = auth_header.split(" ")[1]
+        payload = AuthUtils.decode_token(token)
+        return jsonify({
+            "factory_id": payload.get("factory_id"),
+            "login_id": payload.get("login_id"),
+            "role": payload.get("role"),
+        })
+    except Exception as e:
+        return jsonify({"error": "トークンの有効期限が切れています"}), 401
+
+
 # === フェーズ1: Factory & Builder API エンドポイント ===
 
 @app.route("/api/v1/factories", methods=["GET"])
@@ -4985,7 +5102,7 @@ def admin_deals_dashboard():
 
 @app.route("/admin/api/cases", methods=["GET"])
 def get_admin_cases():
-    """案件一覧取得API（Next.js用、認証なしで開発）"""
+    """案件一覧取得API（Next.js用）JWTあり時は工場は自社案件のみ"""
     try:
         from data_access.factory_dashboard_manager import FactoryDashboardManager
         
@@ -4994,6 +5111,21 @@ def get_admin_cases():
         status = request.args.get("status")  # フィルタ（受付/診断中/修理中/完了/キャンセル）
         limit = int(request.args.get("limit", 100))
         partner_page_id = request.args.get("partner_page_id")  # パートナー工場のNotion Page ID
+        
+        # JWT認証: 工場ロールの場合は強制的に自社の案件のみ（他社情報を隠す）
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            try:
+                from auth_utils import AuthUtils
+                token = auth_header.split(" ")[1]
+                payload = AuthUtils.decode_token(token)
+                role = payload.get("role", "")
+                factory_id = payload.get("factory_id", "")
+                if role == "factory" and factory_id:
+                    partner_page_id = factory_id  # 他社のIDを無視し、自社のみ
+                    print(f"🔒 工場ロール: 自社案件のみに制限（factory_id={factory_id[:8]}...）")
+            except Exception as e:
+                print(f"⚠️ JWT検証スキップ: {e}")
         
         # パートナー工場IDが指定されている場合、その工場に紹介された案件のみ取得
         cases = manager.get_cases(
