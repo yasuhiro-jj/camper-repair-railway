@@ -57,6 +57,23 @@ Notion統合型の最強キャンピングカー修理サポートシステム
 【リポジトリ】
 C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean
 
+---
+
+## ⚠️ 本番フロントエンド（必須）
+
+**工場ダッシュボード・管理者画面は、必ず以下のフロントエンドを使用してください。**
+
+| 環境 | URL |
+|------|-----|
+| **本番（必須）** | **https://camper-repair-railway-upoj.vercel.app** |
+
+- 上記URLは Notion 接続済み・`NEXT_PUBLIC_API_URL` 設定済み
+- 他の Vercel プロジェクト（`camper-repair-railway.vercel.app` 等）は環境変数未設定のため使用しないこと
+- 工場ダッシュボード: https://camper-repair-railway-upoj.vercel.app/factory
+- 管理者画面: https://camper-repair-railway-upoj.vercel.app/admin
+
+---
+
 ## 📊 システム全体の流れ（ビジネスフロー）
 
 このシステムは、**キャンピングカー修理の集客から入金まで**を自動化する仕組みです。修理工場の社長様は、スマホひとつで「確認」「連絡&修理」「報告」の3つだけをやればOK。あとはシステムが自動で動きます。
@@ -740,6 +757,18 @@ http://localhost:3000/factory/login
 |-----------|-----------|-----------|
 | テスト修理工場 | `factory001` | `Password123!` |
 | システム管理者 | `admin` | `Admin123!` |
+
+**工場・管理者アカウント（本番用）:**
+
+| アカウント | ログインID | パスワード |
+|-----------|-----------|-----------|
+| SHOP-001 | `shop001` | `Shop001Pass!` |
+| SHOP-002 | `shop002` | `Shop002Pass!` |
+| SHOP-003 | `shop003` | `Shop003Pass!` |
+| SHOP-004 | `shop004` | `Shop004Pass!` |
+| 管理者 | `admin001` | `Admin001Pass!` |
+
+※ Notion に各工場ページが存在する場合、`setup_all_shops_login.py` を実行すると上記認証情報を一括設定できます。
 
 ---
 
