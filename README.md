@@ -681,17 +681,37 @@ Notionのパートナー修理店DBを開き、修理店の情報（店舗名・
 
 ##### ステップ2: 認証情報を設定する（スクリプトを実行）
 
-`create_factory_account.py` の `update_existing_factory_account()` を使って、ログインIDとパスワードをNotionに書き込みます。
+**バックエンドとは別の新しいターミナル**で行います（バックエンドは起動したままでOK）。
+
+**1. `setup_shop002_login.py` を参考に、新しいスクリプトを作成します**
+
+例えば `setup_shop003_login.py` というファイルを作り、内容を次のように書きます：
 
 ```python
-# create_factory_account.py の末尾に追記して実行、またはターミナルで直接実行
 from create_factory_account import update_existing_factory_account
 
 update_existing_factory_account(
-    factory_page_id="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",  # NotionページID（32文字）
-    login_id="shop003",       # 任意のログインID
+    factory_page_id="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",  # ステップ1で確認したNotion Page ID
+    login_id="shop003",       # 任意のログインID（半角英数字）
     password="Shop003Pass!"   # パスワード（8文字以上、大文字・小文字・数字を含む）
 )
+```
+
+**2. 新しいターミナルで実行します：**
+
+```powershell
+cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean"
+python setup_shop003_login.py
+```
+
+**3. 成功すると次のように表示されます：**
+
+```
+✅ アカウント更新成功
+ページID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+ログインID: shop003
+パスワード: Shop003Pass!
+```
 ```
 
 実行後、Notionの修理店ページに以下が自動で書き込まれます：
