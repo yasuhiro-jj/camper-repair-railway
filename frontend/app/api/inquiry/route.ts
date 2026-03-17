@@ -37,26 +37,27 @@ export async function POST(request: NextRequest) {
     
     if (resendApiKey) {
       try {
+        const contentLabel = type === 'user' ? '故障内容' : '事業内容';
         const emailSubject = `【${inquiryType}】LPからのお問い合わせ - ${name}様`;
-        const emailBody = `
-LPお問い合わせフォームから新しいお問い合わせがありました。
-
-【お客様情報】
-お名前: ${name}
-メールアドレス: ${email}
-電話番号: ${phone}
-地域（都道府県）: ${region}
-
-【${type === 'user' ? '故障内容' : '事業内容']}
-${issue}
-
-【メッセージ（任意）】
-${message || 'なし'}
-
----
-種別: ${inquiryType}
-送信日時: ${new Date().toLocaleString('ja-JP')}
-        `.trim();
+        const emailBody = [
+          'LPお問い合わせフォームから新しいお問い合わせがありました。',
+          '',
+          '【お客様情報】',
+          `お名前: ${name}`,
+          `メールアドレス: ${email}`,
+          `電話番号: ${phone}`,
+          `地域（都道府県）: ${region}`,
+          '',
+          `【${contentLabel}】`,
+          issue,
+          '',
+          '【メッセージ（任意）】',
+          message || 'なし',
+          '',
+          '---',
+          `種別: ${inquiryType}`,
+          `送信日時: ${new Date().toLocaleString('ja-JP')}`,
+        ].join('\n');
 
         const resendRes = await fetch(RESEND_API_URL, {
           method: 'POST',
