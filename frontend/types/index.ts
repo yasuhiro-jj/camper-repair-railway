@@ -23,6 +23,10 @@ export interface FactoryCase {
   title: string;
   status: string; // '受付' | '診断中' | '修理中' | '完了' | 'キャンセル' または 'pending' | 'in_progress' | 'completed' | 'cancelled'
   customerName?: string;
+  /** 商談DB由来のAPIレスポンス（customerName と同義の場合あり） */
+  customer_name?: string;
+  email?: string;
+  phone?: string;
   description?: string;
   user_message?: string;
   bot_message?: string;

@@ -14,11 +14,13 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
   const [comment, setComment] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
+  const caseKey = caseItem.id || caseItem.page_id || '';
+
   const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStatus = e.target.value;
     setIsUpdating(true);
     try {
-      await onStatusUpdate(caseItem.id, newStatus);
+      await onStatusUpdate(caseKey, newStatus);
     } finally {
       setIsUpdating(false);
     }
@@ -30,7 +32,7 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
     
     setIsUpdating(true);
     try {
-      await onCommentAdd(caseItem.id, comment);
+      await onCommentAdd(caseKey, comment);
       setComment('');
       setShowCommentForm(false);
     } finally {
@@ -61,17 +63,44 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
     return status;
   };
 
+  const displayName = (caseItem.customerName || caseItem.customer_name || '').trim();
+  const email = caseItem.email?.trim() || '';
+  const phone = caseItem.phone?.trim() || '';
+  const hasContact = Boolean(displayName || email || phone);
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-4">
         <div className="flex-1">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {caseItem.title || `案件 #${caseItem.id}`}
+            {caseItem.title || `案件 #${caseItem.id || caseItem.page_id}`}
           </h3>
-          {caseItem.customerName && (
-            <p className="text-sm text-gray-600 mb-1">
-              顧客名: {caseItem.customerName}
-            </p>
+          {hasContact && (
+            <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-gray-800">
+              <p className="text-xs font-semibold text-slate-600 mb-1.5">連絡先（お客様）</p>
+              {displayName && (
+                <p className="mb-1">
+                  <span className="text-gray-500">お名前: </span>
+                  {displayName}
+                </p>
+              )}
+              {email && (
+                <p className="mb-1 break-all">
+                  <span className="text-gray-500">メール: </span>
+                  <a href={`mailto:${email}`} className="text-blue-700 underline hover:text-blue-900">
+                    {email}
+                  </a>
+                </p>
+              )}
+              {phone && (
+                <p>
+                  <span className="text-gray-500">電話: </span>
+                  <a href={`tel:${phone.replace(/\s/g, '')}`} className="text-blue-700 underline hover:text-blue-900">
+                    {phone}
+                  </a>
+                </p>
+              )}
+            </div>
           )}
           {caseItem.description && (
             <p className="text-sm text-gray-600 mb-2 line-clamp-2">
