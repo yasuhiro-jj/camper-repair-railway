@@ -63,14 +63,20 @@ function FactoryDashboardPageContent() {
     return factoryId || undefined;
   };
 
-  const loadCases = async (status: string = '') => {
+  const loadCases = async (status: string = '', silent: boolean = false) => {
     if (!isAuthenticated) return;
-    setIsLoading(true);
+    if (!silent) {
+      setIsLoading(true);
+    }
     try {
       const partnerPageId = getPartnerPageIdForApi();
       const fetchedCases = await factoryApi.getCases(status || undefined, partnerPageId);
       setCases(fetchedCases);
     } catch (error: any) {
+      if (silent) {
+        console.warn('案件一覧の再同期に失敗しました:', error);
+        return;
+      }
       console.error('案件取得エラー:', error);
       const errorMessage = error?.response?.data?.error || error?.message || '案件の取得に失敗しました';
       console.error('エラー詳細:', {
@@ -80,7 +86,9 @@ function FactoryDashboardPageContent() {
       });
       alert(`案件の取得に失敗しました: ${errorMessage}`);
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -90,22 +98,51 @@ function FactoryDashboardPageContent() {
     }
   }, [activeStatus, isAuthenticated]);
 
+  const getOptimisticCases = (
+    currentCases: FactoryCase[],
+    targetCaseId: string,
+    nextStatus: string,
+    currentFilter: string,
+  ) => {
+    const updatedCases = currentCases.map((c) => {
+      if (c.id === targetCaseId || c.page_id === targetCaseId) {
+        return {
+          ...c,
+          status: nextStatus,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return c;
+    });
+
+    if (currentFilter && nextStatus !== currentFilter) {
+      return updatedCases.filter((c) => !(c.id === targetCaseId || c.page_id === targetCaseId));
+    }
+
+    return updatedCases;
+  };
+
   const handleStatusUpdate = async (caseId: string, status: string) => {
+    const previousCases = cases;
     try {
       // page_idを使用（既存APIとの互換性）
-      const caseItem = cases.find((c) => c.id === caseId || c.page_id === caseId);
+      const caseItem = previousCases.find((c) => c.id === caseId || c.page_id === caseId);
       const pageId = caseItem?.page_id || caseId;
       
       if (!pageId) {
         alert('❌ 案件IDが見つかりません');
         return;
       }
-      
+
+      setCases(getOptimisticCases(previousCases, caseId, status, activeStatus));
       await factoryApi.updateCaseStatus(pageId, status);
-      alert('✅ ステータスを更新しました');
-      loadCases(activeStatus); // 再読み込み
+
+      // 保存完了後に裏で再同期し、Notion側の最終状態を反映する
+      void loadCases(activeStatus, true);
     } catch (error) {
       console.error('ステータス更新エラー:', error);
+      setCases(previousCases);
+      loadCases(activeStatus, true);
       alert('❌ ステータスの更新に失敗しました');
     }
   };
