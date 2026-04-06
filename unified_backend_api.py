@@ -4831,7 +4831,7 @@ def update_factory_detail(factory_id):
 def search_manual():
     """作業マニュアルを検索（フェーズ2-3）"""
     try:
-        from data_access.manual_manager import get_manual_manager
+        from data_access.manual_manager import get_manual_manager, ManualSearchError
         
         manual_mgr = get_manual_manager()
         if not manual_mgr:
@@ -4866,6 +4866,14 @@ def search_manual():
                 "difficulty": difficulty
             }
         })
+    except ManualSearchError as e:
+        print(f"❌ マニュアル検索エラー(上流): {e}")
+        status_code = e.status_code or 502
+        return jsonify({
+            "error": str(e),
+            "manuals": [],
+            "count": 0,
+        }), status_code
     
     except Exception as e:
         print(f"❌ マニュアル検索エラー: {e}")

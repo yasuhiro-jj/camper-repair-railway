@@ -16,15 +16,16 @@ const statusOptions = [
 
 export default function StatusFilter({ activeStatus, onStatusChange }: StatusFilterProps) {
   return (
-    <div className="flex gap-2 flex-wrap">
+    <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
       {statusOptions.map((option) => (
         <button
           key={option.value}
+          type="button"
           onClick={() => onStatusChange(option.value)}
-          className={`px-4 py-2 rounded-lg border-2 transition-all ${
+          className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
             activeStatus === option.value
-              ? 'bg-purple-600 text-white border-purple-600'
-              : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400 hover:text-purple-600'
+              ? 'bg-slate-900 text-white shadow-sm ring-1 ring-slate-900'
+              : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
           }`}
         >
           {option.label}

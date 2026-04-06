@@ -78,8 +78,11 @@ C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langch
 - GitHub: `yasuhiro-j/camper-repair-r...`
 
 **camper-repair-railway-upoj**（工場・管理者用）※Notion DB連携済み
+
 - 工場ダッシュボード: https://camper-repair-railway-upoj.vercel.app/factory
-- 管理者画面: https://camper-repair-railway-upoj.vercel.app/admin
+
+ 工場ログイン画面  https://camper-repair-railway-upoj.vercel.app/factory/login
+- 管理者画面: https://camper-repair-railway-upoj.vercel.app/admin...
 - Notion 接続済み・`NEXT_PUBLIC_API_URL` 設定済み
 - **工場ダッシュボード・管理者画面は必ずこのURLを使用すること**（他プロジェクトは環境変数未設定のため使用不可）
 
@@ -761,6 +764,8 @@ http://localhost:3000/factory/login
 ---
 
 #### 既存のテストアカウント
+
+工場ダッシュボード（`/factory/login`）用のログインID・パスワードは、開発・運用時の参照のため **本READMEに記載しておきます**。
 
 `create_factory_account.py` を実行すると以下が作成されます：
 

@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { FactoryCase } from '@/types';
 import { factoryApi } from '@/lib/api';
 import { useAuthGuard } from '@/lib/authGuard';
 import CaseList from '@/components/Factory/CaseList';
 import StatusFilter from '@/components/Factory/StatusFilter';
-import FactoryMatching from '@/components/Factory/FactoryMatching';
 import ManualSearchModal from '@/components/Factory/ManualSearchModal';
+import FactoryMatchingPanel from '@/components/Factory/FactoryMatchingPanel';
 import Navigation from '@/components/Navigation';
 
 function FactoryDashboardPageContent() {
@@ -19,12 +19,26 @@ function FactoryDashboardPageContent() {
   const [activeStatus, setActiveStatus] = useState<string>('');
   const [isManualSearchOpen, setIsManualSearchOpen] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
-  
+  const [factoryName, setFactoryName] = useState<string | null>(null);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setUserRole(localStorage.getItem('role'));
+      setFactoryName(localStorage.getItem('factory_name'));
     }
   }, [isAuthenticated]);
+
+  const statusSummary = useMemo(() => {
+    const keys = ['受付', '診断中', '修理中', '完了', 'キャンセル'] as const;
+    const counts: Record<string, number> = {};
+    for (const k of keys) counts[k] = 0;
+    for (const c of cases) {
+      const s = (c.status || '').trim();
+      if (s in counts) counts[s]++;
+    }
+    const inProgress = (counts['診断中'] || 0) + (counts['修理中'] || 0);
+    return { total: cases.length, counts, inProgress };
+  }, [cases]);
   
   // 案件取得時の工場ID（各工場は自社の案件のみ、管理者は全件）
   const getPartnerPageIdForApi = (): string | undefined => {
@@ -117,65 +131,136 @@ function FactoryDashboardPageContent() {
 
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-slate-100 via-gray-50 to-slate-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">認証確認中...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-slate-300 border-t-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">認証確認中...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-gray-50 to-slate-100 p-4 pb-10">
       <div className="max-w-7xl mx-auto">
         {/* ナビゲーション */}
         <Navigation />
 
-        {/* ヘッダー */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex justify-between items-center flex-wrap gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">工場向けダッシュボード</h1>
-              {userRole === 'factory' && (
-                <p className="text-sm text-blue-600 mt-1">🔒 自社の案件のみ表示中</p>
-              )}
+        {/* 管理者のみ：統計付きの大きなヘッダー。工場アカウントは下のコンパクトバーのみ */}
+        {userRole === 'admin' ? (
+          <header className="relative mb-6 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-blue-500 to-emerald-500" />
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Factory</p>
+                <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                  工場向けダッシュボード
+                </h1>
+                {factoryName && (
+                  <p className="mt-1 truncate text-sm font-medium text-slate-700">{factoryName}</p>
+                )}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-800 ring-1 ring-inset ring-violet-200">
+                    管理者
+                  </span>
+                </div>
+              </div>
+              <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center sm:text-left">
+                    <p className="text-[10px] font-medium uppercase text-slate-500">全件</p>
+                    <p className="text-lg font-semibold tabular-nums text-slate-900">{statusSummary.total}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center sm:text-left">
+                    <p className="text-[10px] font-medium uppercase text-slate-500">進行中</p>
+                    <p className="text-lg font-semibold tabular-nums text-slate-900">{statusSummary.inProgress}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center sm:text-left">
+                    <p className="text-[10px] font-medium uppercase text-slate-500">受付</p>
+                    <p className="text-lg font-semibold tabular-nums text-slate-900">
+                      {statusSummary.counts['受付'] ?? 0}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center sm:text-left">
+                    <p className="text-[10px] font-medium uppercase text-slate-500">完了</p>
+                    <p className="text-lg font-semibold tabular-nums text-slate-900">
+                      {statusSummary.counts['完了'] ?? 0}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsManualSearchOpen(true)}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                  >
+                    作業マニュアル検索
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => loadCases(activeStatus)}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    一覧を更新
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="flex gap-4 items-center">
+          </header>
+        ) : (
+          <div className="mb-6 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              {factoryName ? (
+                <p className="truncate text-base font-semibold text-slate-900">{factoryName}</p>
+              ) : (
+                <p className="text-base font-semibold text-slate-900">工場ダッシュボード</p>
+              )}
+              <p className="mt-0.5 text-xs text-slate-500">自社の案件のみ表示しています</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
               <button
+                type="button"
                 onClick={() => setIsManualSearchOpen(true)}
-                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
               >
-                📚 作業マニュアルDB検索
+                作業マニュアル検索
               </button>
-              <span className="text-sm text-gray-600">
-                案件数: <span className="font-semibold">{cases.length}件</span>
-              </span>
+              <button
+                type="button"
+                onClick={() => loadCases(activeStatus)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                一覧を更新
+              </button>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* 工場マッチング */}
-        <div className="mb-6">
-          <FactoryMatching />
-        </div>
+        {userRole === 'admin' && <FactoryMatchingPanel />}
 
         {/* フィルタ */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">ステータスフィルタ</h2>
+        <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm mb-6">
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">ステータスで絞り込み</h2>
+              <p className="text-sm text-slate-500">タップでフィルタを切り替えます</p>
+            </div>
+          </div>
           <StatusFilter activeStatus={activeStatus} onStatusChange={setActiveStatus} />
-        </div>
+        </section>
 
         {/* 案件一覧 */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">案件一覧</h2>
-            <button
-              onClick={() => loadCases(activeStatus)}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              🔄 更新
-            </button>
+        <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">案件一覧</h2>
+              <p className="text-sm text-slate-500">
+                {activeStatus ? `「${activeStatus}」の案件` : 'すべての案件'}
+              </p>
+            </div>
+            <p className="text-sm text-slate-600">
+              表示件数: <span className="font-semibold tabular-nums text-slate-900">{cases.length}</span> 件
+            </p>
           </div>
           <CaseList
             cases={cases}
@@ -183,7 +268,7 @@ function FactoryDashboardPageContent() {
             onStatusUpdate={handleStatusUpdate}
             onCommentAdd={handleCommentAdd}
           />
-        </div>
+        </section>
 
         {/* 作業マニュアルDB検索モーダル */}
         <ManualSearchModal
@@ -198,10 +283,10 @@ function FactoryDashboardPageContent() {
 export default function FactoryDashboardPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-slate-100 via-gray-50 to-slate-100 p-4 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">読み込み中...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-slate-300 border-t-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">読み込み中...</p>
         </div>
       </div>
     }>

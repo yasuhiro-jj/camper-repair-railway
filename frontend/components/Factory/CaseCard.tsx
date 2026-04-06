@@ -44,18 +44,28 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
     // 日本語ステータスと英語ステータスの両方に対応
     const statusLower = status.toLowerCase();
     if (status === '受付' || statusLower === 'pending') {
-      return 'bg-yellow-100 text-yellow-800';
+      return 'bg-amber-100 text-amber-900 ring-1 ring-amber-200/80';
     }
     if (status === '診断中' || status === '修理中' || statusLower === 'in_progress') {
-      return 'bg-blue-100 text-blue-800';
+      return 'bg-blue-100 text-blue-900 ring-1 ring-blue-200/80';
     }
     if (status === '完了' || statusLower === 'completed') {
-      return 'bg-green-100 text-green-800';
+      return 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200/80';
     }
     if (status === 'キャンセル' || statusLower === 'cancelled') {
-      return 'bg-red-100 text-red-800';
+      return 'bg-red-100 text-red-900 ring-1 ring-red-200/80';
     }
-    return 'bg-gray-100 text-gray-800';
+    return 'bg-slate-100 text-slate-800 ring-1 ring-slate-200/80';
+  };
+
+  const getStatusAccent = (status: string) => {
+    const statusLower = status.toLowerCase();
+    if (status === '受付' || statusLower === 'pending') return 'border-l-amber-400';
+    if (status === '診断中' || status === '修理中' || statusLower === 'in_progress')
+      return 'border-l-blue-500';
+    if (status === '完了' || statusLower === 'completed') return 'border-l-emerald-500';
+    if (status === 'キャンセル' || statusLower === 'cancelled') return 'border-l-red-400';
+    return 'border-l-slate-300';
   };
 
   const getStatusLabel = (status: string) => {
@@ -69,10 +79,12 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
   const hasContact = Boolean(displayName || email || phone);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+    <article
+      className={`rounded-xl border border-slate-200/90 bg-white p-5 shadow-sm transition hover:shadow-md ${getStatusAccent(caseItem.status)} border-l-4`}
+    >
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="mb-2 text-base font-semibold leading-snug text-slate-900 sm:text-lg">
             {caseItem.title || `案件 #${caseItem.id || caseItem.page_id}`}
           </h3>
           {hasContact && (
@@ -133,12 +145,14 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
             </p>
           )}
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(caseItem.status)}`}>
+        <span
+          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(caseItem.status)}`}
+        >
           {getStatusLabel(caseItem.status)}
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-gray-600">
+      <div className="mb-4 grid grid-cols-2 gap-3 text-xs text-slate-600 sm:text-sm">
         <div>
           <span className="font-semibold">作成日:</span>{' '}
           {caseItem.timestamp || caseItem.created_time || caseItem.createdAt
@@ -153,17 +167,17 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
         </div>
       </div>
       {caseItem.comment && (
-        <div className="bg-gray-50 p-3 rounded mb-4 text-sm text-gray-700 whitespace-pre-wrap">
+        <div className="mb-4 whitespace-pre-wrap rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm text-slate-800">
           {caseItem.comment}
         </div>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
         <select
           value={caseItem.status}
           onChange={handleStatusChange}
           disabled={isUpdating}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 text-black bg-white"
+          className="min-h-[44px] flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
           style={{ color: '#000000' }}
         >
           <option value="受付">受付</option>
@@ -174,28 +188,29 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
         </select>
         
         <button
+          type="button"
           onClick={() => setShowCommentForm(!showCommentForm)}
-          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          className="min-h-[44px] rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-50"
         >
-          💬 コメント
+          コメント
         </button>
       </div>
 
       {showCommentForm && (
-        <form onSubmit={handleCommentSubmit} className="mt-4 pt-4 border-t border-gray-200">
+        <form onSubmit={handleCommentSubmit} className="mt-4 border-t border-slate-100 pt-4">
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder="コメントを入力..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 text-black bg-white"
+            className="mb-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
             style={{ color: '#000000' }}
             rows={3}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="submit"
               disabled={isUpdating || !comment.trim()}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               送信
             </button>
@@ -205,14 +220,14 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
                 setShowCommentForm(false);
                 setComment('');
               }}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               キャンセル
             </button>
           </div>
         </form>
       )}
-    </div>
+    </article>
   );
 }
 

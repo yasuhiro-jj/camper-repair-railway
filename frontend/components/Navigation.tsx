@@ -2,9 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 
 export default function Navigation() {
   const pathname = usePathname();
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setUserRole(localStorage.getItem('role'));
+    }
+  }, [pathname]);
 
   // 一般ユーザー向けページではナビゲーションを非表示
   const publicPages = ['/', '/chat', '/partner', '/lp-camper-repair', '/lp-partner-recruit', '/repair-advice', '/review'];
@@ -21,13 +29,18 @@ export default function Navigation() {
   }
 
   // 管理者/工場向けページでのみナビゲーションを表示
-  const navLinks = [
-    { href: '/', label: '🏠 ホーム', icon: '🏠' },
-    { href: '/chat', label: '💬 チャット', icon: '💬' },
-    { href: '/partner', label: '🔧 修理店紹介', icon: '🔧' },
-    { href: '/factory', label: '🏭 工場ダッシュボード', icon: '🏭' },
-    { href: '/admin', label: '⚙️ 管理者画面', icon: '⚙️' },
-  ];
+  const navLinks = useMemo(() => {
+    const base = [
+      { href: '/', label: '🏠 ホーム', icon: '🏠' },
+      { href: '/chat', label: '💬 チャット', icon: '💬' },
+      { href: '/partner', label: '🔧 修理店紹介', icon: '🔧' },
+      { href: '/factory', label: '🏭 工場ダッシュボード', icon: '🏭' },
+    ];
+    if (userRole === 'admin') {
+      base.push({ href: '/admin', label: '⚙️ 管理者画面', icon: '⚙️' });
+    }
+    return base;
+  }, [userRole]);
 
   return (
     <nav className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-4 mb-6">
@@ -52,4 +65,3 @@ export default function Navigation() {
     </nav>
   );
 }
-

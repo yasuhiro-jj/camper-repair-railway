@@ -20,6 +20,8 @@ export default function ManualSearchModal({
   const [manuals, setManuals] = useState<Manual[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** 検索を1回以上実行した（0件でも「未検索」と区別する） */
+  const [searchAttempted, setSearchAttempted] = useState(false);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -33,15 +35,18 @@ export default function ManualSearchModal({
     try {
       const result = await manualApi.searchManuals(
         searchQuery,
-        category || undefined,
-        difficulty || undefined,
+        category.trim() || undefined,
+        difficulty.trim() || undefined,
         20
       );
-      setManuals(result.manuals);
+      const list = Array.isArray(result.manuals) ? result.manuals : [];
+      setManuals(list);
+      setSearchAttempted(true);
     } catch (err: any) {
       console.error('マニュアル検索エラー:', err);
-      setError(err?.response?.data?.error || 'マニュアルの検索に失敗しました');
+      setError(err?.message || err?.response?.data?.error || 'マニュアルの検索に失敗しました');
       setManuals([]);
+      setSearchAttempted(true);
     } finally {
       setIsLoading(false);
     }
@@ -99,29 +104,35 @@ export default function ManualSearchModal({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  カテゴリ
+                  カテゴリ（任意）
                 </label>
                 <input
                   type="text"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  placeholder="例: エアコン、バッテリー"
+                  placeholder="例: エアコン（Notionの選択肢と完全一致）"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
                   style={{ color: '#000000' }}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Notionの「カテゴリ」と一字一句同じ必要があります。迷ったら空欄でキーワードのみ検索してください。
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  難易度
+                  難易度（任意）
                 </label>
                 <input
                   type="text"
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value)}
-                  placeholder="例: 初級、中級、上級"
+                  placeholder="例: 初級 / 中級 / 上級（または空欄）"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
                   style={{ color: '#000000' }}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  症状名（例: エアコン）を入れないでください。初級・中級・上級のいずれか、または空欄です。
+                </p>
               </div>
             </div>
           </div>
@@ -136,10 +147,20 @@ export default function ManualSearchModal({
 
         {/* 検索結果 */}
         <div className="flex-1 overflow-y-auto p-6">
-          {manuals.length === 0 && !isLoading && !error && (
+          {manuals.length === 0 && !isLoading && !error && !searchAttempted && (
             <div className="text-center text-gray-500 py-12">
               <p>検索キーワードを入力して検索してください</p>
               <p className="text-sm mt-2">約1000件の作業マニュアルから検索できます</p>
+            </div>
+          )}
+
+          {manuals.length === 0 && !isLoading && !error && searchAttempted && (
+            <div className="text-center text-gray-600 py-12 space-y-2">
+              <p className="font-medium text-gray-800">該当するマニュアルは 0 件でした</p>
+              <p className="text-sm">
+                カテゴリ・難易度に余計な文字を入れるとヒットしません。難易度は「初級・中級・上級」か空欄、カテゴリは
+                Notion の選択肢と完全一致が必要です。
+              </p>
             </div>
           )}
 
@@ -188,11 +209,15 @@ export default function ManualSearchModal({
                       <strong>必要な部品:</strong> {manual.parts}
                     </div>
                   )}
-                  {manual.time_estimate && (
+                  {(manual.time_estimate != null && manual.time_estimate !== '') ||
+                  (manual.estimated_time != null && manual.estimated_time !== '') ? (
                     <div className="text-sm text-gray-700">
-                      <strong>修理時間の目安:</strong> {manual.time_estimate}
+                      <strong>推定時間:</strong>{' '}
+                      {manual.estimated_time != null && manual.estimated_time !== ''
+                        ? String(manual.estimated_time)
+                        : manual.time_estimate}
                     </div>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>

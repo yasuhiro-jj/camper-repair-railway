@@ -9,7 +9,6 @@ import os
 import requests
 import logging
 from typing import List, Dict, Optional, Any
-from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
@@ -22,6 +21,38 @@ NOTION_API_VERSION = os.getenv("NOTION_API_VERSION", "2022-06-28")
 
 NOTION_PAGES_URL = "https://api.notion.com/v1/pages"
 NOTION_DATABASE_URL = "https://api.notion.com/v1/databases"
+
+# Notion「難易度」select と一致するときだけフィルタする（症状名を誤入力すると0件になるのを防ぐ）
+_DEFAULT_DIFFICULTY_OPTIONS = frozenset(
+    {
+        "初級",
+        "中級",
+        "上級",
+        "易",
+        "中",
+        "難",
+        "Easy",
+        "Medium",
+        "Hard",
+    }
+)
+
+
+class ManualSearchError(RuntimeError):
+    """作業マニュアル検索で上流エラーを伝える例外"""
+
+    def __init__(self, message: str, status_code: Optional[int] = None):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+def _normalize_manual_db_id(raw: Optional[str]) -> Optional[str]:
+    if not raw:
+        return None
+    import re
+
+    cleaned = re.sub(r"[^0-9a-fA-F]", "", raw).lower()
+    return cleaned or None
 
 
 class ManualManager:
@@ -38,7 +69,14 @@ class ManualManager:
             "Notion-Version": NOTION_API_VERSION,
             "Content-Type": "application/json",
         }
-        self.db_id = NOTION_MANUAL_DB_ID
+        self.db_id = _normalize_manual_db_id(NOTION_MANUAL_DB_ID)
+        extra = os.getenv("NOTION_MANUAL_DIFFICULTY_OPTIONS", "")
+        self._difficulty_options = set(_DEFAULT_DIFFICULTY_OPTIONS)
+        if extra.strip():
+            for part in extra.split(","):
+                p = part.strip()
+                if p:
+                    self._difficulty_options.add(p)
     
     def search_manuals(
         self,
@@ -92,23 +130,30 @@ class ManualManager:
                     ]
                 })
             
-            # カテゴリフィルター
-            if category:
+            # カテゴリフィルター（Notion の select 名と完全一致が必要）
+            if category and category.strip():
                 query_filters.append({
                     "property": "カテゴリ",
                     "select": {
-                        "equals": category
+                        "equals": category.strip()
                     }
                 })
             
-            # 難易度フィルター
-            if difficulty:
-                query_filters.append({
-                    "property": "難易度",
-                    "select": {
-                        "equals": difficulty
-                    }
-                })
+            # 難易度フィルター（選択肢と一致する入力のときのみ。誤って症状名を入れても無視）
+            difficulty_stripped = (difficulty or "").strip()
+            if difficulty_stripped:
+                if difficulty_stripped in self._difficulty_options:
+                    query_filters.append({
+                        "property": "難易度",
+                        "select": {
+                            "equals": difficulty_stripped
+                        }
+                    })
+                else:
+                    logger.info(
+                        "難易度フィルタをスキップ（Notionの選択肢と一致しません）: %r",
+                        difficulty_stripped,
+                    )
             
             # フィルターを結合（フィルターがない場合はNoneを送信）
             filter_obj = None
@@ -135,7 +180,15 @@ class ManualManager:
                 error_text = response.text
                 logger.error(f"❌ マニュアル検索エラー: {response.status_code}")
                 logger.error(f"   エラー詳細: {error_text}")
-                return []
+                if response.status_code in (401, 403, 404):
+                    raise ManualSearchError(
+                        "作業マニュアルDBに接続できません。Notion連携の権限またはDB設定を確認してください。",
+                        status_code=response.status_code,
+                    )
+                raise ManualSearchError(
+                    f"作業マニュアルDB検索に失敗しました（status={response.status_code}）",
+                    status_code=response.status_code,
+                )
             
             results = response.json().get("results", [])
             manuals = []
@@ -147,9 +200,13 @@ class ManualManager:
             
             return manuals
         
+        except ManualSearchError:
+            raise
         except Exception as e:
             logger.error(f"❌ マニュアル検索エラー: {e}")
-            return []
+            raise ManualSearchError(
+                "作業マニュアルDB検索中に通信エラーが発生しました。しばらくして再度お試しください。"
+            ) from e
     
     def get_manual(self, manual_id: str) -> Optional[Dict[str, Any]]:
         """
