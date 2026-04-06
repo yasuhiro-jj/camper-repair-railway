@@ -12,17 +12,18 @@ interface CaseCardProps {
 export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd }: CaseCardProps) {
   const [showCommentForm, setShowCommentForm] = useState(false);
   const [comment, setComment] = useState('');
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [isStatusUpdating, setIsStatusUpdating] = useState(false);
+  const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
 
   const caseKey = caseItem.id || caseItem.page_id || '';
 
   const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStatus = e.target.value;
-    setIsUpdating(true);
+    setIsStatusUpdating(true);
     try {
       await onStatusUpdate(caseKey, newStatus);
     } finally {
-      setIsUpdating(false);
+      setIsStatusUpdating(false);
     }
   };
 
@@ -30,13 +31,13 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
     e.preventDefault();
     if (!comment.trim()) return;
     
-    setIsUpdating(true);
+    setIsCommentSubmitting(true);
     try {
       await onCommentAdd(caseKey, comment);
       setComment('');
       setShowCommentForm(false);
     } finally {
-      setIsUpdating(false);
+      setIsCommentSubmitting(false);
     }
   };
 
@@ -77,6 +78,7 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
   const email = caseItem.email?.trim() || '';
   const phone = caseItem.phone?.trim() || '';
   const hasContact = Boolean(displayName || email || phone);
+  const canSubmitComment = comment.trim().length > 0 && !isCommentSubmitting;
 
   return (
     <article
@@ -176,7 +178,7 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
         <select
           value={caseItem.status}
           onChange={handleStatusChange}
-          disabled={isUpdating}
+          disabled={isStatusUpdating}
           className="min-h-[44px] flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
           style={{ color: '#000000' }}
         >
@@ -202,6 +204,7 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder="コメントを入力..."
+            disabled={isCommentSubmitting}
             className="mb-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
             style={{ color: '#000000' }}
             rows={3}
@@ -209,10 +212,14 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
           <div className="flex flex-wrap gap-2">
             <button
               type="submit"
-              disabled={isUpdating || !comment.trim()}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              disabled={!canSubmitComment}
+              className={`rounded-lg px-4 py-2 text-sm font-medium text-white transition ${
+                canSubmitComment
+                  ? 'bg-blue-600 hover:bg-blue-700'
+                  : 'cursor-not-allowed bg-slate-300'
+              }`}
             >
-              送信
+              {isCommentSubmitting ? '送信中...' : '送信'}
             </button>
             <button
               type="button"
