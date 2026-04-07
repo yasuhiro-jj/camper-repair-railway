@@ -257,7 +257,7 @@ export const factoryApi = {
     pageId: string,
     comment: string,
     notifyCustomerEmail?: boolean,
-  ): Promise<{ emailSent?: boolean }> {
+  ): Promise<{ emailSent?: boolean; emailQueued?: boolean }> {
     try {
       const res = await backendApi.post('/admin/api/add-comment', {
         page_id: pageId,
@@ -270,6 +270,7 @@ export const factoryApi = {
       }
       return {
         emailSent: typeof data?.email_sent === 'boolean' ? data.email_sent : undefined,
+        emailQueued: Boolean(data?.email_queued),
       };
     } catch (err) {
       throw new Error(toMessage(err, 'コメント追加に失敗しました'));

@@ -5224,15 +5224,29 @@ def add_admin_comment():
         success = manager.add_comment(page_id, comment)
         
         if success:
-            email_sent = None
+            # メール送信は Notion 保存後にバックグラウンドで行う（同期だと Resend 等で数十秒〜ハングし、フロントが「送信中」のまま固まる）
             if notify_customer_email:
-                email_sent = manager.send_factory_comment_customer_email(page_id, comment)
+                import threading
+
+                def _send_comment_email_bg():
+                    try:
+                        from data_access.factory_dashboard_manager import FactoryDashboardManager
+
+                        FactoryDashboardManager().send_factory_comment_customer_email(
+                            page_id, comment
+                        )
+                    except Exception as bg_err:
+                        print(f"❌ コメント通知メール（バックグラウンド）エラー: {bg_err}")
+                        import traceback
+                        traceback.print_exc()
+
+                threading.Thread(target=_send_comment_email_bg, daemon=True).start()
             payload = {
                 "success": True,
                 "message": "コメントを追加しました",
             }
             if notify_customer_email:
-                payload["email_sent"] = bool(email_sent)
+                payload["email_queued"] = True
             return jsonify(payload)
         else:
             return jsonify({

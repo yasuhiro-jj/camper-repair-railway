@@ -200,9 +200,17 @@ function FactoryDashboardPageContent() {
         return;
       }
       
-      const { emailSent } = await factoryApi.addComment(pageId, comment, notifyCustomerEmail);
+      const { emailSent, emailQueued } = await factoryApi.addComment(
+        pageId,
+        comment,
+        notifyCustomerEmail,
+      );
       if (notifyCustomerEmail) {
-        if (emailSent === true) {
+        if (emailQueued) {
+          alert(
+            '✅ コメントを保存しました。お客様へメールを送信中です（届くまで数分かかる場合があります）',
+          );
+        } else if (emailSent === true) {
           alert('✅ コメントを追加し、お客様へメールを送信しました');
         } else if (emailSent === false) {
           alert(
