@@ -7,7 +7,7 @@ interface CaseListProps {
   cases: FactoryCase[];
   isLoading: boolean;
   onStatusUpdate: (caseId: string, status: string) => void;
-  onCommentAdd: (caseId: string, comment: string) => void;
+  onCommentAdd: (caseId: string, comment: string, notifyCustomerEmail?: boolean) => void;
 }
 
 export default function CaseList({ cases, isLoading, onStatusUpdate, onCommentAdd }: CaseListProps) {

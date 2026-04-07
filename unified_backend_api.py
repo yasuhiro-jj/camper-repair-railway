@@ -5210,6 +5210,7 @@ def add_admin_comment():
         data = request.get_json()
         page_id = data.get("page_id")
         comment = data.get("comment")
+        notify_customer_email = bool(data.get("notify_customer_email"))
         
         if not page_id or not comment:
             return jsonify({
@@ -5223,10 +5224,16 @@ def add_admin_comment():
         success = manager.add_comment(page_id, comment)
         
         if success:
-            return jsonify({
+            email_sent = None
+            if notify_customer_email:
+                email_sent = manager.send_factory_comment_customer_email(page_id, comment)
+            payload = {
                 "success": True,
-                "message": "コメントを追加しました"
-            })
+                "message": "コメントを追加しました",
+            }
+            if notify_customer_email:
+                payload["email_sent"] = bool(email_sent)
+            return jsonify(payload)
         else:
             return jsonify({
                 "success": False,

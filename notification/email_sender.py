@@ -758,6 +758,54 @@ https://camper-repair.net/
 
         return self._send_email(customer_email, subject, body)
     
+    def send_factory_comment_to_customer(
+        self,
+        customer_email: str,
+        customer_name: str,
+        partner_name: str,
+        comment_body: str,
+        deal_id: Optional[str] = None,
+    ) -> bool:
+        """
+        工場ダッシュボードで入力したコメントを、顧客のメールへ通知する（チェック時のみ呼び出し）。
+        """
+        if not self.enabled:
+            print("⚠️ メール送信設定が不完全です。メール送信をスキップします。")
+            return False
+        if not customer_email:
+            print("⚠️ 顧客のメールアドレスが設定されていません。")
+            return False
+        subject = "【修理案件からのご連絡】岡山キャンピングカー修理サポートセンター"
+        safe_comment = (comment_body or "").strip()
+        if len(safe_comment) > 4000:
+            safe_comment = safe_comment[:4000] + "\n\n（以下省略）"
+        deal_info = f"\n【商談ID】\n{deal_id}\n" if deal_id else ""
+        body = f"""
+{customer_name} 様
+
+お世話になっております。
+岡山キャンピングカー修理サポートセンターです。
+{deal_info}
+紹介した修理店より、案件に関するコメントが届きました。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【コメント】
+{safe_comment}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【修理店】
+{partner_name}
+
+ご不明な点がございましたら、お気軽にお問い合わせください。
+
+---
+岡山キャンピングカー修理サポートセンター
+https://camper-repair.net/
+電話: 086-206-6622
+メール: info@camper-repair.net
+"""
+        return self._send_email(customer_email, subject, body)
+    
     def send_review_request(
         self,
         to_email: str,

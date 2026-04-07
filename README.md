@@ -59,6 +59,52 @@ C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langch
 
 ---
 
+## 🔧 Git / GitHub への push（重要）
+
+**Git の作業ディレクトリーは、この README がある `camper-repair-clean` フォルダーです。**  
+ひとつ上の `移行用まとめフォルダー` 直下でも `git` が初期化されている場合がありますが、そちらは **本プロジェクト用の `origin` ではない**ことが多く、`Repository not found` やプレースホルダー URL（例: `yourname/ootsuki2`）のままになります。  
+**Vercel / 本番に反映させる変更は、必ず次のディレクトリーで `add` → `commit` → `push` してください。**
+
+### 正しいディレクトリー（リポジトリのルート）
+
+`移行用まとめフォルダー\udemy-langchain\camper-repair-clean`
+
+### リモートとブランチ（想定）
+
+- **リモート `origin`:** `https://github.com/yasuhiro-jj/camper-repair-railway.git`
+- **ブランチ:** `main`（`git branch` で現在のブランチを確認）
+
+### 手順の例（PowerShell）
+
+```powershell
+cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean"
+
+git status
+git remote -v
+git branch
+```
+
+変更をコミットして GitHub に送る:
+
+```powershell
+git add "frontend/app/factory/page.tsx"
+git commit -m "fix: 変更内容の説明"
+git push origin main
+```
+
+初回だけ「upstream が無い」と言われた場合:
+
+```powershell
+git push --set-upstream origin main
+```
+
+### よくある間違い
+
+- **親フォルダー（`移行用まとめフォルダー` 直下）で `git push` する** → 別リポジトリ扱いになり、本番用リポジトリに届かない、またはリモートエラーになる。
+- **`camper-repair-clean` の中に `.git` がある** → このフォルダーが本物のリポジトリルート。ここで操作する。
+
+---
+
 ## 🌐 Vercel フロントエンド一覧（ややこしいので整理）
 
 同じリポジトリから複数の Vercel プロジェクトがデプロイされています。**用途ごとにURLが異なる**ので注意してください。
@@ -478,6 +524,8 @@ python -m pip install -r requirements.txt
    cd "C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langchain\camper-repair-clean"
    conda activate campingrepare
    python unified_backend_api.py
+
+
 
 
 フロントエンド起動（別ターミナル）

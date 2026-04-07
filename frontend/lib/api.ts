@@ -253,16 +253,24 @@ export const factoryApi = {
     }
   },
 
-  async addComment(pageId: string, comment: string): Promise<void> {
+  async addComment(
+    pageId: string,
+    comment: string,
+    notifyCustomerEmail?: boolean,
+  ): Promise<{ emailSent?: boolean }> {
     try {
       const res = await backendApi.post('/admin/api/add-comment', {
         page_id: pageId,
         comment,
+        notify_customer_email: Boolean(notifyCustomerEmail),
       });
       const data = res.data as any;
       if (data?.success === false) {
         throw new Error(data?.error || 'コメント追加に失敗しました');
       }
+      return {
+        emailSent: typeof data?.email_sent === 'boolean' ? data.email_sent : undefined,
+      };
     } catch (err) {
       throw new Error(toMessage(err, 'コメント追加に失敗しました'));
     }

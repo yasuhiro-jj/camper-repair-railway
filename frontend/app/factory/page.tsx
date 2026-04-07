@@ -186,7 +186,11 @@ function FactoryDashboardPageContent() {
     }
   };
 
-  const handleCommentAdd = async (caseId: string, comment: string) => {
+  const handleCommentAdd = async (
+    caseId: string,
+    comment: string,
+    notifyCustomerEmail?: boolean,
+  ) => {
     try {
       const caseItem = cases.find((c) => c.id === caseId || c.page_id === caseId);
       const pageId = caseItem?.page_id || caseId;
@@ -196,8 +200,20 @@ function FactoryDashboardPageContent() {
         return;
       }
       
-      await factoryApi.addComment(pageId, comment);
-      alert('✅ コメントを追加しました');
+      const { emailSent } = await factoryApi.addComment(pageId, comment, notifyCustomerEmail);
+      if (notifyCustomerEmail) {
+        if (emailSent === true) {
+          alert('✅ コメントを追加し、お客様へメールを送信しました');
+        } else if (emailSent === false) {
+          alert(
+            '✅ コメントは保存しました。メールは送信できませんでした（アドレス未設定・または送信設定を確認してください）',
+          );
+        } else {
+          alert('✅ コメントを追加しました');
+        }
+      } else {
+        alert('✅ コメントを追加しました');
+      }
       loadCases(activeStatus); // 再読み込み
     } catch (error) {
       console.error('コメント追加エラー:', error);

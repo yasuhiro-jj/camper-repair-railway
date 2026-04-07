@@ -836,6 +836,70 @@ class FactoryDashboardManager:
             logger.error(f"❌ コメント追加エラー: {e}")
             return False
     
+    def send_factory_comment_customer_email(self, page_id: str, comment_text: str) -> bool:
+        """
+        工場コメントを顧客メールへ送信（APIでチェック時のみ呼ぶ）。
+        Notion への保存は済んでいる前提。送信失敗でも例外は握りつぶさず False を返す。
+        """
+        try:
+            response = requests.get(
+                f"{NOTION_PAGES_URL}/{page_id}",
+                headers=self.headers,
+                timeout=15,
+            )
+            if not response.ok:
+                logger.warning(f"⚠️ 商談情報取得失敗: {response.status_code}")
+                return False
+            page = response.json()
+            props = page.get("properties", {})
+            customer_email = self._get_email(props.get("メールアドレス", {}))
+            if not customer_email:
+                logger.info("⚠️ 顧客のメールアドレスがないため、コメントメールをスキップします")
+                return False
+            from notification.email_sender import EmailSender
+
+            email_sender = EmailSender()
+            if not email_sender.enabled:
+                logger.info("⚠️ メール送信機能が無効のため、コメントメールをスキップします")
+                return False
+            customer_name = self._get_rich_text(props.get("顧客名", {})) or "お客様"
+            deal_id_prop = props.get("商談ID", {})
+            deal_id = ""
+            if deal_id_prop.get("type") == "title":
+                title_list = deal_id_prop.get("title", [])
+                if title_list:
+                    deal_id = title_list[0].get("text", {}).get("content", "")
+            partner_name = "修理店"
+            partner_relation = props.get("紹介修理店", {})
+            partner_page_ids = []
+            if partner_relation.get("type") == "relation":
+                partner_page_ids = [rel.get("id") for rel in partner_relation.get("relation", [])]
+            if partner_page_ids:
+                try:
+                    from data_access.partner_shop_manager import PartnerShopManager
+
+                    partner_manager = PartnerShopManager()
+                    partner_shop = partner_manager.get_shop_by_page_id(partner_page_ids[0])
+                    if partner_shop:
+                        partner_name = partner_shop.get("name", "修理店")
+                except Exception as e:
+                    logger.warning(f"⚠️ 修理店情報取得エラー: {e}")
+            ok = email_sender.send_factory_comment_to_customer(
+                customer_email=customer_email,
+                customer_name=customer_name,
+                partner_name=partner_name,
+                comment_body=comment_text,
+                deal_id=deal_id or None,
+            )
+            if ok:
+                logger.info(f"✅ コメント通知メール送信成功: {customer_email}")
+            else:
+                logger.warning(f"⚠️ コメント通知メール送信失敗: {customer_email}")
+            return ok
+        except Exception as e:
+            logger.warning(f"⚠️ コメントメール送信エラー: {e}")
+            return False
+    
     def _append_notion_comment(self, page_id: str, comment_text: str) -> bool:
         """NotionコメントAPI経由でコメントを追加"""
         try:

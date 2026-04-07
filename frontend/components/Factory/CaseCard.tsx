@@ -6,12 +6,13 @@ import { FactoryCase } from '@/types';
 interface CaseCardProps {
   case: FactoryCase;
   onStatusUpdate: (caseId: string, status: string) => void;
-  onCommentAdd: (caseId: string, comment: string) => void;
+  onCommentAdd: (caseId: string, comment: string, notifyCustomerEmail?: boolean) => void;
 }
 
 export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd }: CaseCardProps) {
   const [showCommentForm, setShowCommentForm] = useState(false);
   const [comment, setComment] = useState('');
+  const [notifyCustomerEmail, setNotifyCustomerEmail] = useState(false);
   const [isStatusUpdating, setIsStatusUpdating] = useState(false);
   const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
 
@@ -33,8 +34,9 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
     
     setIsCommentSubmitting(true);
     try {
-      await onCommentAdd(caseKey, comment);
+      await onCommentAdd(caseKey, comment, notifyCustomerEmail);
       setComment('');
+      setNotifyCustomerEmail(false);
       setShowCommentForm(false);
     } finally {
       setIsCommentSubmitting(false);
@@ -209,6 +211,20 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
             style={{ color: '#000000' }}
             rows={3}
           />
+          {email && (
+            <label className="mb-3 flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={notifyCustomerEmail}
+                onChange={(e) => setNotifyCustomerEmail(e.target.checked)}
+                disabled={isCommentSubmitting}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>
+                お客様のメール（{email}）に、このコメントを送信する
+              </span>
+            </label>
+          )}
           <div className="flex flex-wrap gap-2">
             <button
               type="submit"
@@ -226,6 +242,7 @@ export default function CaseCard({ case: caseItem, onStatusUpdate, onCommentAdd 
               onClick={() => {
                 setShowCommentForm(false);
                 setComment('');
+                setNotifyCustomerEmail(false);
               }}
               className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
