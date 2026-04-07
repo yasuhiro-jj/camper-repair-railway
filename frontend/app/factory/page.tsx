@@ -63,15 +63,20 @@ function FactoryDashboardPageContent() {
     return factoryId || undefined;
   };
 
-  const loadCases = async (status: string = '', silent: boolean = false) => {
+  const fetchCasesSnapshot = async (status: string = ''): Promise<FactoryCase[]> => {
+    const partnerPageId = getPartnerPageIdForApi();
+    return factoryApi.getCases(status || undefined, partnerPageId);
+  };
+
+  const loadCases = async (status: string = '', silent: boolean = false): Promise<FactoryCase[] | undefined> => {
     if (!isAuthenticated) return;
     if (!silent) {
       setIsLoading(true);
     }
     try {
-      const partnerPageId = getPartnerPageIdForApi();
-      const fetchedCases = await factoryApi.getCases(status || undefined, partnerPageId);
+      const fetchedCases = await fetchCasesSnapshot(status);
       setCases(fetchedCases);
+      return fetchedCases;
     } catch (error: any) {
       if (silent) {
         console.warn('案件一覧の再同期に失敗しました:', error);
@@ -122,6 +127,31 @@ function FactoryDashboardPageContent() {
     return updatedCases;
   };
 
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const verifyStatusUpdate = async (caseId: string, expectedStatus: string): Promise<boolean> => {
+    const normalizedStatus = expectedStatus.trim();
+    const retryDelays = [0, 800, 1600];
+
+    for (const delay of retryDelays) {
+      if (delay > 0) {
+        await sleep(delay);
+      }
+
+      try {
+        const snapshot = await fetchCasesSnapshot();
+        const latestCase = snapshot.find((c) => c.id === caseId || c.page_id === caseId);
+        if ((latestCase?.status || '').trim() === normalizedStatus) {
+          return true;
+        }
+      } catch (verifyError) {
+        console.warn('ステータス更新後の再確認に失敗しました:', verifyError);
+      }
+    }
+
+    return false;
+  };
+
   const handleStatusUpdate = async (caseId: string, status: string) => {
     const previousCases = cases;
     try {
@@ -134,6 +164,10 @@ function FactoryDashboardPageContent() {
         return;
       }
 
+      if (caseItem?.status === status) {
+        return;
+      }
+
       setCases(getOptimisticCases(previousCases, caseId, status, activeStatus));
       await factoryApi.updateCaseStatus(pageId, status);
 
@@ -141,8 +175,13 @@ function FactoryDashboardPageContent() {
       void loadCases(activeStatus, true);
     } catch (error) {
       console.error('ステータス更新エラー:', error);
+      if (await verifyStatusUpdate(caseId, status)) {
+        console.warn('ステータス更新レスポンスは失敗扱いでしたが、再確認時点では更新済みでした');
+        void loadCases(activeStatus, true);
+        return;
+      }
+
       setCases(previousCases);
-      loadCases(activeStatus, true);
       alert('❌ ステータスの更新に失敗しました');
     }
   };
