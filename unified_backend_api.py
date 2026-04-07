@@ -5226,21 +5226,32 @@ def add_admin_comment():
         if success:
             # メール送信は Notion 保存後にバックグラウンドで行う（同期だと Resend 等で数十秒〜ハングし、フロントが「送信中」のまま固まる）
             if notify_customer_email:
+                import sys
                 import threading
 
                 def _send_comment_email_bg():
                     try:
+                        print(
+                            f"[factory-comment-email] 送信開始 page_id={page_id}",
+                            flush=True,
+                        )
                         from data_access.factory_dashboard_manager import FactoryDashboardManager
 
-                        FactoryDashboardManager().send_factory_comment_customer_email(
+                        ok = FactoryDashboardManager().send_factory_comment_customer_email(
                             page_id, comment
                         )
+                        print(
+                            f"[factory-comment-email] 終了 page_id={page_id} success={ok}",
+                            flush=True,
+                        )
+                        sys.stdout.flush()
                     except Exception as bg_err:
-                        print(f"❌ コメント通知メール（バックグラウンド）エラー: {bg_err}")
+                        print(f"❌ コメント通知メール（バックグラウンド）エラー: {bg_err}", flush=True)
                         import traceback
                         traceback.print_exc()
 
-                threading.Thread(target=_send_comment_email_bg, daemon=True).start()
+                # daemon=False: gunicorn(gthread) 環境でデーモンスレッドが期待どおり完了しない事例を避ける
+                threading.Thread(target=_send_comment_email_bg, daemon=False).start()
             payload = {
                 "success": True,
                 "message": "コメントを追加しました",

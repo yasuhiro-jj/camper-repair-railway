@@ -1040,19 +1040,26 @@ def add_comment_api():
         
         if success:
             if notify_customer_email:
+                import sys
                 import threading
 
                 def _send_comment_email_bg():
                     try:
+                        print(f"[factory-comment-email] 送信開始 page_id={page_id}", flush=True)
                         from data_access.factory_dashboard_manager import FactoryDashboardManager
 
-                        FactoryDashboardManager().send_factory_comment_customer_email(
+                        ok = FactoryDashboardManager().send_factory_comment_customer_email(
                             page_id, comment
                         )
+                        print(
+                            f"[factory-comment-email] 終了 page_id={page_id} success={ok}",
+                            flush=True,
+                        )
+                        sys.stdout.flush()
                     except Exception as bg_err:
                         logger.warning(f"コメント通知メール（バックグラウンド）エラー: {bg_err}")
 
-                threading.Thread(target=_send_comment_email_bg, daemon=True).start()
+                threading.Thread(target=_send_comment_email_bg, daemon=False).start()
             payload = {
                 "success": True,
                 "message": "コメントを追加しました",

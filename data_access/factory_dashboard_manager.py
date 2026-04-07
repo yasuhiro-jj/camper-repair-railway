@@ -369,7 +369,7 @@ class FactoryDashboardManager:
             # 各種プロパティ取得
             customer_name = self._get_rich_text(props.get("顧客名", {}))
             phone = self._get_phone(props.get("電話番号", {}))
-            email = self._get_email(props.get("メールアドレス", {}))
+            email = self._resolve_email_property(props, "メールアドレス")
             prefecture = self._get_select(props.get("所在地（都道府県）", {}))
             symptom_category = self._get_select(props.get("症状カテゴリ", {}))
             symptom_detail = self._get_rich_text(props.get("症状詳細", {}))
@@ -422,7 +422,21 @@ class FactoryDashboardManager:
         if not prop or prop.get("type") != "email":
             return ""
         return prop.get("email", "") or ""
-    
+
+    def _resolve_email_property(self, props: Dict, prop_name: str = "メールアドレス") -> str:
+        """
+        商談DBのメールを取得。Notion の「メール」型だけでなく rich_text の場合も拾う。
+        （カード表示と送信で同じロジックにする）
+        """
+        prop = props.get(prop_name) or {}
+        v = self._get_email(prop)
+        if v:
+            return v.strip()
+        if prop.get("type") == "rich_text":
+            v = self._get_rich_text(prop)
+            return (v or "").strip()
+        return ""
+
     def update_status(self, page_id: str, status: str, source: Optional[str] = None) -> bool:
         """
         案件のステータスを更新（チャットログDBまたは商談DB）
@@ -654,7 +668,7 @@ class FactoryDashboardManager:
             props = page.get("properties", {})
             
             # メールアドレスを取得
-            customer_email = self._get_email(props.get("メールアドレス", {}))
+            customer_email = self._resolve_email_property(props, "メールアドレス")
             if not customer_email:
                 logger.info("⚠️ 顧客のメールアドレスが設定されていないため、メール通知をスキップします")
                 return
@@ -852,15 +866,19 @@ class FactoryDashboardManager:
                 return False
             page = response.json()
             props = page.get("properties", {})
-            customer_email = self._get_email(props.get("メールアドレス", {}))
+            customer_email = self._resolve_email_property(props, "メールアドレス")
             if not customer_email:
-                logger.info("⚠️ 顧客のメールアドレスがないため、コメントメールをスキップします")
+                logger.warning(
+                    "⚠️ コメント通知メール: メールアドレスが取得できません（Notionの「メールアドレス」がemail型またはrich_textで空でないか確認）"
+                )
                 return False
             from notification.email_sender import EmailSender
 
             email_sender = EmailSender()
             if not email_sender.enabled:
-                logger.info("⚠️ メール送信機能が無効のため、コメントメールをスキップします")
+                logger.warning(
+                    "⚠️ コメント通知メール: RESEND_API_KEY / SMTP 等が未設定のため送信スキップ（Railway の Variables を確認）"
+                )
                 return False
             customer_name = self._get_rich_text(props.get("顧客名", {})) or "お客様"
             deal_id_prop = props.get("商談ID", {})
