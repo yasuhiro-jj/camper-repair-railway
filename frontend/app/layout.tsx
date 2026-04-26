@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { getSiteUrl } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,7 +13,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001";
+const baseUrl = getSiteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
@@ -85,7 +86,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
+  const baseUrl = getSiteUrl();
 
   // 構造化データ（JSON-LD）
   const organizationData = {

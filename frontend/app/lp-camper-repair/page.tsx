@@ -4,9 +4,10 @@ import Features from './components/Features';
 import Flow from './components/Flow';
 import CTA from './components/CTA';
 import Footer from './components/Footer';
+import { getSiteUrl } from '@/lib/site';
 
 export default function LPCamperRepairPage() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const baseUrl = getSiteUrl();
 
   // 構造化データ（LocalBusiness）
   const localBusinessData = {

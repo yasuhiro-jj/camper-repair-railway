@@ -2,6 +2,7 @@
  * 構造化データ（JSON-LD）コンポーネント
  * SEO向上のための構造化データを提供
  */
+import { getSiteUrl } from '@/lib/site';
 
 interface StructuredDataProps {
   type: 'Organization' | 'WebSite' | 'FAQPage' | 'Article' | 'BreadcrumbList';
@@ -9,7 +10,7 @@ interface StructuredDataProps {
 }
 
 export default function StructuredData({ type, data }: StructuredDataProps) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
+  const baseUrl = getSiteUrl();
 
   const getStructuredData = () => {
     switch (type) {
@@ -104,4 +105,3 @@ export default function StructuredData({ type, data }: StructuredDataProps) {
     />
   );
 }
-

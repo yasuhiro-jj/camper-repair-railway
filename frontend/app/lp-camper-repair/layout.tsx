@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { getSiteUrl } from "@/lib/site";
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const baseUrl = getSiteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
@@ -52,4 +53,3 @@ export default function LPLayout({
 }) {
   return <>{children}</>;
 }
-

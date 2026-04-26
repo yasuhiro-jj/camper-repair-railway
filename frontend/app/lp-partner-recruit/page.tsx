@@ -7,9 +7,10 @@ import Pricing from './components/Pricing';
 import Cases from './components/Cases';
 import FAQ from './components/FAQ';
 import PartnerForm from './components/PartnerForm';
+import { getSiteUrl } from '@/lib/site';
 
 export default function PartnerRecruitPage() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const baseUrl = getSiteUrl();
 
   // 構造化データ（LocalBusiness）
   const localBusinessData = {
@@ -45,4 +46,3 @@ export default function PartnerRecruitPage() {
     </>
   );
 }
-
