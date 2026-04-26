@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
-const INQUIRY_EMAIL = 'info@okayama-camper-repair.net';
+const INQUIRY_EMAIL = 'shop@rq-plus.com';
 // 届かない場合のバックアップ用（Vercel環境変数 INQUIRY_BACKUP_EMAIL で指定、例: Gmail）
 
 export async function POST(request: NextRequest) {
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     // 1. Resendでメール送信
     const resendApiKey = process.env.RESEND_API_KEY;
-    const fromEmail = process.env.FROM_EMAIL || 'info@okayama-camper-repair.net';
+    const fromEmail = process.env.FROM_EMAIL || 'info@camper-repair.net';
     
     if (resendApiKey) {
       try {
@@ -162,4 +162,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

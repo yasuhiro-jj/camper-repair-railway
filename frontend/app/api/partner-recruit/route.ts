@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
-const PARTNER_RECRUIT_EMAIL = 'info@okayama-camper-repair.net';
+const PARTNER_RECRUIT_EMAIL = 'shop@rq-plus.com';
 // 届かない場合のバックアップ用（Vercel環境変数 PARTNER_BACKUP_EMAIL で指定、例: Gmail）
 
 export async function POST(request: NextRequest) {
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const fromEmail = process.env.FROM_EMAIL || 'info@okayama-camper-repair.net';
+    const fromEmail = process.env.FROM_EMAIL || 'info@camper-repair.net';
 
     // メール本文を作成
     const emailSubject = `【パートナー登録】${company_name}様からのお申し込み`;
@@ -159,4 +159,3 @@ ${experience || '記載なし'}
     );
   }
 }
-
