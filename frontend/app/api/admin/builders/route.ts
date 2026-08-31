@@ -44,11 +44,11 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Admin API] builders error:', error);
     return NextResponse.json(
       {
-        error: error.message || 'ビルダー一覧の取得に失敗しました',
+        error: 'ビルダー一覧の取得に失敗しました',
         builders: [],
         count: 0,
       },

@@ -91,7 +91,16 @@ except ImportError:
 
 # === Flask アプリケーションの設定 ===
 app = Flask(__name__, template_folder="templates", static_folder="static")
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "change-me")
+APP_ENV = os.getenv("APP_ENV", os.getenv("FLASK_ENV", "")).lower()
+IS_PRODUCTION = APP_ENV in {"prod", "production"}
+
+_flask_secret_key = os.environ.get("FLASK_SECRET_KEY")
+if not _flask_secret_key:
+    if IS_PRODUCTION:
+        raise RuntimeError("FLASK_SECRET_KEY が未設定です。本番環境では必須です。")
+    _flask_secret_key = os.urandom(32).hex()
+    print("⚠️ FLASK_SECRET_KEY 未設定のため開発用の一時キーを使用します")
+app.secret_key = _flask_secret_key
 
 ALLOWED_ORIGINS = [
     "http://localhost:8501",
@@ -108,6 +117,31 @@ CORS(
     resources={r"/*": {"origins": ALLOWED_ORIGINS}},
     supports_credentials=True,
 )
+
+
+def get_admin_code() -> str:
+    """管理者コードを取得。本番では環境変数必須。"""
+    admin_code = os.getenv("ADMIN_CODE")
+    if not admin_code:
+        if IS_PRODUCTION:
+            raise RuntimeError("ADMIN_CODE が未設定です。本番環境では必須です。")
+        return "dev-admin-code"
+    return admin_code
+
+
+def ensure_admin_access():
+    """
+    管理者APIのアクセス制御。
+    セッション認証または `X-Admin-Code` ヘッダーのいずれかを許可する。
+    """
+    if session.get("admin_authenticated"):
+        return None
+
+    header_code = request.headers.get("X-Admin-Code", "").strip()
+    if header_code and header_code == get_admin_code():
+        return None
+
+    return jsonify({"success": False, "error": "管理者認証が必要です"}), 403
 
 # Swagger UI用のエンドポイント
 @app.route("/api/docs")
@@ -2374,6 +2408,13 @@ def unified_diagnostic():
 @app.route("/api/unified/debug", methods=["GET"])
 def debug_info():
     """デバッグ情報API"""
+    if IS_PRODUCTION:
+        return jsonify({"error": "Not Found"}), 404
+
+    guard = ensure_admin_access()
+    if guard:
+        return guard
+
     try:
         # 環境変数をチェック
         notion_api_key = os.getenv("NOTION_API_KEY")
@@ -2406,11 +2447,11 @@ def debug_info():
                 "ITEM_DB_ID": "✅ 設定済み" if item_db_id else "❌ 未設定",
                 "OPENAI_API_KEY": "✅ 設定済み" if openai_api_key else "❌ 未設定"
             },
+            # 鍵文字列そのものは返さず、設定有無のみ返す
             "api_keys": {
-                "notion_api_key": f"{notion_api_key[:10]}...{notion_api_key[-4:] if notion_api_key and len(notion_api_key) > 14 else ''}" if notion_api_key else None,
-                "notion_token": f"{notion_token[:10]}...{notion_token[-4:] if notion_token and len(notion_token) > 14 else ''}" if notion_token else None,
-                "openai_api_key": f"{openai_api_key[:10]}...{openai_api_key[-4:] if openai_api_key and len(openai_api_key) > 14 else ''}" if openai_api_key else None,
-                "openai_api_key_full_preview": f"{openai_api_key[:20]}...{openai_api_key[-10:] if openai_api_key and len(openai_api_key) > 30 else ''}" if openai_api_key else None
+                "notion_api_key_set": bool(notion_api_key),
+                "notion_token_set": bool(notion_token),
+                "openai_api_key_set": bool(openai_api_key),
             },
             "database_ids": {
                 "node_db_id": node_db_id,
@@ -2425,15 +2466,14 @@ def debug_info():
             "repair_cases_available": len(load_notion_repair_cases()) > 0 if notion_client_instance else False,
             "openai_info": {
                 "key_source": "config.py" if OPENAI_API_KEY else ("環境変数" if openai_api_key else "未設定"),
-                "key_length": len(openai_api_key) if openai_api_key else 0,
-                "key_prefix": openai_api_key[:7] if openai_api_key else None
+                "key_set": bool(openai_api_key),
             }
         }
         
         return jsonify(debug_info)
         
-    except Exception as e:
-        return jsonify({"error": f"デバッグ情報取得エラー: {str(e)}"}), 500
+    except Exception:
+        return jsonify({"error": "デバッグ情報取得エラー"}), 500
 
 @app.route("/api/unified/repair_guide", methods=["POST"])
 def unified_repair_guide():
@@ -5067,7 +5107,7 @@ def admin_login():
     """簡易パスコードログイン"""
     if request.method == "POST":
         code = request.form.get("code", "").strip()
-        admin_code = os.getenv("ADMIN_CODE", "change-me")
+        admin_code = get_admin_code()
 
         if code == admin_code:
             session["admin_authenticated"] = True
@@ -5112,6 +5152,10 @@ def admin_deals_dashboard():
 @app.route("/admin/api/cases", methods=["GET"])
 def get_admin_cases():
     """案件一覧取得API（Next.js用）JWTあり時は工場は自社案件のみ"""
+    guard = ensure_admin_access()
+    if guard:
+        return guard
+
     try:
         from data_access.factory_dashboard_manager import FactoryDashboardManager
         
@@ -5166,7 +5210,11 @@ def get_admin_cases():
 
 @app.route("/admin/api/update-status", methods=["POST"])
 def update_admin_case_status():
-    """ステータス更新API（Next.js用、認証なしで開発）"""
+    """ステータス更新API（Next.js用）"""
+    guard = ensure_admin_access()
+    if guard:
+        return guard
+
     try:
         data = request.get_json()
         page_id = data.get("page_id")
@@ -5205,7 +5253,11 @@ def update_admin_case_status():
 
 @app.route("/admin/api/add-comment", methods=["POST"])
 def add_admin_comment():
-    """コメント追加API（Next.js用、認証なしで開発）"""
+    """コメント追加API（Next.js用）"""
+    guard = ensure_admin_access()
+    if guard:
+        return guard
+
     try:
         data = request.get_json()
         page_id = data.get("page_id")
@@ -6401,6 +6453,10 @@ def update_deal_amount(deal_id):
 @app.route("/reload_data", methods=["POST"])
 def reload_data():
     """データベース再構築"""
+    guard = ensure_admin_access()
+    if guard:
+        return guard
+
     try:
         print("🔄 データベース再構築を開始します...")
         
@@ -6426,18 +6482,22 @@ def reload_data():
                 "error": "データベースの再構築に失敗しました"
             }), 500
             
-    except Exception as e:
+    except Exception:
         import traceback
-        print(f"❌ データベース再構築エラー: {e}")
+        print("❌ データベース再構築エラー")
         print(traceback.format_exc())
         return jsonify({
             "success": False,
-            "error": str(e)
+            "error": "データベース再構築エラー"
         }), 500
 
 @app.route("/api/admin/files", methods=["GET"])
 def get_admin_files():
     """ファイル一覧取得"""
+    guard = ensure_admin_access()
+    if guard:
+        return guard
+
     try:
         # テキストファイルを検索
         txt_files = glob.glob("*.txt")
@@ -6465,12 +6525,12 @@ def get_admin_files():
             "files": files,
             "count": len(files)
         })
-    except Exception as e:
-        print(f"❌ ファイル一覧取得エラー: {e}")
+    except Exception:
+        print("❌ ファイル一覧取得エラー")
         return jsonify({
             "files": [],
             "count": 0,
-            "error": str(e)
+            "error": "ファイル一覧取得エラー"
         }), 500
 
 # === フェーズ4-4: AI工賃推定 ===
@@ -6559,7 +6619,7 @@ except ImportError as e:
     PARTNER_MANAGER_AVAILABLE = False
 
 @app.route("/api/v1/partner-shops", methods=["GET"])
-@cross_origin()
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def get_partners():
     """
     パートナー修理店一覧を取得
@@ -6673,7 +6733,7 @@ def get_partners():
         }), 500
 
 @app.route("/api/v1/partner-shops/<shop_id>", methods=["GET"])
-@cross_origin()
+@cross_origin(origins=ALLOWED_ORIGINS, supports_credentials=True)
 def get_partner_detail(shop_id: str):
     """
     指定されたIDのパートナー修理店詳細を取得
@@ -6710,6 +6770,10 @@ def get_partner_detail(shop_id: str):
 @app.route("/api/admin/system-info", methods=["GET"])
 def get_system_info():
     """システム情報取得"""
+    guard = ensure_admin_access()
+    if guard:
+        return guard
+
     try:
         # データベース状態を確認
         db_status = "正常" if db else "未初期化"
@@ -6725,7 +6789,7 @@ def get_system_info():
                         collection = db._collection
                         if hasattr(collection, 'count'):
                             doc_count = collection.count()
-                    except:
+                    except Exception:
                         pass
             except Exception as e:
                 print(f"⚠️ ドキュメント数取得エラー: {e}")
@@ -6738,12 +6802,12 @@ def get_system_info():
             "dbStatus": db_status,
             "docCount": doc_count
         })
-    except Exception as e:
-        print(f"❌ システム情報取得エラー: {e}")
+    except Exception:
+        print("❌ システム情報取得エラー")
         return jsonify({
             "dbStatus": "エラー",
             "docCount": 0,
-            "error": str(e)
+            "error": "システム情報取得エラー"
         }), 500
 
 # === アプリケーション起動 ===

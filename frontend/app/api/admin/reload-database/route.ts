@@ -10,12 +10,16 @@ const BACKEND_URL =
   process.env.NODE_ENV === 'development'
     ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5002'
     : process.env.NEXT_PUBLIC_API_URL || 'https://web-production-c8b78.up.railway.app';
+const BACKEND_ADMIN_CODE = process.env.ADMIN_CODE || '';
 
 export async function POST() {
   try {
     const res = await fetch(`${BACKEND_URL}/reload_data`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(BACKEND_ADMIN_CODE ? { 'X-Admin-Code': BACKEND_ADMIN_CODE } : {}),
+      },
       body: JSON.stringify({}),
       signal: AbortSignal.timeout(120000), // 2分（再構築は時間がかかる場合あり）
     });
@@ -30,12 +34,12 @@ export async function POST() {
     }
 
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Admin API] reload-database error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'エラーが発生しました',
+        error: 'エラーが発生しました',
       },
       { status: 500 }
     );

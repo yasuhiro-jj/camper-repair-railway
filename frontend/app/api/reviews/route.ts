@@ -35,12 +35,12 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Review API] Error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: error.message || '評価の作成に失敗しました',
+        error: '評価の作成に失敗しました',
       },
       { status: 500 }
     );

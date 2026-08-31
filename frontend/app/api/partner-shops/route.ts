@@ -56,12 +56,12 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'no-store, max-age=0',
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Partner Shops API] Error:', error);
     return NextResponse.json(
       {
         error: 'Failed to fetch partner shops',
-        message: error.message,
+        message: 'パートナー修理店の取得に失敗しました',
         shops: [],
         count: 0,
       },

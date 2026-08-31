@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+/** パートナー募集フォーム。送信元は Resend / camper-repair.net 認証済みの FROM_EMAIL（既定 info@camper-repair.net）。 */
 const RESEND_API_URL = 'https://api.resend.com/emails';
+/** パートナー募集フォームの通知先（To）は固定。「変更する場合のみ」編集してください。 */
 const PARTNER_RECRUIT_EMAIL = 'shop@rq-plus.com';
 // 届かない場合のバックアップ用（Vercel環境変数 PARTNER_BACKUP_EMAIL で指定、例: Gmail）
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +21,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (typeof email !== 'string' || !EMAIL_PATTERN.test(email)) {
+      return NextResponse.json(
+        { error: 'メールアドレスの形式が正しくありません' },
+        { status: 400 }
+      );
+    }
+
     const fromEmail = process.env.FROM_EMAIL || 'info@camper-repair.net';
+    const delivery = {
+      resendAttempted: false,
+      resendSucceeded: false,
+      notionAttempted: false,
+      notionSucceeded: false,
+    };
 
     // メール本文を作成
     const emailSubject = `【パートナー登録】${company_name}様からのお申し込み`;
@@ -48,6 +64,7 @@ ${experience || '記載なし'}
     // 1. Resendでメール送信
     const resendApiKey = process.env.RESEND_API_KEY;
     if (resendApiKey) {
+      delivery.resendAttempted = true;
       try {
         const resendRes = await fetch(RESEND_API_URL, {
           method: 'POST',
@@ -68,6 +85,7 @@ ${experience || '記載なし'}
           const errText = await resendRes.text();
           console.error('Resend送信エラー:', resendRes.status, errText);
         } else {
+          delivery.resendSucceeded = true;
           console.log('✅ Resendメール送信成功（パートナー登録）:', PARTNER_RECRUIT_EMAIL);
         }
       } catch (error) {
@@ -79,22 +97,16 @@ ${experience || '記載なし'}
 
     // ログに記録
     console.log('パートナー登録受信:', {
-      name,
-      company_name,
-      phone,
-      email,
       area,
-      skills,
-      equipment,
-      experience,
       timestamp: new Date().toISOString(),
     });
 
-    // 2. NotionパートナーDBに保存（51ac4a26485544e89a4f6d5e28919bc7）
+    // 2. NotionパートナーDBに保存
     const notionApiKey = process.env.NOTION_API_KEY;
-    const notionDbId = (process.env.NOTION_PARTNER_DB_ID || '51ac4a26485544e89a4f6d5e28919bc7').replace(/-/g, '');
+    const notionDbId = process.env.NOTION_PARTNER_DB_ID?.replace(/-/g, '');
     
     if (notionApiKey && notionDbId) {
+      delivery.notionAttempted = true;
       try {
         const shopId = `LP申込-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random().toString(36).slice(2, 5)}`;
         const detailText = `【担当者】${name}\n【できる作業】${skills}\n【設備・経験】${equipment || '記載なし'}\n【その他】${experience || '記載なし'}`;
@@ -135,6 +147,7 @@ ${experience || '記載なし'}
           const errText = await notionRes.text();
           console.error('Notion保存エラー:', notionRes.status, errText);
         } else {
+          delivery.notionSucceeded = true;
           console.log('✅ NotionパートナーDB保存成功:', shopId);
         }
       } catch (error) {
@@ -144,10 +157,34 @@ ${experience || '記載なし'}
       console.warn('⚠️ NOTION_API_KEY または NOTION_PARTNER_DB_ID が未設定です。Notion保存をスキップします。');
     }
 
+    const attempted = delivery.resendAttempted || delivery.notionAttempted;
+    const succeeded = delivery.resendSucceeded || delivery.notionSucceeded;
+
+    if (!attempted) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'お申し込みの送信先が設定されていません',
+        },
+        { status: 503 }
+      );
+    }
+
+    if (!succeeded) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'お申し込みの送信に失敗しました。もう一度お試しください。',
+        },
+        { status: 502 }
+      );
+    }
+
     return NextResponse.json(
       { 
         success: true,
-        message: 'お申し込みを受け付けました。担当者より3営業日以内にご連絡いたします。'
+        message: 'お申し込みを受け付けました。担当者より3営業日以内にご連絡いたします。',
+        delivery,
       },
       { status: 200 }
     );

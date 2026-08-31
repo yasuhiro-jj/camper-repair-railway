@@ -21,13 +21,14 @@ else:
 
 # APIキーの設定（環境変数から取得）
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-SERP_API_KEY = os.getenv("SERP_API_KEY") or "fa8d9dd975d4447caafe53b533125af6fb43e9bbdd4780c12f888865b4a3d4db"
+SERP_API_KEY = os.getenv("SERP_API_KEY")
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 LANGSMITH_PROJECT = os.getenv("LANGSMITH_PROJECT", "default")
 LANGSMITH_ENDPOINT = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
 
-# LangChain Tracing設定
-os.environ["LANGCHAIN_TRACING_V2"] = "true"
+# LangChain Tracing設定（明示的に有効化した場合のみ）
+langchain_tracing_v2 = os.getenv("LANGCHAIN_TRACING_V2", "false").lower()
+os.environ["LANGCHAIN_TRACING_V2"] = "true" if langchain_tracing_v2 == "true" else "false"
 os.environ["LANGCHAIN_PROJECT"] = LANGSMITH_PROJECT
 
 # LangSmith設定（APIキーが設定されている場合のみ）

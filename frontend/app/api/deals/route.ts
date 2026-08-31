@@ -12,7 +12,6 @@ export async function POST(req: NextRequest) {
     console.log('[deals proxy] リクエスト受信:', {
       backend_url: BACKEND_URL,
       partner_page_id: body.partner_page_id,
-      customer_name: body.customer_name,
       notification_method: body.notification_method,
     });
     
@@ -35,12 +34,8 @@ export async function POST(req: NextRequest) {
     });
     
     return NextResponse.json(data, { status: res.status });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[deals proxy] error:', error);
-    console.error('[deals proxy] error details:', {
-      message: error.message,
-      stack: error.stack,
-    });
     return NextResponse.json(
       { success: false, error: '商談作成APIへの接続に失敗しました。' },
       { status: 500 },

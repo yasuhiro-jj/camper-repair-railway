@@ -9,10 +9,13 @@ import os
 import asyncio
 import aiohttp
 import json
+import logging
 from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Dict, List, Optional, Any
 import time
+
+logger = logging.getLogger(__name__)
 
 # .envファイルを読み込む
 try:
@@ -71,7 +74,7 @@ class NotionClient:
         
         # デバッグ情報
         if self.api_key:
-            print(f"🔑 Notion APIキー取得成功: {self.api_key[:10]}...")
+            print("🔑 Notion APIキー取得成功")
         else:
             print("❌ Notion APIキーが取得できませんでした")
     
@@ -97,14 +100,10 @@ class NotionClient:
         """データベースを直接HTTPリクエストでクエリ（queryメソッドが存在しない場合の代替）"""
         import requests
         
-        # #region agent log
-        import json, time
-        try:
-            with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"location":"notion_client.py:96","message":"_query_database_direct called","data":{"database_id":database_id,"kwargs_keys":list(kwargs.keys())},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"}, ensure_ascii=False)+"\n")
-        except: pass
-        print("[AgentLog][E] _query_database_direct called:", {"database_id": database_id, "kwargs_keys": list(kwargs.keys())})
-        # #endregion
+        logger.debug(
+            "_query_database_direct called",
+            extra={"database_id": database_id, "kwargs_keys": list(kwargs.keys())},
+        )
         
         url = f"https://api.notion.com/v1/databases/{database_id}/query"
         headers = {
@@ -119,40 +118,25 @@ class NotionClient:
         if "page_size" not in data:
             data["page_size"] = 100
         
-        # #region agent log
-        import json, time
-        try:
-            with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"location":"notion_client.py:114","message":"Before HTTP POST","data":{"url":url,"data_keys":list(data.keys()),"has_filter":("filter" in data),"has_sorts":("sorts" in data)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"}, ensure_ascii=False)+"\n")
-        except: pass
-        print("[AgentLog][E] Before HTTP POST:", {"has_filter": ("filter" in data), "has_sorts": ("sorts" in data)})
-        # #endregion
+        logger.debug(
+            "Before Notion HTTP POST",
+            extra={"data_keys": list(data.keys()), "has_filter": "filter" in data, "has_sorts": "sorts" in data},
+        )
         
         try:
             response = requests.post(url, headers=headers, json=data, timeout=10)
             response.raise_for_status()
             result = response.json()
             
-            # #region agent log
-            import json, time
-            try:
-                with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
-                    f.write(json.dumps({"location":"notion_client.py:117","message":"HTTP POST success","data":{"status_code":response.status_code,"results_count":len(result.get("results",[]))},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"}, ensure_ascii=False)+"\n")
-            except: pass
-            print("[AgentLog][E] HTTP POST success:", {"status_code": response.status_code, "results_count": len(result.get("results", []))})
-            # #endregion
+            logger.debug(
+                "Notion HTTP POST success",
+                extra={"status_code": response.status_code, "results_count": len(result.get("results", []))},
+            )
             
             return result
         except Exception as e:
-            # #region agent log
-            import json, time
-            try:
-                with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
-                    f.write(json.dumps({"location":"notion_client.py:118","message":"HTTP POST error","data":{"error":str(e),"error_type":type(e).__name__},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"}, ensure_ascii=False)+"\n")
-            except: pass
-            print("[AgentLog][E] HTTP POST error:", {"error": str(e)})
-            # #endregion
-            raise Exception(f"Database query failed: {str(e)}")
+            logger.error("Notion HTTP POST error", exc_info=True)
+            raise RuntimeError("Database query failed") from e
     
     async def _make_request(self, method: str, url: str, data: Optional[Dict] = None) -> Dict:
         """非同期HTTPリクエストを実行（HTTPステータス検査付き）"""

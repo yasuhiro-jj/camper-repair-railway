@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 # 設定ファイルをインポート
 from config import OPENAI_API_KEY, SERP_API_KEY, LANGSMITH_API_KEY
 
-# デバッグ: APIキーの確認
-print(f"DEBUG: OPENAI_API_KEY = {OPENAI_API_KEY[:20]}..." if OPENAI_API_KEY else "DEBUG: OPENAI_API_KEY = None")
-print(f"DEBUG: SERP_API_KEY = {SERP_API_KEY[:20]}..." if SERP_API_KEY else "DEBUG: SERP_API_KEY = None")
+# デバッグ: キーの生文字列は出さない
+print("DEBUG: OPENAI_API_KEY = SET" if OPENAI_API_KEY else "DEBUG: OPENAI_API_KEY = None")
+print("DEBUG: SERP_API_KEY = SET" if SERP_API_KEY else "DEBUG: SERP_API_KEY = None")
 
 # LangSmith設定（APIキーが設定されている場合のみ）
 if LANGSMITH_API_KEY:
@@ -32,7 +32,23 @@ if LANGSMITH_API_KEY:
 
 # === Flask アプリケーションの設定 ===
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'  # セッション管理用
+APP_ENV = os.getenv("APP_ENV", os.getenv("FLASK_ENV", "")).lower()
+IS_PRODUCTION = APP_ENV in {"prod", "production"}
+_flask_secret_key = os.getenv("FLASK_SECRET_KEY")
+if not _flask_secret_key:
+    if IS_PRODUCTION:
+        raise RuntimeError("FLASK_SECRET_KEY が未設定です。本番環境では必須です。")
+    _flask_secret_key = os.urandom(32).hex()
+app.secret_key = _flask_secret_key
+
+
+def get_admin_code() -> str:
+    admin_code = os.getenv("ADMIN_CODE")
+    if not admin_code:
+        if IS_PRODUCTION:
+            raise RuntimeError("ADMIN_CODE が未設定です。本番環境では必須です。")
+        return "dev-admin-code"
+    return admin_code
 
 # CORS設定を追加
 CORS(app, origins=['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3005'])
@@ -897,7 +913,7 @@ def admin_login():
     """パスコード簡易ログイン（Phase 4）"""
     if request.method == "POST":
         code = request.form.get("code", "").strip()
-        admin_code = os.getenv("ADMIN_CODE", "change-me")
+        admin_code = get_admin_code()
         
         if code == admin_code:
             session["admin_authenticated"] = True
@@ -1134,7 +1150,7 @@ def rag_rebuild():
     try:
         # 管理者認証（簡易版）
         admin_code = request.headers.get("X-Admin-Code") or request.form.get("admin_code")
-        expected_code = os.getenv("ADMIN_CODE", "change-me")
+        expected_code = get_admin_code()
         
         if admin_code != expected_code:
             return jsonify({

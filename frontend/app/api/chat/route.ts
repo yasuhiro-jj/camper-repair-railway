@@ -31,17 +31,11 @@ export async function POST(req: NextRequest) {
 
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Chat API] Error:", error);
-    console.error("[Chat API] Error details:", {
-      message: error.message,
-      name: error.name,
-      stack: error.stack,
-    });
     return NextResponse.json(
       { 
         error: "チャットAPIへの接続に失敗しました。",
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       },
       { status: 500 },
     );

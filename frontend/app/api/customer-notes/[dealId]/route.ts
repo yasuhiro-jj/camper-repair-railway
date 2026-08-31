@@ -15,7 +15,6 @@ export async function POST(
     
     const backendUrl = `${BACKEND_URL}/api/v1/deals/${dealId}/customer-notes`;
     console.log('[customer-notes proxy] Sending to:', backendUrl);
-    console.log('[customer-notes proxy] Body:', body);
 
     const res = await fetch(backendUrl, {
       method: 'POST',
@@ -35,12 +34,12 @@ export async function POST(
     }
 
     const data = await res.json();
-    console.log('[customer-notes proxy] Success:', data);
+    console.log('[customer-notes proxy] Success:', { success: data?.success });
     return NextResponse.json(data, { status: res.status });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[customer-notes proxy] Exception:', error);
     return NextResponse.json(
-      { success: false, error: `接続エラー: ${error instanceof Error ? error.message : String(error)}` },
+      { success: false, error: '接続エラーが発生しました' },
       { status: 500 },
     );
   }

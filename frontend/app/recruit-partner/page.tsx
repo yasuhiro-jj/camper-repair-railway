@@ -269,7 +269,7 @@ export default function RecruitPartnerPage() {
             ご不明な点がございましたら、お気軽にお問い合わせください
           </p>
           <a
-            href="mailto:info@example.com"
+            href="mailto:shop@rq-plus.com"
             className="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg font-bold text-lg hover:bg-gray-100 transition-colors"
           >
             📧 お問い合わせ

@@ -8,6 +8,7 @@ JWT認証とパスワードハッシュ化を提供
 import jwt
 import bcrypt
 import re
+import logging
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Tuple
@@ -16,10 +17,20 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 # JWT設定
-JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-secret-key-change-this-in-production')
-JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
+APP_ENV = os.getenv("APP_ENV", os.getenv("FLASK_ENV", "")).lower()
+IS_PRODUCTION = APP_ENV in {"prod", "production"}
+
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY:
+    if IS_PRODUCTION:
+        raise RuntimeError("JWT_SECRET_KEY が未設定です。本番環境では必須です。")
+    JWT_SECRET_KEY = "dev-only-jwt-secret-change-before-production"
+
+# アルゴリズムは固定（環境変数で上書き不可）
+JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = int(os.getenv('JWT_EXPIRATION_HOURS', 24))
 
 
@@ -194,8 +205,9 @@ def require_auth(allowed_roles=None):
                 # リクエストにユーザー情報を追加
                 request.current_user = payload
                 
-            except Exception as e:
-                return jsonify({'error': str(e)}), 401
+            except Exception:
+                logger.warning("認証エラー", exc_info=True)
+                return jsonify({'error': '認証に失敗しました'}), 401
             
             return f(*args, **kwargs)
         

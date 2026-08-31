@@ -418,11 +418,10 @@ https://camper-repair.net/
                 try:
                     error_data = e.response.json()
                     error_message = error_data.get('message', str(e))
-                except:
+                except ValueError:
                     error_message = e.response.text or str(e)
             
             print(f"❌ LINE通知送信失敗: {error_message}")
-            print(f"   送信先: {line_user_id}")
             return {
                 "success": False,
                 "error": error_message

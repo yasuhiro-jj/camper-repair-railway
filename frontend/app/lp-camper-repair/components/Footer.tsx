@@ -41,7 +41,7 @@ export default function Footer() {
               <h4 className="text-lg font-bold mb-4">お問い合わせ</h4>
               <ul className="space-y-2 text-gray-300 text-sm">
                 <li>📞 電話: <a href="tel:086-206-6622" className="hover:text-yellow-400">086-206-6622</a></li>
-                <li>📧 メール: <a href="mailto:info@example.com" className="hover:text-yellow-400">info@example.com</a></li>
+                <li>📧 メール: <a href="mailto:shop@rq-plus.com" className="hover:text-yellow-400">shop@rq-plus.com</a></li>
                 <li>📍 所在地: 岡山県</li>
               </ul>
             </div>
@@ -56,4 +56,3 @@ export default function Footer() {
     </footer>
   );
 }
-

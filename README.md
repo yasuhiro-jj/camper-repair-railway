@@ -48,7 +48,7 @@ Notion統合型の最強キャンピングカー修理サポートシステム
 - 専門業者でなくても参画できることを強調
 - パートナーになるメリットの説明
 - 修理依頼の流れの説明
-- 料金モデル（登録無料、手数料10〜20%）の説明
+- 料金モデル（登録無料、手数料10〜20%・契約での精算ルール前提）の説明
 - 事例紹介とFAQ
 - パートナー登録フォーム
 - SEO最適化済み（メタタグ、構造化データ）
@@ -73,6 +73,9 @@ C:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\udemy-langch
 
 - **リモート `origin`:** `https://github.com/yasuhiro-jj/camper-repair-railway.git`
 - **ブランチ:** `main`（`git branch` で現在のブランチを確認）
+
+
+
 
 ### 手順の例（PowerShell）
 
@@ -119,8 +122,8 @@ git push --set-upstream origin main
 **camper-repair-railway**（LP・集客用）
 - LP（お客様用）: https://camper-repair-railway.vercel.app/lp-camper-repair
 - LP（パートナー募集）: https://camper-repair-railway.vercel.app/lp-partner-recruit
-- 問い合わせフォーム（lp-camper-repair）→ Resend で `info@okayama-camper-repair.net` に送信、Notion 商談DBに保存
-- パートナー登録フォーム（lp-partner-recruit）→ Resend で `info@okayama-camper-repair.net` に送信、Notion パートナーDBに保存
+- 問い合わせフォーム（lp-camper-repair）→ Resend で **送信先 To: [`shop@rq-plus.com`](mailto:shop@rq-plus.com)**（送信元 From: camper-repair.net のドメイン）、Notion 商談DBに保存
+- パートナー登録フォーム（lp-partner-recruit）→ Resend で **送信先 To: [`shop@rq-plus.com`](mailto:shop@rq-plus.com)**、Notion パートナーDBに保存
 - GitHub: `yasuhiro-j/camper-repair-r...`
 
 **camper-repair-railway-upoj**（工場・管理者用）※Notion DB連携済み
@@ -208,25 +211,28 @@ STEP3: 決済・評価（お金の流れと次の集客へ）
 
 ### STEP3: お金の流れと次の集客へ（決済・評価）
 
+**お客様向けの表現（最初から明示する）：**
+- **当センター（運営）が決済・請求の窓口になる**ことを、利用案内・見積もり前・契約前のいずれかで必ず明示する。
+- 「工場への直接支払い」と誤認されないよう、誰が請求主体か・領収書や問い合わせ先がどこかをはっきり書く。
+
 **お客様の行動：**
-1. 修理完了&支払い案内のメール/LINE通知を受け取る
-2. 指定口座に振り込む
+1. 上記の説明を確認したうえで、修理完了後に届く「支払い案内」（メール／LINE等）に従う。
+2. 案内された方法で支払う（銀行振込、または Stripe 等のオンライン決済）。
 
 **お金の流れ（重要）：**
-1. **お客様が支払う**
-   - お客様は「工場に支払う」と思っている（建前）
-   - 実際は「サポートセンター専用口座」に振り込まれる
+1. **お客様からのお支払い**
+   - 請求・決済の窓口は当センター。お客様は当センターが指定する口座または決済リンクへ支払う。
 
-2. **システムが一旦預かる**
-   - サポートセンター専用口座に一旦入金
-   - システムが自動で管理
+2. **一旦の受領・記録**
+   - 当センターが売上を預かり、システムで管理する。
+   - **可能なら Stripe 等の決済サービスを利用**し、入出金・返金の履歴をサービス側にも残すと、説明・監査・トラブル対応がしやすい。
 
-3. **手数料を差し引く**
-   - 手数料（30%）を自動計算して差し引き
+3. **手数料の控除と工場への精算**
+   - **工場との契約書には「売上から手数料を差し引いた金額を精算する」旨を明記**する。
+   - **手数料率・精算タイミング（支払日）・キャンセル時・返金時のルール**を、利用規約・業務委託契約・パートナー約款などに事前に書き切る。
 
-4. **工場に自動入金**
-   - 残額（70%）が自動的に工場口座に振り込まれる
-   - 「売上ゲット！」の通知が来る
+4. **工場への送金（実装・運用に合わせて）**
+   - 例：残額が工場口座へ振り込まれる／一定周期で一括精算する。自動化する場合も、上記ルールと整合させる。
 
 **評価と次の集客：**
 1. お客様が評価を入力（5つ星評価など）
@@ -236,7 +242,18 @@ STEP3: 決済・評価（お金の流れと次の集客へ）
 4. またSTEP1に戻る（好循環）
 
 **社長様のやること：**
-- ✅ 何もしなくてOK！自動で入金されます
+- ✅ 契約どおりの精算で入金される想定（自動送金を実装している場合は、その範囲で事務負担が減る）
+
+---
+
+### 決済・契約・法令について（運用・ドキュメントの指針）
+
+- **お客様（消費者）との取引**は、業態・表示の仕方によっては**特定商取引法や表示に関するルール**の対象になり得ます。消費者庁は、特商法が不適正な勧誘・取引を規制し消費者保護のルールを定めるものと説明しています。
+  - 参考：[消費者庁「特定商取引法」](https://www.caa.go.jp/policies/policy/consumer_transaction/specified_commercial_transactions/)
+- **クレジットカード決済や決済代行**を扱う場合は、**割賦販売法**や**カード情報の安全管理**など、別の法整理が関係し得ます。業者向けの整理は経済産業省のページが入口になります。
+  - 参考：[経済産業省「クレジット取引」](https://www.meti.go.jp/policy/economy/consumer/credit/index.html)
+
+**本 README の法務記述は一般的な留意点の共有であり、個別案件の適法性判断はできません。** 取引設計・表示・契約書は専門家に依頼してください。
 
 ---
 
@@ -251,9 +268,9 @@ STEP3: 決済・評価（お金の流れと次の集客へ）
 - お客様が困った時にすぐ相談できる
 - 良い評価が集まると自動的に検索順位が上がる
 
-#### 3. **お金の流れが透明**
-- 手数料（30%）と工場への支払い（70%）が自動計算
-- 入金も自動で行われるので、請求書作成や入金確認の手間がない
+#### 3. **お金の流れが説明しやすい**
+- お客様には決済・請求窓口を最初から明示し、手数料と工場への精算は契約・規約で定める（例：手数料◯％控除後の精算）
+- 決済サービスと組み合わせれば履歴も残しやすく、請求・入金確認の事務も軽減しやすい
 
 ---
 
@@ -266,9 +283,9 @@ STEP3: 決済・評価（お金の流れと次の集客へ）
 3. **社長様**：スマホに通知「新規案件が届きました！」
 4. **社長様**：ダッシュボードで確認 → お客様に電話「日程調整しましょう」
 5. **社長様**：現場で修理 → ダッシュボードで「完了」ボタン
-6. **システム**：お客様に「修理完了&支払い案内」を自動送信
-7. **お客様**：振り込み → 評価入力「5つ星！」
-8. **システム**：手数料30%を差し引き → 残り70%を工場に自動入金
+6. **システム**：お客様に「修理完了&支払い案内」を自動送信（決済・請求窓口が当センターであることは事前説明済みとする）
+7. **お客様**：案内どおりに決済（振込または Stripe 等）→ 評価入力「5つ星！」
+8. **システム**：契約どおり手数料を控除し、残額を工場に精算（自動でも手続きでも可）
 9. **システム**：良い評価で検索順位UP → 次のお客様が来る
 
 **社長様がやったこと：確認 → 連絡&修理 → 報告（完了ボタン）**
@@ -419,8 +436,8 @@ NOTION_FACTORY_DB_ID=c0df759557bb4b088492760ae3c8bc4a
 
 # メール通知機能（Resend推奨）
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-# Resend無料運用の例（独自ドメイン未設定の場合）
-FROM_EMAIL=onboarding@resend.dev
+# Resend で camper-repair.net を認証済みの場合
+FROM_EMAIL=info@camper-repair.net
 
 # JWT認証設定（工場ダッシュボード認証機能用）
 JWT_SECRET_KEY=your-super-secret-key-change-this-in-production-min-32-characters
@@ -1307,6 +1324,8 @@ python unified_backend_api.py
 
 キャンピングカー所有者（お客様）向けの修理工場マッチングランディングページです。修理工場・大工・公務店・自動車整備工場を簡単に探せるサービスを提供します。
 
+**運用上**：当センターが決済・請求の窓口となる場合は、LP・利用規約・問い合わせ〜見積もりの段階で**最初からその旨を明示**する（詳細は上文「STEP3」「決済・契約・法令について」。特定商取引法上の表示が必要になり得ます）。
+
 #### 構成セクション（お客様用）
 
 1. **ヒーローセクション**
@@ -1380,14 +1399,14 @@ https://your-domain.com/lp-camper-repair
 
 問い合わせフォーム送信時、以下が実行されます：
 
-1. **Resendでメール送信** → `info@okayama-camper-repair.net` に届く
+1. **Resendでメール送信** → **送信先（To）** [`shop@rq-plus.com`](mailto:shop@rq-plus.com)（コード上固定）、さらに任意の `INQUIRY_BACKUP_EMAIL` がある場合も同時に送信
 2. **Notion商談DBに保存** → [商談DB](https://www.notion.so/0976749dbf3f47a58990cdd1b50c5437) に新規ページ作成
 
 **必要な環境変数**（`frontend/.env.local` または Vercel の Variables）:
 
 ```env
-RESEND_API_KEY=re_xxxxx          # Resend APIキー（ドメイン okayama-camper-repair.net 設定済み）
-FROM_EMAIL=info@okayama-camper-repair.net
+RESEND_API_KEY=re_xxxxx          # Resend APIキー（camper-repair.net が Domain verified であること）
+FROM_EMAIL=info@camper-repair.net
 NOTION_API_KEY=ntn_xxxxx         # Notion APIキー
 NOTION_DEAL_DB_ID=0976749dbf3f47a58990cdd1b50c5437
 ```
@@ -1435,7 +1454,8 @@ NOTION_DEAL_DB_ID=0976749dbf3f47a58990cdd1b50c5437
 
 6. **料金モデル**
    - 登録費：無料
-   - 手数料：売上の10〜20%（修理完了後に支払い）
+   - 手数料：売上の10〜20%（例：修理完了・入金後に、売上から控除して精算）
+   - **パートナー契約には「売上から手数料を差し引いて精算する」旨を明記**し、手数料率・支払日・キャンセル・返金ルールを書面でそろえる（詳細は README の「決済・契約・法令について」を参照）
 
 7. **事例紹介**
    - 大工さんでもできた
@@ -1448,7 +1468,8 @@ NOTION_DEAL_DB_ID=0976749dbf3f47a58990cdd1b50c5437
    - 自宅でもできますか？
    - 遠方からの依頼は？
    - 個人事業主でも登録できますか？
-   - 手数料はいつ支払われますか？
+   - 手数料はいつ支払われますか？（契約で定めた精算サイクル・支払日に合わせる）
+   - お客様への請求・決済は誰が窓口ですか？（LP・規約では「当センターが決済・請求窓口」と明示する運用を README と整合させる）
 
 9. **パートナー登録フォーム**
    - 名前、会社名、電話番号、メールアドレス
@@ -1499,7 +1520,7 @@ https://your-domain.com/lp-partner-recruit
 
 パートナー登録フォーム送信時、以下が実行されます：
 
-1. **Resendでメール送信** → `info@okayama-camper-repair.net` に届く
+1. **Resendでメール送信** → 送信先（To）[shop@rq-plus.com](mailto:shop@rq-plus.com)、送信元（From）は `FROM_EMAIL`（既定 `info@camper-repair.net`）
 2. **NotionパートナーDBに保存** → [パートナーDB](https://www.notion.so/51ac4a26485544e89a4f6d5e28919bc7) に新規ページ作成（店舗ID: LP申込-YYYYMMDD-xxx）
 
 **必要な環境変数**（lp-camper-repair と同じ）: `RESEND_API_KEY`, `FROM_EMAIL`, `NOTION_API_KEY`, `NOTION_PARTNER_DB_ID`
@@ -1539,8 +1560,8 @@ Notionで修理ステータスを更新すると、お客様に自動でメー�
 
 #### 3. 送信元（From）を設定
 
-最初は Resend のデフォルト送信元（例: `onboarding@resend.dev`）を使えます。  
-独自ドメイン（例: `info@camper-repair.net`）で送る場合は、Resendでドメイン追加→DNS設定→検証を行ってください。
+本番では Resend で **camper-repair.net** を Domain verified にし、`FROM_EMAIL=info@camper-repair.net` を使います（API の `from` は [`app/api/inquiry/route.ts`](frontend/app/api/inquiry/route.ts) を参照）。  
+DNS 未設定の検証だけなら `onboarding@resend.dev` も利用可能です。
 
 #### 4. 環境変数を設定
 
@@ -1549,10 +1570,12 @@ Notionで修理ステータスを更新すると、お客様に自動でメー�
 ```bash
 # Resend設定
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-FROM_EMAIL=onboarding@resend.dev
+FROM_EMAIL=info@camper-repair.net
 ```
 
 #### 5. 本番環境（Railway）に環境変数を設定
+
+（Next.js LP を **Vercel** に載せている場合は、同等の名前で **Vercel の Environment Variables** に設定してください。）
 
 1. [Railway Dashboard](https://railway.app)にログイン
 2. プロジェクトを選択
@@ -1941,7 +1964,7 @@ Content-Type: application/json
    
    # メール通知機能（Resend）
    RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-   FROM_EMAIL=onboarding@resend.dev
+   FROM_EMAIL=info@camper-repair.net
    ```
    
    **JWT_SECRET_KEYの生成方法:**

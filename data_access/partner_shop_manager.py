@@ -6,9 +6,12 @@
 """
 
 import os
+import logging
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 from data_access.notion_client import notion_client
+
+logger = logging.getLogger(__name__)
 
 
 class PartnerShopManager:
@@ -174,22 +177,16 @@ class PartnerShopManager:
         Returns:
             パートナー修理店リスト
         """
-        # #region agent log
-        import json, time
-        log_payload = {
-            "location":"partner_shop_manager.py:95",
-            "message":"list_shops called",
-            "data":{"status":status,"prefecture":prefecture,"specialty":specialty,"limit":limit,"partner_db_id":self.partner_db_id},
-            "timestamp":int(time.time()*1000),
-            "sessionId":"debug-session",
-            "hypothesisId":"A"
-        }
-        try:
-            with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps(log_payload, ensure_ascii=False)+"\n")
-        except: pass
-        print("[AgentLog][A] list_shops called:", log_payload["data"])
-        # #endregion
+        logger.debug(
+            "list_shops called",
+            extra={
+                "status": status,
+                "prefecture": prefecture,
+                "specialty": specialty,
+                "limit": limit,
+                "partner_db_id_set": bool(self.partner_db_id),
+            },
+        )
         try:
             filters = []
             normalized_prefecture = None
@@ -246,25 +243,21 @@ class PartnerShopManager:
             if filters:
                 query["filter"] = {"and": filters} if len(filters) > 1 else filters[0]
             
-            # #region agent log
-            import json, time
-            try:
-                with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
-                    f.write(json.dumps({"location":"partner_shop_manager.py:147","message":"Before Notion query","data":{"query":query,"has_filter":bool(filters),"use_partial_match":use_partial_match,"normalized_prefecture":normalized_prefecture},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"B"}, ensure_ascii=False)+"\n")
-            except: pass
-            print("[AgentLog][B] Before Notion query:", {"has_filter": bool(filters), "use_partial_match": use_partial_match, "normalized_prefecture": normalized_prefecture})
-            # #endregion
+            logger.debug(
+                "Before partner shop Notion query",
+                extra={
+                    "has_filter": bool(filters),
+                    "use_partial_match": use_partial_match,
+                    "normalized_prefecture": normalized_prefecture,
+                },
+            )
             
             response = self.notion.databases.query(**query)
             
-            # #region agent log
-            import json, time
-            try:
-                with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
-                    f.write(json.dumps({"location":"partner_shop_manager.py:150","message":"After Notion query","data":{"results_count":len(response.get("results",[])),"has_more":response.get("has_more",False)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"B"}, ensure_ascii=False)+"\n")
-            except: pass
-            print("[AgentLog][B] After Notion query:", {"results_count": len(response.get("results", [])), "has_more": response.get("has_more", False)})
-            # #endregion
+            logger.debug(
+                "After partner shop Notion query",
+                extra={"results_count": len(response.get("results", [])), "has_more": response.get("has_more", False)},
+            )
             
             shops = []
             for page in response.get("results", []):
@@ -286,27 +279,12 @@ class PartnerShopManager:
             if use_partial_match:
                 shops = shops[:limit]
             
-            # #region agent log
-            import json, time
-            try:
-                with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
-                    f.write(json.dumps({"location":"partner_shop_manager.py:153","message":"list_shops success","data":{"shops_count":len(shops)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"A"}, ensure_ascii=False)+"\n")
-            except: pass
-            print("[AgentLog][A] list_shops success:", {"shops_count": len(shops)})
-            # #endregion
+            logger.debug("list_shops success", extra={"shops_count": len(shops)})
             
             return shops
             
         except Exception as e:
-            # #region agent log
-            import json, time
-            try:
-                with open(r"c:\Users\PC user\OneDrive\Desktop\移行用まとめフォルダー\.cursor\debug.log", "a", encoding="utf-8") as f:
-                    f.write(json.dumps({"location":"partner_shop_manager.py:156","message":"list_shops error","data":{"error":str(e),"error_type":type(e).__name__},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"C"}, ensure_ascii=False)+"\n")
-            except: pass
-            print("[AgentLog][C] list_shops error:", {"error": str(e)})
-            # #endregion
-            print(f"❌ パートナー修理店一覧取得エラー: {e}")
+            logger.error("パートナー修理店一覧取得エラー", exc_info=True)
             return []
     
     def get_shop(self, shop_id: str) -> Optional[Dict[str, Any]]:
